@@ -1,0 +1,1397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>⬡ SOVEREIGN RELAY</title>
+<style>
+:root{
+  --bg:#060608;--bg2:#0d0d12;--bg3:#12121a;
+  --border:#1a1a28;--border2:#242438;
+  --green:#00ff88;--cyan:#00d4ff;--purple:#a855f7;
+  --yellow:#fbbf24;--red:#ff3366;--orange:#ff6b35;
+  --text:#f1f5f9;--text2:#cbd5e1;--text3:#94a3b8;
+  --mono:'Courier New',Courier,monospace;
+  --ui:system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;
+  --glow-g:0 0 20px rgba(0,255,136,0.3);
+  --glow-c:0 0 20px rgba(0,212,255,0.3);
+  --glow-p:0 0 20px rgba(168,85,247,0.3);
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;overflow:hidden;}
+body{
+  background:var(--bg);color:var(--text);font-family:var(--ui);
+  background-image:
+    radial-gradient(ellipse 80% 50% at 15% 15%,rgba(0,212,255,0.03),transparent),
+    radial-gradient(ellipse 60% 70% at 85% 85%,rgba(168,85,247,0.03),transparent),
+    repeating-linear-gradient(0deg,transparent,transparent 40px,rgba(255,255,255,0.004) 40px,rgba(255,255,255,0.004) 41px),
+    repeating-linear-gradient(90deg,transparent,transparent 40px,rgba(255,255,255,0.004) 40px,rgba(255,255,255,0.004) 41px);
+}
+
+/* ── BOOT ── */
+#boot{position:fixed;inset:0;z-index:500;background:rgba(6,6,8,0.97);backdrop-filter:blur(16px);display:flex;align-items:center;justify-content:center;}
+.boot-box{background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:36px;width:480px;max-width:94vw;}
+.boot-logo{font-family:var(--mono);font-size:11px;font-weight:700;color:var(--cyan);letter-spacing:2.5px;text-shadow:var(--glow-c);margin-bottom:6px;}
+.boot-h{font-size:20px;font-weight:700;color:var(--text);margin-bottom:4px;}
+.boot-sub{font-size:10px;color:var(--text3);font-family:var(--mono);margin-bottom:22px;line-height:1.7;}
+.field{margin-bottom:14px;}
+.field label{display:block;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text3);margin-bottom:5px;}
+.field input,.field textarea{width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;color:var(--text);font-family:var(--mono);font-size:11px;padding:9px 12px;outline:none;transition:border-color .2s;}
+.field input:focus,.field textarea:focus{border-color:var(--cyan);}
+.field input::placeholder,.field textarea::placeholder{color:var(--text3);}
+.btn{font-family:var(--ui);font-size:11px;font-weight:600;padding:9px 18px;border-radius:4px;border:1px solid var(--border2);background:transparent;color:var(--text);cursor:pointer;transition:all .2s;letter-spacing:.5px;text-transform:uppercase;}
+.btn:hover{background:rgba(255,255,255,0.04);}
+.btn.c{border-color:var(--cyan);color:var(--cyan);}
+.btn.c:hover{background:rgba(0,212,255,0.08);box-shadow:var(--glow-c);}
+.btn.g{border-color:var(--green);color:var(--green);}
+.btn.g:hover{background:rgba(0,255,136,0.08);box-shadow:var(--glow-g);}
+.btn.p{border-color:var(--purple);color:var(--purple);}
+.btn.p:hover{background:rgba(168,85,247,0.08);box-shadow:var(--glow-p);}
+.btn.r{border-color:var(--red);color:var(--red);}
+.btn:disabled{opacity:.3;cursor:not-allowed;}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;}
+.did-box{background:var(--bg3);border:1px solid rgba(0,212,255,0.2);border-radius:4px;padding:10px 12px;font-family:var(--mono);font-size:9px;color:var(--cyan);word-break:break-all;margin-bottom:10px;text-shadow:var(--glow-c);}
+.boot-note{font-family:var(--mono);font-size:8px;color:var(--text3);margin-top:10px;line-height:1.7;}
+.boot-detecting{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:10px;color:var(--text3);}
+.spin{width:16px;height:16px;border:2px solid var(--border2);border-top-color:var(--cyan);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0;}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── APP ── */
+#app{display:none;height:100vh;flex-direction:column;}
+#app.up{display:flex;}
+
+/* ── TOPBAR ── */
+#topbar{height:48px;background:rgba(6,6,8,0.94);backdrop-filter:blur(12px);border-bottom:1px solid var(--border2);display:flex;align-items:center;padding:0 16px;gap:10px;flex-shrink:0;z-index:100;}
+.tb-logo{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--cyan);letter-spacing:2px;text-shadow:var(--glow-c);flex-shrink:0;}
+.tb-sep{color:var(--border2);}
+.tb-user{font-family:var(--mono);font-size:11px;color:var(--purple);font-weight:600;}
+.tb-right{margin-left:auto;display:flex;align-items:center;gap:8px;}
+.tbadge{display:flex;align-items:center;gap:4px;padding:3px 8px;border-radius:3px;border:1px solid var(--border2);font-family:var(--mono);font-size:8px;color:var(--text3);transition:all .3s;white-space:nowrap;}
+.tbadge .dot{width:5px;height:5px;border-radius:50%;background:var(--text3);transition:all .3s;flex-shrink:0;}
+.tbadge.live{border-color:var(--green);color:var(--green);}
+.tbadge.live .dot{background:var(--green);box-shadow:0 0 6px rgba(0,255,136,.7);animation:pulse 2s infinite;}
+.tbadge.warn{border-color:var(--yellow);color:var(--yellow);}
+.tbadge.warn .dot{background:var(--yellow);}
+.tbadge.err{border-color:var(--red);color:var(--red);}
+.tbadge.err .dot{background:var(--red);}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ── TABNAV ── */
+#tabnav{display:flex;border-bottom:1px solid var(--border2);background:rgba(6,6,8,0.7);flex-shrink:0;}
+.tab-btn{padding:10px 16px;font-size:10px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;cursor:pointer;color:var(--text3);border-bottom:2px solid transparent;border:none;background:none;font-family:var(--ui);transition:all .2s;white-space:nowrap;}
+.tab-btn:hover{color:var(--text2);}
+.tab-btn.active{color:var(--cyan);border-bottom:2px solid var(--cyan);}
+
+/* ── CONTENT ── */
+#content{flex:1;overflow:hidden;display:flex;min-height:0;}
+.tab-pane{display:none;flex:1;overflow:hidden;min-height:0;}
+.tab-pane.active{display:flex;}
+
+/* ══════════════════════════════
+   PEER GRAPH TAB
+══════════════════════════════ */
+#pane-graph{position:relative;background:var(--bg);}
+#graph-canvas{position:absolute;inset:0;width:100%;height:100%;cursor:grab;}
+#graph-canvas:active{cursor:grabbing;}
+.graph-overlay{position:absolute;top:16px;left:16px;display:flex;flex-direction:column;gap:8px;pointer-events:none;}
+.graph-stat{background:rgba(6,6,8,0.8);border:1px solid var(--border2);border-radius:6px;padding:8px 14px;font-family:var(--mono);font-size:9px;color:var(--text3);}
+.graph-stat span{color:var(--cyan);}
+.graph-actions{position:absolute;bottom:16px;right:16px;display:flex;gap:8px;}
+.graph-btn{background:rgba(6,6,8,0.85);border:1px solid var(--border2);border-radius:5px;padding:7px 12px;font-family:var(--mono);font-size:9px;color:var(--text2);cursor:pointer;transition:.2s;backdrop-filter:blur(8px);}
+.graph-btn:hover{border-color:var(--cyan);color:var(--cyan);}
+/* node tooltip */
+#node-tooltip{
+  position:absolute;display:none;pointer-events:none;z-index:10;
+  background:rgba(6,6,8,0.92);border:1px solid var(--border2);
+  border-radius:6px;padding:8px 12px;font-family:var(--mono);font-size:9px;
+  backdrop-filter:blur(8px);
+}
+.nt-name{color:var(--purple);font-weight:700;margin-bottom:3px;}
+.nt-did{color:var(--text3);font-size:8px;margin-bottom:3px;word-break:break-all;}
+.nt-stat{color:var(--green);}
+
+/* ══════════════════════════════
+   PEERS TAB
+══════════════════════════════ */
+#pane-peers{flex-direction:column;overflow-y:auto;}
+.pane-wrap{max-width:760px;width:100%;padding:20px;}
+.pane-hdr{margin-bottom:18px;}
+.pane-hdr h2{font-size:14px;font-weight:700;color:var(--cyan);letter-spacing:1px;text-transform:uppercase;}
+.pane-hdr p{font-size:10px;color:var(--text3);font-family:var(--mono);margin-top:2px;}
+.connect-form{background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:16px;margin-bottom:20px;}
+.form-title{font-size:10px;font-weight:600;color:var(--cyan);letter-spacing:1px;text-transform:uppercase;margin-bottom:12px;}
+.form-row{display:grid;grid-template-columns:1fr 200px;gap:10px;align-items:end;}
+@media(max-width:560px){.form-row{grid-template-columns:1fr;}}
+.form-row .field{margin:0;}
+#peer-list{display:flex;flex-direction:column;gap:8px;}
+.peer-card{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;display:flex;align-items:center;gap:12px;transition:.15s;position:relative;overflow:hidden;}
+.peer-card::before{content:'';position:absolute;left:0;top:0;width:3px;height:100%;background:var(--pc,var(--border2));}
+.peer-card.state-connected{--pc:var(--green);}
+.peer-card.state-connecting{--pc:var(--yellow);}
+.peer-card.state-offline{--pc:var(--border2);}
+.pc-av{width:36px;height:36px;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:16px;background:var(--bg3);border:1px solid var(--border2);}
+.peer-card.state-connected .pc-av{border-color:rgba(0,255,136,0.3);}
+.pc-info{flex:1;min-width:0;}
+.pc-name{font-size:12px;font-weight:600;color:var(--text);margin-bottom:2px;}
+.pc-did{font-family:var(--mono);font-size:8px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pc-state{font-family:var(--mono);font-size:8px;margin-top:3px;}
+.pc-state.connected{color:var(--green);}
+.pc-state.connecting{color:var(--yellow);}
+.pc-state.offline{color:var(--text3);}
+.pc-meta{text-align:right;font-family:var(--mono);font-size:9px;color:var(--text3);flex-shrink:0;}
+.pc-latency{color:var(--cyan);font-size:11px;font-weight:700;}
+.pc-actions{display:flex;gap:5px;margin-left:8px;flex-shrink:0;}
+.icon-btn{width:28px;height:28px;border-radius:4px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer;transition:.15s;display:flex;align-items:center;justify-content:center;font-size:11px;}
+.icon-btn:hover{border-color:var(--cyan);color:var(--cyan);}
+.icon-btn.r:hover{border-color:var(--red);color:var(--red);}
+/* progress bar for file transfer */
+.xfer-bar{height:2px;background:var(--border2);border-radius:1px;margin-top:6px;overflow:hidden;}
+.xfer-fill{height:100%;background:var(--cyan);border-radius:1px;width:0%;transition:width .1s;}
+
+/* ══════════════════════════════
+   CHANNEL TAB (direct chat via DataChannel)
+══════════════════════════════ */
+#pane-channel{flex-direction:row;}
+#chan-list{width:240px;border-right:1px solid var(--border2);display:flex;flex-direction:column;flex-shrink:0;background:var(--bg2);}
+.cl-header{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.cl-title{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);}
+#channels{flex:1;overflow-y:auto;}
+.chan-item{padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer;transition:.15s;display:flex;align-items:center;gap:9px;}
+.chan-item:hover{background:rgba(255,255,255,0.02);}
+.chan-item.active{background:rgba(0,212,255,0.05);}
+.ci-av{width:30px;height:30px;border-radius:5px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;background:var(--bg3);border:1px solid var(--border2);}
+.chan-item.active .ci-av{border-color:var(--cyan);}
+.ci-info{flex:1;min-width:0;}
+.ci-name{font-size:11px;font-weight:600;color:var(--text);}
+.ci-status{font-size:8px;font-family:var(--mono);}
+.ci-status.live{color:var(--green);}
+.ci-status.dead{color:var(--text3);}
+.ci-unread{background:var(--cyan);color:var(--bg);border-radius:8px;padding:1px 6px;font-size:7px;font-weight:700;display:none;}
+.ci-unread.show{display:block;}
+#chan-panel{flex:1;display:flex;flex-direction:column;background:var(--bg);min-width:0;}
+#chan-empty{flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;}
+.chan-empty-g{font-size:40px;opacity:.1;}
+.chan-empty-t{font-size:13px;color:var(--text3);}
+.chan-empty-s{font-size:10px;color:var(--border2);font-family:var(--mono);}
+#chan-header{padding:10px 16px;border-bottom:1px solid var(--border2);display:flex;align-items:center;gap:10px;background:rgba(6,6,8,0.7);flex-shrink:0;display:none;}
+.chh-av{width:28px;height:28px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:11px;background:var(--bg3);border:1px solid rgba(0,255,136,0.3);flex-shrink:0;}
+.chh-name{font-size:12px;font-weight:700;color:var(--text);}
+.chh-state{font-family:var(--mono);font-size:8px;}
+.chh-state.live{color:var(--green);}
+.chh-state.dead{color:var(--red);}
+#chan-msgs{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:5px;display:none;}
+.cmsg{display:flex;gap:7px;max-width:82%;animation:fadeUp .12s ease-out;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+.cmsg.out{align-self:flex-end;flex-direction:row-reverse;}
+.cmsg-av{width:22px;height:22px;border-radius:3px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:9px;background:var(--bg3);border:1px solid var(--border2);}
+.cmsg-body{background:var(--bg2);border:1px solid var(--border);border-radius:7px;padding:7px 10px;font-size:11px;line-height:1.6;color:var(--text2);word-break:break-word;}
+.cmsg.out .cmsg-body{background:rgba(0,212,255,0.08);border-color:rgba(0,212,255,0.2);color:var(--text);}
+/* file message */
+.cmsg-file{background:rgba(168,85,247,0.06);border:1px solid rgba(168,85,247,0.2);border-radius:7px;padding:8px 11px;display:flex;align-items:center;gap:8px;cursor:pointer;transition:.15s;}
+.cmsg-file:hover{border-color:rgba(168,85,247,0.4);}
+.cmsg-file-icon{font-size:16px;flex-shrink:0;}
+.cmsg-file-info{flex:1;min-width:0;}
+.cmsg-file-name{font-size:10px;font-weight:600;color:var(--purple);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.cmsg-file-size{font-family:var(--mono);font-size:8px;color:var(--text3);}
+.cmsg-time{font-size:7px;color:var(--text3);font-family:var(--mono);margin-top:2px;text-align:right;}
+.cmsg.out .cmsg-time{color:rgba(0,212,255,0.4);}
+.sys-line{align-self:center;font-family:var(--mono);font-size:8px;color:var(--text3);padding:3px 10px;background:rgba(255,255,255,0.02);border-radius:10px;border:1px solid var(--border);}
+#chan-compose{border-top:1px solid var(--border2);padding:10px 14px;background:rgba(6,6,8,0.7);flex-shrink:0;display:none;}
+.cc-row{display:flex;gap:7px;align-items:flex-end;}
+#chan-input{flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-family:var(--ui);font-size:12px;padding:8px 10px;outline:none;resize:none;transition:border-color .2s;max-height:100px;min-height:36px;}
+#chan-input:focus{border-color:var(--cyan);}
+.cc-send{width:34px;height:34px;border-radius:5px;background:var(--cyan);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.2s;flex-shrink:0;}
+.cc-send:hover{background:#00eeff;box-shadow:var(--glow-c);}
+.cc-send:disabled{opacity:.3;cursor:not-allowed;}
+.cc-file{width:34px;height:34px;border-radius:5px;background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.2);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.2s;flex-shrink:0;font-size:13px;color:var(--purple);}
+.cc-file:hover{background:rgba(168,85,247,0.2);border-color:var(--purple);}
+.cc-status{font-family:var(--mono);font-size:8px;color:var(--text3);margin-top:4px;}
+
+/* ══════════════════════════════
+   SIGNAL LOG TAB
+══════════════════════════════ */
+#pane-signal{flex-direction:column;overflow-y:auto;}
+.log-wrap{max-width:860px;width:100%;padding:20px;}
+.log-controls{display:flex;gap:8px;margin-bottom:12px;align-items:center;}
+.log-filter{font-family:var(--mono);font-size:9px;padding:4px 10px;border-radius:3px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer;transition:.15s;}
+.log-filter:hover{border-color:var(--text2);color:var(--text2);}
+.log-filter.active{border-color:var(--cyan);color:var(--cyan);background:rgba(0,212,255,0.07);}
+.log-area{font-family:var(--mono);font-size:9px;line-height:1.9;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:12px;min-height:400px;max-height:calc(100vh - 200px);overflow-y:auto;}
+.ll{padding:1px 0;display:flex;gap:8px;}
+.ll-ts{color:var(--border2);flex-shrink:0;font-size:8px;}
+.ll-tag{flex-shrink:0;width:56px;font-size:8px;font-weight:700;text-align:right;}
+.ll-msg{word-break:break-all;}
+.ll.ok .ll-tag{color:var(--green);}
+.ll.ok .ll-msg{color:var(--text2);}
+.ll.info .ll-tag{color:var(--cyan);}
+.ll.info .ll-msg{color:var(--text3);}
+.ll.warn .ll-tag{color:var(--yellow);}
+.ll.warn .ll-msg{color:var(--text3);}
+.ll.err .ll-tag{color:var(--red);}
+.ll.err .ll-msg{color:var(--text3);}
+.ll.rtc .ll-tag{color:var(--purple);}
+.ll.rtc .ll-msg{color:var(--text3);}
+.ll.data .ll-tag{color:var(--orange);}
+.ll.data .ll-msg{color:var(--text3);}
+
+/* ── MODAL ── */
+#modal{position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.8);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;}
+#modal.open{display:flex;}
+.modal-box{background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:28px;width:440px;max-width:94vw;}
+.modal-title{font-size:14px;font-weight:700;color:var(--cyan);margin-bottom:16px;}
+.ferr{font-family:var(--mono);font-size:9px;color:var(--red);margin-top:6px;}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:20px;right:20px;z-index:999;background:var(--bg2);border:1px solid var(--green);border-radius:6px;padding:8px 14px;font-family:var(--mono);font-size:10px;color:var(--green);animation:toastOut 2.2s forwards;pointer-events:none;}
+@keyframes toastOut{0%,60%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(6px)}}
+
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════
+     BOOT
+═══════════════════════════════════════════════ -->
+<div id="boot">
+  <!-- Detecting genesis -->
+  <div class="boot-box" id="boot-detecting">
+    <div class="boot-logo">⬡ SOVEREIGN RELAY NODE</div>
+    <div class="boot-h">Linking to Genesis Node</div>
+    <div class="boot-sub">Looking for your identity on the local Sovereign bus…</div>
+    <div class="boot-detecting">
+      <div class="spin"></div>
+      <span id="detect-status">Listening on BroadcastChannel…</span>
+    </div>
+    <div class="boot-note" style="margin-top:16px;">
+      Open <strong style="color:var(--cyan);">sovereign_genesis.html</strong> in another tab to auto-link.<br>
+      Or paste your DID manually below.
+    </div>
+    <div style="margin-top:16px;">
+      <button class="btn c" onclick="showManualBoot()">Paste DID Manually</button>
+    </div>
+  </div>
+
+  <!-- Manual DID entry -->
+  <div class="boot-box" id="boot-manual" style="display:none">
+    <div class="boot-logo">⬡ SOVEREIGN RELAY NODE</div>
+    <div class="boot-h">Manual Identity Link</div>
+    <div class="boot-sub">Paste your DID from the Genesis Node Identity tab.</div>
+    <div class="field">
+      <label>Your DID</label>
+      <input type="text" id="manual-did" placeholder="did:sovereign:…" style="font-size:9px;">
+    </div>
+    <div class="field">
+      <label>Display Name</label>
+      <input type="text" id="manual-name" placeholder="arcane-node-1234">
+    </div>
+    <div class="btn-row">
+      <button class="btn g" onclick="bootManual()">⬡ Start Relay Node</button>
+    </div>
+    <div class="ferr" id="boot-err"></div>
+  </div>
+
+  <!-- Linked -->
+  <div class="boot-box" id="boot-linked" style="display:none">
+    <div class="boot-logo">⬡ GENESIS LINK ESTABLISHED</div>
+    <div class="boot-h">Identity Synced</div>
+    <div class="boot-sub">Relay node is ready. You can connect to peers across any network.</div>
+    <div style="font-size:11px;font-weight:700;color:var(--purple);margin-bottom:6px;" id="linked-name"></div>
+    <div class="did-box" id="linked-did"></div>
+    <div class="boot-note">
+      ⬡ WebRTC direct channels · STUN-negotiated · MQTT signaling only<br>
+      ⬡ After handshake, MQTT is dropped — all traffic peer-to-peer
+    </div>
+    <div class="btn-row" style="margin-top:16px;">
+      <button class="btn g" onclick="enterRelay()">⬡ Open Relay Node</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     APP
+═══════════════════════════════════════════════ -->
+<div id="app">
+  <div id="topbar">
+    <div class="tb-logo">⬡ RELAY</div>
+    <div class="tb-sep">·</div>
+    <div class="tb-user" id="tb-user">—</div>
+    <div class="tb-right">
+      <div class="tbadge" id="badge-rtc" title="WebRTC Peers">
+        <div class="dot"></div>
+        <span id="badge-rtc-lbl">0 PEERS</span>
+      </div>
+      <div class="tbadge" id="badge-sig" title="MQTT Signaling">
+        <div class="dot"></div>
+        <span id="badge-sig-lbl">SIGNAL</span>
+      </div>
+      <div class="tbadge live" title="Genesis Node Bus">
+        <div class="dot"></div>
+        <span>GENESIS</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="tabnav">
+    <button class="tab-btn active" data-tab="graph" onclick="showTab('graph')">⬡ Peer Graph</button>
+    <button class="tab-btn" data-tab="peers" onclick="showTab('peers')">⬡ Peers</button>
+    <button class="tab-btn" data-tab="channel" onclick="showTab('channel')">⬡ Channels</button>
+    <button class="tab-btn" data-tab="signal" onclick="showTab('signal')">⬡ Signal Log</button>
+  </div>
+
+  <div id="content">
+
+    <!-- GRAPH -->
+    <div class="tab-pane active" id="pane-graph">
+      <canvas id="graph-canvas"></canvas>
+      <div class="graph-overlay">
+        <div class="graph-stat">Peers connected: <span id="gs-peers">0</span></div>
+        <div class="graph-stat">Channels open: <span id="gs-channels">0</span></div>
+        <div class="graph-stat">Data sent: <span id="gs-sent">0 B</span></div>
+        <div class="graph-stat">Data recv: <span id="gs-recv">0 B</span></div>
+      </div>
+      <div id="node-tooltip">
+        <div class="nt-name" id="nt-name"></div>
+        <div class="nt-did" id="nt-did"></div>
+        <div class="nt-stat" id="nt-stat"></div>
+      </div>
+      <div class="graph-actions">
+        <div class="graph-btn" onclick="resetGraphLayout()">Reset Layout</div>
+        <div class="graph-btn" onclick="connectPeer()">＋ Add Peer</div>
+      </div>
+    </div>
+
+    <!-- PEERS -->
+    <div class="tab-pane" id="pane-peers">
+      <div class="pane-wrap">
+        <div class="pane-hdr">
+          <h2>PEERS</h2>
+          <p>Direct WebRTC connections — P2P after STUN handshake, no middleman</p>
+        </div>
+        <div class="connect-form">
+          <div class="form-title">CONNECT TO PEER</div>
+          <div class="form-row">
+            <div class="field"><label>Peer DID</label><input type="text" id="peer-did-input" placeholder="did:sovereign:…" style="font-size:9px;"></div>
+            <div class="field"><label>Display Name</label><input type="text" id="peer-name-input" placeholder="Alice, Home Node…"></div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:10px;align-items:center;">
+            <button class="btn g" onclick="initiateConnect()">⬡ Connect</button>
+            <button class="btn c" onclick="openModal()">Paste SDP Offer</button>
+            <div class="ferr" id="peer-err"></div>
+          </div>
+        </div>
+        <div id="peer-list"></div>
+      </div>
+    </div>
+
+    <!-- CHANNEL -->
+    <div class="tab-pane" id="pane-channel">
+      <div id="chan-list">
+        <div class="cl-header">
+          <div class="cl-title">Direct Channels</div>
+        </div>
+        <div id="channels"></div>
+      </div>
+      <div id="chan-panel">
+        <div id="chan-empty">
+          <div class="chan-empty-g">⬡</div>
+          <div class="chan-empty-t">No channel selected</div>
+          <div class="chan-empty-s">Connect a peer to open a direct channel</div>
+        </div>
+        <div id="chan-header">
+          <div class="chh-av" id="chh-av">👤</div>
+          <div>
+            <div class="chh-name" id="chh-name"></div>
+            <div class="chh-state" id="chh-state"></div>
+          </div>
+          <div style="margin-left:auto;display:flex;gap:6px;">
+            <button class="icon-btn" onclick="sendFilePrompt()" title="Send file">📎</button>
+            <button class="icon-btn" onclick="pingActive()" title="Ping latency">⚡</button>
+          </div>
+        </div>
+        <div id="chan-msgs"></div>
+        <div id="chan-compose">
+          <div class="cc-row">
+            <textarea id="chan-input" rows="1" placeholder="Message via WebRTC DataChannel… (Enter to send)"
+              oninput="autoResize(this)" onkeydown="chanKey(event)"></textarea>
+            <label class="cc-file" title="Send file">
+              📎<input type="file" id="file-input" style="display:none" onchange="sendFile(this)">
+            </label>
+            <button class="cc-send" onclick="sendChanMsg()">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5">
+                <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+              </svg>
+            </button>
+          </div>
+          <div class="cc-status" id="cc-status">⬡ WebRTC DataChannel · direct peer-to-peer</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SIGNAL LOG -->
+    <div class="tab-pane" id="pane-signal">
+      <div class="log-wrap">
+        <div class="pane-hdr">
+          <h2>SIGNAL LOG</h2>
+          <p>WebRTC ICE negotiation · MQTT signaling · DataChannel events</p>
+        </div>
+        <div class="log-controls">
+          <button class="log-filter active" data-f="all" onclick="setLogFilter('all')">All</button>
+          <button class="log-filter" data-f="rtc" onclick="setLogFilter('rtc')">WebRTC</button>
+          <button class="log-filter" data-f="sig" onclick="setLogFilter('sig')">Signal</button>
+          <button class="log-filter" data-f="data" onclick="setLogFilter('data')">Data</button>
+          <button class="log-filter" data-f="err" onclick="setLogFilter('err')">Errors</button>
+          <button class="btn" style="font-size:8px;padding:3px 8px;margin-left:auto;" onclick="clearLog()">Clear</button>
+        </div>
+        <div class="log-area" id="sig-log"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- SDP MODAL -->
+<div id="modal">
+  <div class="modal-box">
+    <div class="modal-title">⬡ Manual SDP Exchange</div>
+    <div class="field">
+      <label>Peer DID (who sent this offer)</label>
+      <input type="text" id="sdp-peer-did" placeholder="did:sovereign:…" style="font-size:9px;">
+    </div>
+    <div class="field">
+      <label>Paste SDP Offer / Answer here</label>
+      <textarea id="sdp-input" rows="6" style="font-size:9px;" placeholder='{"type":"offer","sdp":"v=0..."}&#10;&#10;Or paste an ICE candidate JSON here.'></textarea>
+    </div>
+    <div class="btn-row">
+      <button class="btn g" onclick="processSDP()">⬡ Process</button>
+      <button class="btn r" onclick="closeModal()">Cancel</button>
+    </div>
+    <div class="ferr" id="sdp-err"></div>
+  </div>
+</div>
+
+<script>
+'use strict';
+// ═══════════════════════════════════════════════════════════════
+//  SOVEREIGN RELAY NODE — Pure JS, Zero Dependencies
+//  Architecture:
+//    MQTT  → signaling only  (offer / answer / ICE candidates)
+//    STUN  → NAT traversal   (Google's free stun.l.google.com)
+//    WebRTC RTCPeerConnection → actual P2P after handshake
+//    RTCDataChannel → messages, files, ping/pong
+//    BroadcastChannel → genesis node identity sync
+// ═══════════════════════════════════════════════════════════════
+
+// ─────────────────────────────────────────────
+//  SHA-256 (browser native)
+// ─────────────────────────────────────────────
+async function sha256hex(s){
+  const b=typeof s==='string'?new TextEncoder().encode(s):s;
+  const h=await crypto.subtle.digest('SHA-256',b);
+  return Array.from(new Uint8Array(h)).map(x=>x.toString(16).padStart(2,'0')).join('');
+}
+
+// ─────────────────────────────────────────────
+//  MINI MQTT 3.1.1 (pure JS — signaling only)
+// ─────────────────────────────────────────────
+class MiniMQTT{
+  constructor(){
+    this.ws=null;this.ok=false;
+    this.cid='relay-'+Math.random().toString(36).slice(2,10);
+    this.subs={};this.pingT=null;this.reT=null;this.retry=0;
+    this.buf=new Uint8Array(0);this.onUp=null;this.onDn=null;
+  }
+  connect(url='wss://broker.hivemq.com:8884/mqtt'){
+    this.url=url;rlog('info','SIG','MQTT connecting → '+url);
+    try{
+      this.ws=new WebSocket(url,['mqtt']);
+      this.ws.binaryType='arraybuffer';
+      this.ws.onopen=()=>this._con();
+      this.ws.onmessage=e=>this._recv(new Uint8Array(e.data));
+      this.ws.onclose=()=>this._close();
+      this.ws.onerror=()=>this._close();
+    }catch(e){rlog('err','MQTT',e.message);this._sched();}
+  }
+  disconnect(){this.retry=999;clearInterval(this.pingT);clearTimeout(this.reT);this.ws?.close();}
+  _str(s){const b=new TextEncoder().encode(s);return[b.length>>8,b.length&0xff,...b];}
+  _vl(n){const r=[];do{let d=n&0x7f;n>>=7;if(n>0)d|=0x80;r.push(d);}while(n>0);return r;}
+  _con(){
+    const id=this._str(this.cid);
+    const vh=[0,4,...new TextEncoder().encode('MQTT'),4,0x02,0,60];
+    const rem=[...vh,...id];
+    this._tx(new Uint8Array([0x10,...this._vl(rem.length),...rem]));
+  }
+  sub(topic,cb){if(!this.subs[topic])this.subs[topic]=[];this.subs[topic].push(cb);if(this.ok)this._sub(topic);}
+  _sub(t){const rem=[0,1,...this._str(t),0];this._tx(new Uint8Array([0x82,...this._vl(rem.length),...rem]));}
+  pub(topic,payload){
+    if(!this.ok)return false;
+    const t=this._str(topic),body=typeof payload==='string'?new TextEncoder().encode(payload):payload;
+    const rem=[...t,...body];this._tx(new Uint8Array([0x30,...this._vl(rem.length),...rem]));return true;
+  }
+  _tx(d){if(this.ws?.readyState===1)this.ws.send(d);}
+  _recv(chunk){
+    const m=new Uint8Array(this.buf.length+chunk.length);m.set(this.buf);m.set(chunk,this.buf.length);this.buf=m;
+    while(this.buf.length>=2){
+      let i=1,rem=0,mult=1;
+      do{if(i>=this.buf.length)return;rem+=(this.buf[i]&0x7f)*mult;mult*=128;i++;}while(this.buf[i-1]&0x80);
+      const tot=i+rem;if(this.buf.length<tot)return;
+      const pkt=this.buf.slice(0,tot);this.buf=this.buf.slice(tot);this._handle(pkt);
+    }
+  }
+  _handle(pkt){
+    const type=(pkt[0]&0xF0)>>4;
+    if(type===2){
+      this.ok=true;this.retry=0;
+      rlog('ok','SIG','MQTT connected ✓ id:'+this.cid);
+      Object.keys(this.subs).forEach(t=>this._sub(t));
+      clearInterval(this.pingT);
+      this.pingT=setInterval(()=>this._tx(new Uint8Array([0xC0,0x00])),25000);
+      sigBadge(true);if(this.onUp)this.onUp();
+    } else if(type===3){
+      let i=1,rem=0,mult=1;
+      do{rem+=(pkt[i]&0x7f)*mult;mult*=128;i++;}while(pkt[i-1]&0x80);
+      const tLen=(pkt[i]<<8)|pkt[i+1];i+=2;
+      const topic=new TextDecoder().decode(pkt.slice(i,i+tLen));i+=tLen;
+      const payload=new TextDecoder().decode(pkt.slice(i));
+      (this.subs[topic]||[]).forEach(cb=>{try{cb(topic,payload);}catch{}});
+    }
+  }
+  _close(){
+    this.ok=false;sigBadge(false);if(this.onDn)this.onDn();this._sched();
+  }
+  _sched(){
+    if(this.retry>=8){rlog('warn','SIG','Max retries');return;}
+    this.retry++;
+    const d=Math.min(30000,2000*this.retry);
+    rlog('warn','SIG',`Retry ${this.retry} in ${d/1000}s`);
+    this.reT=setTimeout(()=>this.connect(this.url),d);
+  }
+}
+
+// ─────────────────────────────────────────────
+//  STATE
+// ─────────────────────────────────────────────
+let myIdentity=null;  // {did, username, pubKeyHex}
+let mqtt=null;
+let bus=null;         // BroadcastChannel to genesis node
+const peers=new Map();// did → PeerConn
+let activeChanDid=null;
+let chanUnread={};
+let statBytesSent=0,statBytesRecv=0;
+let logFilter='all';
+const LOG_MAX=300;
+
+// STUN — Google's free servers, no key, no account
+const ICE_SERVERS=[
+  {urls:'stun:stun.l.google.com:19302'},
+  {urls:'stun:stun1.l.google.com:19302'},
+  {urls:'stun:stun2.l.google.com:19302'},
+];
+
+// ─────────────────────────────────────────────
+//  PEER CONNECTION
+// ─────────────────────────────────────────────
+class PeerConn{
+  constructor(remoteDid, remoteName, isInitiator){
+    this.did=remoteDid;
+    this.name=remoteName||remoteDid.slice(0,16)+'…';
+    this.initiator=isInitiator;
+    this.state='connecting'; // connecting | connected | offline
+    this.dc=null;            // RTCDataChannel
+    this.pc=null;            // RTCPeerConnection
+    this.latency=null;
+    this.pendingPing=null;
+    this.bytesOut=0;this.bytesIn=0;
+    this.msgs=[];            // [{text,from,ts,file?}]
+    this._init();
+  }
+
+  _init(){
+    this.pc=new RTCPeerConnection({iceServers:ICE_SERVERS});
+    rlog('rtc','RTC','Creating PeerConnection for '+this.name);
+
+    // ICE candidates — send via MQTT signal topic
+    this.pc.onicecandidate=async e=>{
+      if(!e.candidate)return;
+      const topic=await sigTopic(this.did);
+      const pkt={type:'ice',from:myIdentity.did,candidate:e.candidate.toJSON()};
+      mqtt&&mqtt.pub(topic,JSON.stringify(pkt));
+      rlog('rtc','ICE','Candidate sent → '+this.name);
+    };
+
+    this.pc.oniceconnectionstatechange=()=>{
+      rlog('rtc','ICE','State: '+this.pc.iceConnectionState+' peer:'+this.name);
+      if(this.pc.iceConnectionState==='connected'||this.pc.iceConnectionState==='completed'){
+        this.state='connected';this._onConnected();
+      }
+      if(this.pc.iceConnectionState==='disconnected'||this.pc.iceConnectionState==='failed'||this.pc.iceConnectionState==='closed'){
+        this.state='offline';this._onDisconnected();
+      }
+      updatePeerList();updateGraphData();updateBadge();
+    };
+
+    if(this.initiator){
+      // Initiator creates DataChannel
+      this.dc=this.pc.createDataChannel('sovereign',{ordered:true});
+      this._wireChannel(this.dc);
+      // Create offer
+      this.pc.createOffer().then(offer=>this.pc.setLocalDescription(offer)).then(async()=>{
+        const topic=await sigTopic(this.did);
+        const pkt={type:'offer',from:myIdentity.did,fromName:myIdentity.username,sdp:this.pc.localDescription};
+        mqtt&&mqtt.pub(topic,JSON.stringify(pkt));
+        rlog('sig','SDP','Offer sent → '+this.name);
+      });
+    } else {
+      // Answerer waits for DataChannel
+      this.pc.ondatachannel=e=>{
+        this.dc=e.channel;
+        this._wireChannel(this.dc);
+      };
+    }
+  }
+
+  _wireChannel(dc){
+    dc.onopen=()=>{
+      rlog('rtc','CHAN','DataChannel open ↔ '+this.name);
+      this.state='connected';
+      updatePeerList();updateChanList();updateGraphData();updateBadge();
+      // send presence
+      this._dcSend({t:'presence',name:myIdentity.username,did:myIdentity.did});
+      this._startPing();
+      appendSysLine(this.did,'⬡ Direct channel established — peer-to-peer');
+    };
+    dc.onclose=()=>{
+      rlog('rtc','CHAN','DataChannel closed ↔ '+this.name);
+      this.state='offline';
+      updatePeerList();updateChanList();updateGraphData();updateBadge();
+      appendSysLine(this.did,'⬡ Channel closed');
+    };
+    dc.onmessage=e=>this._onData(e.data);
+    dc.onerror=e=>rlog('err','CHAN',String(e));
+  }
+
+  _onData(raw){
+    // Could be text (JSON) or binary (file chunk)
+    if(raw instanceof ArrayBuffer){
+      this._handleBinaryChunk(raw);return;
+    }
+    let pkt;try{pkt=JSON.parse(raw);}catch{return;}
+    this.bytesIn+=raw.length;statBytesRecv+=raw.length;
+    updateGraphStats();
+
+    if(pkt.t==='msg'){
+      rlog('data','MSG','← '+this.name+': '+pkt.text.slice(0,40));
+      const m={text:pkt.text,from:this.did,ts:pkt.ts||Date.now()};
+      this.msgs.push(m);
+      if(activeChanDid===this.did)appendChanMsg(m,false);
+      else{chanUnread[this.did]=(chanUnread[this.did]||0)+1;updateChanList();}
+      // Forward to genesis bus
+      bus&&bus.postMessage({type:'sovereign:message',msg:{...m,fromName:this.name}});
+    } else if(pkt.t==='ping'){
+      this._dcSend({t:'pong',id:pkt.id});
+    } else if(pkt.t==='pong'){
+      if(this.pendingPing&&this.pendingPing.id===pkt.id){
+        this.latency=Date.now()-this.pendingPing.ts;
+        this.pendingPing=null;
+        rlog('rtc','PING','Latency to '+this.name+': '+this.latency+'ms');
+        updatePeerList();
+      }
+    } else if(pkt.t==='presence'){
+      if(pkt.name)this.name=pkt.name;
+      updatePeerList();updateChanList();
+    } else if(pkt.t==='file_start'){
+      this._fileRecv={name:pkt.name,size:pkt.size,mime:pkt.mime,chunks:[],received:0,id:pkt.id};
+      rlog('data','FILE','Receiving '+pkt.name+' ('+fmtBytes(pkt.size)+') from '+this.name);
+      appendSysLine(this.did,'📎 Receiving '+pkt.name+' ('+fmtBytes(pkt.size)+')…');
+    } else if(pkt.t==='file_end'){
+      if(this._fileRecv&&this._fileRecv.id===pkt.id){
+        const blob=new Blob(this._fileRecv.chunks,{type:this._fileRecv.mime||'application/octet-stream'});
+        const url=URL.createObjectURL(blob);
+        const fm={from:this.did,ts:Date.now(),file:{name:this._fileRecv.name,size:this._fileRecv.size,url}};
+        this.msgs.push(fm);
+        if(activeChanDid===this.did)appendFileMsg(fm,false);
+        else{chanUnread[this.did]=(chanUnread[this.did]||0)+1;updateChanList();}
+        rlog('data','FILE','Received '+this._fileRecv.name);
+        this._fileRecv=null;
+      }
+    }
+  }
+
+  _handleBinaryChunk(ab){
+    if(!this._fileRecv)return;
+    this._fileRecv.chunks.push(ab);
+    this._fileRecv.received+=ab.byteLength;
+    this.bytesIn+=ab.byteLength;statBytesRecv+=ab.byteLength;
+    updateGraphStats();
+  }
+
+  _dcSend(obj){
+    if(this.dc?.readyState==='open'){
+      const s=JSON.stringify(obj);
+      this.dc.send(s);
+      this.bytesOut+=s.length;statBytesSent+=s.length;
+      updateGraphStats();
+    }
+  }
+
+  sendText(text){
+    this._dcSend({t:'msg',text,ts:Date.now()});
+    const m={text,from:myIdentity.did,ts:Date.now()};
+    this.msgs.push(m);
+    rlog('data','MSG','→ '+this.name+': '+text.slice(0,40));
+    return m;
+  }
+
+  async sendFileData(file){
+    const CHUNK=16384; // 16KB chunks
+    this._dcSend({t:'file_start',name:file.name,size:file.size,mime:file.type,id:file.name+file.size});
+    const buf=await file.arrayBuffer();
+    let off=0;
+    while(off<buf.byteLength){
+      const chunk=buf.slice(off,off+CHUNK);
+      this.dc.send(chunk);
+      this.bytesOut+=chunk.byteLength;statBytesSent+=chunk.byteLength;
+      off+=CHUNK;
+      // Yield so UI doesn't freeze
+      if(off%131072===0)await new Promise(r=>setTimeout(r,1));
+    }
+    this._dcSend({t:'file_end',id:file.name+file.size});
+    updateGraphStats();
+    rlog('data','FILE','Sent '+file.name+' ('+fmtBytes(file.size)+') → '+this.name);
+  }
+
+  ping(){
+    const id=Math.random().toString(36).slice(2,8);
+    this.pendingPing={id,ts:Date.now()};
+    this._dcSend({t:'ping',id});
+  }
+
+  _startPing(){
+    setInterval(()=>{if(this.dc?.readyState==='open')this.ping();},5000);
+  }
+
+  async receiveOffer(sdp){
+    await this.pc.setRemoteDescription(new RTCSessionDescription(sdp));
+    const answer=await this.pc.createAnswer();
+    await this.pc.setLocalDescription(answer);
+    const topic=await sigTopic(this.did);
+    const pkt={type:'answer',from:myIdentity.did,fromName:myIdentity.username,sdp:this.pc.localDescription};
+    mqtt&&mqtt.pub(topic,JSON.stringify(pkt));
+    rlog('sig','SDP','Answer sent → '+this.name);
+  }
+
+  async receiveAnswer(sdp){
+    await this.pc.setRemoteDescription(new RTCSessionDescription(sdp));
+    rlog('sig','SDP','Answer received from '+this.name);
+  }
+
+  async addIce(candidate){
+    try{
+      await this.pc.addIceCandidate(new RTCIceCandidate(candidate));
+      rlog('rtc','ICE','Candidate added from '+this.name);
+    }catch(e){rlog('err','ICE',e.message);}
+  }
+
+  close(){
+    this.pc?.close();this.state='offline';
+    updatePeerList();updateChanList();updateGraphData();updateBadge();
+  }
+
+  _onConnected(){
+    rlog('ok','RTC','Connected ↔ '+this.name);
+    updatePeerList();updateChanList();updateGraphData();updateBadge();
+    toast('⬡ Connected to '+this.name);
+  }
+  _onDisconnected(){
+    rlog('warn','RTC','Disconnected from '+this.name);
+    updatePeerList();updateChanList();updateGraphData();updateBadge();
+  }
+}
+
+// ─────────────────────────────────────────────
+//  SIGNALING TOPICS
+// ─────────────────────────────────────────────
+async function sigTopic(did){return'sov/sig/'+(await sha256hex(did)).slice(0,32);}
+async function myTopic(){return sigTopic(myIdentity.did);}
+async function presenceTopic(){return'sov/pres/'+(await sha256hex(myIdentity.did)).slice(0,32);}
+
+// ─────────────────────────────────────────────
+//  MQTT SIGNALING — handle incoming
+// ─────────────────────────────────────────────
+async function onSignal(topic, payloadStr){
+  let pkt;try{pkt=JSON.parse(payloadStr);}catch{return;}
+  if(!pkt||!pkt.from)return;
+  if(pkt.from===myIdentity.did)return; // echo
+
+  rlog('sig','SIG','← '+pkt.type+' from '+pkt.from.slice(0,20)+'…');
+
+  if(pkt.type==='offer'){
+    // Inbound connection request
+    let p=peers.get(pkt.from);
+    if(!p){
+      p=new PeerConn(pkt.from,pkt.fromName,false);
+      peers.set(pkt.from,p);
+      updatePeerList();updateChanList();updateGraphData();
+    }
+    await p.receiveOffer(pkt.sdp);
+  } else if(pkt.type==='answer'){
+    const p=peers.get(pkt.from);
+    if(p)await p.receiveAnswer(pkt.sdp);
+  } else if(pkt.type==='ice'){
+    const p=peers.get(pkt.from);
+    if(p)await p.addIce(pkt.candidate);
+  }
+}
+
+// ─────────────────────────────────────────────
+//  INITIATE P2P CONNECTION
+// ─────────────────────────────────────────────
+async function initiateConnect(){
+  const did=document.getElementById('peer-did-input').value.trim();
+  const name=document.getElementById('peer-name-input').value.trim()||did.slice(0,16)+'…';
+  const err=document.getElementById('peer-err');
+  err.textContent='';
+  if(!did.startsWith('did:')){err.textContent='Invalid DID';return;}
+  if(did===myIdentity.did){err.textContent='Cannot connect to yourself';return;}
+  if(peers.has(did)&&peers.get(did).state==='connected'){err.textContent='Already connected';return;}
+  if(!mqtt?.ok){err.textContent='MQTT signaling not connected — cannot initiate handshake';return;}
+  const p=new PeerConn(did,name,true);
+  peers.set(did,p);
+  document.getElementById('peer-did-input').value='';
+  document.getElementById('peer-name-input').value='';
+  updatePeerList();updateChanList();updateGraphData();
+  rlog('rtc','INIT','Initiating connection to '+name);
+}
+
+// ─────────────────────────────────────────────
+//  MQTT SETUP
+// ─────────────────────────────────────────────
+async function setupMQTT(){
+  mqtt=new MiniMQTT();
+  mqtt.onUp=async()=>{
+    const topic=await myTopic();
+    mqtt.sub(topic,onSignal);
+    rlog('ok','SIG','Subscribed to my signal topic');
+    // Announce presence
+    const pTopic=await presenceTopic();
+    mqtt.pub(pTopic,JSON.stringify({type:'online',did:myIdentity.did,name:myIdentity.username,ts:Date.now()}));
+    sigBadge(true);
+  };
+  mqtt.onDn=()=>sigBadge(false);
+  mqtt.connect();
+}
+
+// ─────────────────────────────────────────────
+//  GENESIS BUS — identity sync
+// ─────────────────────────────────────────────
+function setupBus(){
+  bus=new BroadcastChannel('sovereign_genesis');
+  bus.onmessage=e=>{
+    const d=e.data;if(!d)return;
+    if(d.type==='sovereign:identity'&&d.identity){
+      if(!myIdentity){
+        linkIdentity(d.identity);
+      }
+    }
+    if(d.type==='sovereign:pong'&&d.identity&&!myIdentity){
+      linkIdentity(d.identity);
+    }
+  };
+  // Ask genesis for identity
+  bus.postMessage({type:'sovereign:request_identity'});
+  bus.postMessage({type:'sovereign:ping'});
+  rlog('info','BUS','Listening on sovereign_genesis bus');
+}
+
+function linkIdentity(id){
+  if(myIdentity)return;
+  myIdentity=id;
+  rlog('ok','BUS','Identity received from Genesis Node: '+id.username);
+  document.getElementById('boot-detecting').style.display='none';
+  document.getElementById('linked-name').textContent=id.username;
+  document.getElementById('linked-did').textContent=id.did;
+  document.getElementById('boot-linked').style.display='block';
+}
+
+// ─────────────────────────────────────────────
+//  UI — PEER LIST
+// ─────────────────────────────────────────────
+function updatePeerList(){
+  const el=document.getElementById('peer-list');
+  const arr=[...peers.values()];
+  document.getElementById('gs-peers').textContent=arr.filter(p=>p.state==='connected').length;
+  if(!arr.length){
+    el.innerHTML='<div style="font-family:var(--mono);font-size:10px;color:var(--text3);padding:10px 0;">No peers yet. Connect using a DID above.</div>';
+    return;
+  }
+  el.innerHTML=arr.map(p=>`
+    <div class="peer-card state-${p.state}" id="pc-${CSS.escape(p.did)}">
+      <div class="pc-av">👤</div>
+      <div class="pc-info">
+        <div class="pc-name">${esc(p.name)}</div>
+        <div class="pc-did">${esc(p.did)}</div>
+        <div class="pc-state ${p.state}">
+          ${p.state==='connected'?'● Connected':p.state==='connecting'?'○ Connecting…':'○ Offline'}
+        </div>
+        ${p.dc?.readyState==='open'?'<div class="xfer-bar"><div class="xfer-fill" id="xbar-'+CSS.escape(p.did)+'"></div></div>':''}
+      </div>
+      <div class="pc-meta">
+        ${p.latency!=null?`<div class="pc-latency">${p.latency}ms</div><div style="font-size:8px;">latency</div>`:''}
+        <div style="font-size:8px;margin-top:4px;color:var(--text3);">↑${fmtBytes(p.bytesOut)} ↓${fmtBytes(p.bytesIn)}</div>
+      </div>
+      <div class="pc-actions">
+        ${p.state==='connected'?`<button class="icon-btn" onclick="openChan('${esc(p.did)}');showTab('channel');" title="Open channel">💬</button>`:''}
+        <button class="icon-btn r" onclick="disconnectPeer('${esc(p.did)}')" title="Disconnect">✕</button>
+      </div>
+    </div>`).join('');
+}
+
+function updateBadge(){
+  const connected=[...peers.values()].filter(p=>p.state==='connected').length;
+  const b=document.getElementById('badge-rtc');
+  const l=document.getElementById('badge-rtc-lbl');
+  l.textContent=connected+' PEER'+(connected!==1?'S':'');
+  if(connected>0){b.classList.add('live');b.classList.remove('warn');}
+  else{b.classList.remove('live');}
+}
+
+function disconnectPeer(did){
+  const p=peers.get(did);if(!p)return;
+  p.close();peers.delete(did);
+  updatePeerList();updateChanList();updateGraphData();updateBadge();
+}
+
+// ─────────────────────────────────────────────
+//  UI — CHANNEL LIST & CHAT
+// ─────────────────────────────────────────────
+function updateChanList(){
+  const el=document.getElementById('channels');
+  const arr=[...peers.values()];
+  document.getElementById('gs-channels').textContent=arr.filter(p=>p.dc?.readyState==='open').length;
+  if(!arr.length){
+    el.innerHTML='<div style="padding:16px;font-size:10px;color:var(--text3);font-family:var(--mono);">No peers connected.</div>';
+    return;
+  }
+  el.innerHTML=arr.map(p=>{
+    const open=p.dc?.readyState==='open';
+    const u=chanUnread[p.did]||0;
+    return`<div class="chan-item${activeChanDid===p.did?' active':''}" onclick="openChan('${esc(p.did)}')">
+      <div class="ci-av">👤</div>
+      <div class="ci-info">
+        <div class="ci-name">${esc(p.name)}</div>
+        <div class="ci-status ${open?'live':'dead'}">${open?'● direct channel':'○ no channel'}</div>
+      </div>
+      <div class="ci-unread${u?' show':''}">${u||''}</div>
+    </div>`;
+  }).join('');
+}
+
+function openChan(did){
+  activeChanDid=did;
+  const p=peers.get(did);if(!p)return;
+  chanUnread[did]=0;
+  document.getElementById('chan-empty').style.display='none';
+  const ch=document.getElementById('chan-header');ch.style.display='flex';
+  document.getElementById('chan-msgs').style.display='flex';
+  document.getElementById('chan-compose').style.display='block';
+  document.getElementById('chh-av').textContent='👤';
+  document.getElementById('chh-name').textContent=p.name;
+  const open=p.dc?.readyState==='open';
+  const st=document.getElementById('chh-state');
+  st.textContent=open?'● Direct WebRTC channel':'○ Channel not open';
+  st.className='chh-state '+(open?'live':'dead');
+  const msgs=document.getElementById('chan-msgs');msgs.innerHTML='';
+  if(!p.msgs.length)appendSysLine(did,'No messages yet — say something!');
+  else p.msgs.forEach(m=>m.file?appendFileMsg(m,m.from===myIdentity.did):appendChanMsg(m,m.from===myIdentity.did));
+  document.querySelectorAll('.chan-item').forEach(el=>el.classList.toggle('active',el.dataset?.did===did||(el.onclick+'').includes(did)));
+  updateChanList();
+  document.getElementById('chan-input').focus();
+}
+
+function appendChanMsg(m,out){
+  const el=document.getElementById('chan-msgs');if(!el)return;
+  const p=activeChanDid?peers.get(activeChanDid):null;
+  const d=document.createElement('div');
+  d.className='cmsg'+(out?' out':'');
+  d.innerHTML=`<div class="cmsg-av">${out?'⬡':'👤'}</div>
+    <div><div class="cmsg-body">${esc(m.text)}</div><div class="cmsg-time">${relT(m.ts)}</div></div>`;
+  el.appendChild(d);el.scrollTop=el.scrollHeight;
+}
+
+function appendFileMsg(m,out){
+  const el=document.getElementById('chan-msgs');if(!el)return;
+  const d=document.createElement('div');
+  d.className='cmsg'+(out?' out':'');
+  d.innerHTML=`<div class="cmsg-av">${out?'⬡':'👤'}</div>
+    <div>
+      <div class="cmsg-file" onclick="downloadFile('${m.file.url}','${esc(m.file.name)}')">
+        <div class="cmsg-file-icon">📎</div>
+        <div class="cmsg-file-info">
+          <div class="cmsg-file-name">${esc(m.file.name)}</div>
+          <div class="cmsg-file-size">${fmtBytes(m.file.size)} · click to save</div>
+        </div>
+      </div>
+      <div class="cmsg-time">${relT(m.ts)}</div>
+    </div>`;
+  el.appendChild(d);el.scrollTop=el.scrollHeight;
+}
+
+function appendSysLine(did, text){
+  if(activeChanDid!==did)return;
+  const el=document.getElementById('chan-msgs');if(!el)return;
+  const d=document.createElement('div');d.className='sys-line';d.textContent=text;
+  el.appendChild(d);el.scrollTop=el.scrollHeight;
+}
+
+function downloadFile(url,name){
+  const a=document.createElement('a');a.href=url;a.download=name;a.click();
+}
+
+function sendChanMsg(){
+  const inp=document.getElementById('chan-input');
+  const text=inp.value.trim();
+  if(!text||!activeChanDid)return;
+  inp.value='';autoResize(inp);
+  const p=peers.get(activeChanDid);
+  if(!p||p.dc?.readyState!=='open'){
+    document.getElementById('cc-status').textContent='⬡ Channel not open — peer offline';return;
+  }
+  const m=p.sendText(text);
+  appendChanMsg({...m,from:myIdentity.did},true);
+}
+
+async function sendFile(input){
+  const file=input.files[0];if(!file||!activeChanDid)return;
+  const p=peers.get(activeChanDid);
+  if(!p||p.dc?.readyState!=='open'){toast('Channel not open');return;}
+  appendSysLine(activeChanDid,'📤 Sending '+file.name+' ('+fmtBytes(file.size)+')…');
+  await p.sendFileData(file);
+  const m={from:myIdentity.did,ts:Date.now(),file:{name:file.name,size:file.size,url:URL.createObjectURL(file)}};
+  p.msgs.push(m);
+  appendFileMsg(m,true);
+  input.value='';
+}
+
+function sendFilePrompt(){document.getElementById('file-input').click();}
+function pingActive(){const p=peers.get(activeChanDid);if(p)p.ping();}
+function chanKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChanMsg();}}
+function connectPeer(){document.getElementById('peer-did-input').focus();showTab('peers');}
+
+// ─────────────────────────────────────────────
+//  PEER GRAPH — pure Canvas 2D
+// ─────────────────────────────────────────────
+let graphNodes=[];  // {id,label,x,y,vx,vy,state,latency}
+let graphEdges=[];  // {a,b,state}
+let animFrame=null;
+let hoveredNode=null;
+let dragNode=null;
+let dragOff={x:0,y:0};
+let camX=0,camY=0;
+
+function updateGraphData(){
+  const arr=[...peers.values()];
+  // Always include self
+  const self={id:myIdentity.did,label:myIdentity.username||'me',self:true,state:'connected',x:0,y:0,vx:0,vy:0};
+  const existing=new Map(graphNodes.map(n=>[n.id,n]));
+  if(!existing.has(self.id)){graphNodes.push(self);}
+  else{const n=existing.get(self.id);n.state='connected';n.label=self.label;}
+  arr.forEach(p=>{
+    if(!existing.has(p.did)){
+      const angle=Math.random()*Math.PI*2;
+      const r=80+Math.random()*100;
+      graphNodes.push({id:p.did,label:p.name,self:false,state:p.state,latency:p.latency,x:Math.cos(angle)*r,y:Math.sin(angle)*r,vx:0,vy:0});
+    } else {
+      const n=existing.get(p.did);n.state=p.state;n.latency=p.latency;n.label=p.name;
+    }
+  });
+  // Remove stale
+  graphNodes=graphNodes.filter(n=>n.self||peers.has(n.id));
+  // Edges
+  graphEdges=arr.map(p=>({a:myIdentity.did,b:p.did,state:p.state}));
+}
+
+function updateGraphStats(){
+  document.getElementById('gs-sent').textContent=fmtBytes(statBytesSent);
+  document.getElementById('gs-recv').textContent=fmtBytes(statBytesRecv);
+}
+
+function resetGraphLayout(){
+  graphNodes.forEach((n,i)=>{
+    if(n.self){n.x=0;n.y=0;}
+    else{const a=(i/Math.max(1,graphNodes.length-1))*Math.PI*2;n.x=Math.cos(a)*120;n.y=Math.sin(a)*120;}
+    n.vx=0;n.vy=0;
+  });
+}
+
+function startGraphLoop(){
+  const canvas=document.getElementById('graph-canvas');
+  const ctx=canvas.getContext('2d');
+  let mouseX=0,mouseY=0;
+
+  const resize=()=>{canvas.width=canvas.offsetWidth;canvas.height=canvas.offsetHeight;};
+  new ResizeObserver(resize).observe(canvas);resize();
+
+  // Mouse events for drag & tooltip
+  canvas.addEventListener('mousemove',e=>{
+    const r=canvas.getBoundingClientRect();
+    mouseX=e.clientX-r.left;mouseY=e.clientY-r.top;
+    if(dragNode){
+      dragNode.x=mouseX-canvas.width/2-camX-dragOff.x;
+      dragNode.y=mouseY-canvas.height/2-camY-dragOff.y;
+      dragNode.vx=0;dragNode.vy=0;
+    }
+    // Hover detection
+    const W=canvas.width,H=canvas.height;
+    const cx=W/2+camX,cy=H/2+camY;
+    hoveredNode=graphNodes.find(n=>{
+      const dx=n.x+cx-mouseX,dy=n.y+cy-mouseY;
+      return Math.sqrt(dx*dx+dy*dy)<18;
+    })||null;
+    const tt=document.getElementById('node-tooltip');
+    if(hoveredNode){
+      tt.style.display='block';
+      tt.style.left=(mouseX+12)+'px';tt.style.top=(mouseY-10)+'px';
+      document.getElementById('nt-name').textContent=hoveredNode.label;
+      document.getElementById('nt-did').textContent=hoveredNode.id;
+      document.getElementById('nt-stat').textContent=
+        hoveredNode.self?'⬡ This node':
+        hoveredNode.state==='connected'?(hoveredNode.latency!=null?'● '+hoveredNode.latency+'ms':'● connected'):
+        '○ '+hoveredNode.state;
+    } else tt.style.display='none';
+  });
+  canvas.addEventListener('mousedown',e=>{
+    const r=canvas.getBoundingClientRect();
+    const mx=e.clientX-r.left,my=e.clientY-r.top;
+    const W=canvas.width,H=canvas.height,cx=W/2+camX,cy=H/2+camY;
+    dragNode=graphNodes.find(n=>{
+      const dx=n.x+cx-mx,dy=n.y+cy-my;
+      return Math.sqrt(dx*dx+dy*dy)<18;
+    })||null;
+    if(dragNode){dragOff.x=mx-dragNode.x-cx;dragOff.y=my-dragNode.y-cy;}
+  });
+  canvas.addEventListener('mouseup',()=>dragNode=null);
+  canvas.addEventListener('mouseleave',()=>{dragNode=null;hoveredNode=null;document.getElementById('node-tooltip').style.display='none';});
+
+  function frame(){
+    animFrame=requestAnimationFrame(frame);
+    const W=canvas.width,H=canvas.height;
+    ctx.fillStyle='#060608';ctx.fillRect(0,0,W,H);
+
+    // Spring physics
+    const K=0.01,DAMP=0.88,REPEL=3000,IDEAL=140;
+    graphNodes.forEach(n=>{
+      if(n===dragNode)return;
+      // Spring to center for self
+      if(n.self){n.vx+=-n.x*K*2;n.vy+=-n.y*K*2;}
+      // Repel all nodes
+      graphNodes.forEach(m=>{
+        if(m===n)return;
+        const dx=n.x-m.x,dy=n.y-m.y;
+        const d2=dx*dx+dy*dy||1;const d=Math.sqrt(d2);
+        const f=REPEL/d2;n.vx+=dx/d*f;n.vy+=dy/d*f;
+      });
+      // Attract connected edges
+      graphEdges.forEach(e=>{
+        const other=e.a===n.id?graphNodes.find(x=>x.id===e.b):e.b===n.id?graphNodes.find(x=>x.id===e.a):null;
+        if(!other)return;
+        const dx=other.x-n.x,dy=other.y-n.y;
+        const d=Math.sqrt(dx*dx+dy*dy)||1;
+        const f=(d-IDEAL)*K*3;n.vx+=dx/d*f;n.vy+=dy/d*f;
+      });
+      n.vx*=DAMP;n.vy*=DAMP;n.x+=n.vx;n.y+=n.vy;
+    });
+
+    const cx=W/2+camX,cy=H/2+camY;
+
+    // Edges
+    graphEdges.forEach(e=>{
+      const a=graphNodes.find(n=>n.id===e.a);
+      const b=graphNodes.find(n=>n.id===e.b);
+      if(!a||!b)return;
+      ctx.beginPath();
+      ctx.moveTo(a.x+cx,a.y+cy);ctx.lineTo(b.x+cx,b.y+cy);
+      ctx.strokeStyle=e.state==='connected'?'rgba(0,255,136,0.35)':'rgba(36,36,56,0.8)';
+      ctx.lineWidth=e.state==='connected'?1.5:1;
+      ctx.stroke();
+      // Arrow midpoint
+      if(e.state==='connected'){
+        const mx=(a.x+b.x)/2+cx,my=(a.y+b.y)/2+cy;
+        const dx=b.x-a.x,dy=b.y-a.y,len=Math.sqrt(dx*dx+dy*dy)||1;
+        const nx=-dy/len,ny=dx/len;
+        ctx.beginPath();
+        ctx.moveTo(mx+nx*4,my+ny*4);ctx.lineTo(mx-nx*4,my-ny*4);
+        ctx.lineTo(mx+dx/len*7,my+dy/len*7);
+        ctx.closePath();ctx.fillStyle='rgba(0,255,136,0.5)';ctx.fill();
+      }
+    });
+
+    // Nodes
+    graphNodes.forEach(n=>{
+      const nx=n.x+cx,ny=n.y+cy;
+      const r=n.self?20:16;
+      const isHov=n===hoveredNode;
+      // Glow
+      if(n.state==='connected'||n.self){
+        const g=ctx.createRadialGradient(nx,ny,0,nx,ny,r*2.5);
+        g.addColorStop(0,n.self?'rgba(0,212,255,0.15)':'rgba(0,255,136,0.12)');
+        g.addColorStop(1,'rgba(0,0,0,0)');
+        ctx.beginPath();ctx.arc(nx,ny,r*2.5,0,Math.PI*2);ctx.fillStyle=g;ctx.fill();
+      }
+      // Circle
+      ctx.beginPath();ctx.arc(nx,ny,r+(isHov?2:0),0,Math.PI*2);
+      ctx.fillStyle=n.self?'rgba(0,212,255,0.12)':n.state==='connected'?'rgba(0,255,136,0.1)':'rgba(30,30,45,0.8)';
+      ctx.fill();
+      ctx.strokeStyle=n.self?'#00d4ff':n.state==='connected'?'#00ff88':n.state==='connecting'?'#fbbf24':'#242438';
+      ctx.lineWidth=isHov?2:1.5;ctx.stroke();
+      // Icon
+      ctx.fillStyle=n.self?'#00d4ff':n.state==='connected'?'#00ff88':'#94a3b8';
+      ctx.font=(n.self?'13px':'11px')+' Courier New';
+      ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText(n.self?'⬡':'●',nx,ny);
+      // Label
+      ctx.fillStyle=n.state==='connected'?'#f1f5f9':'#94a3b8';
+      ctx.font='9px Courier New';ctx.textAlign='center';ctx.textBaseline='top';
+      ctx.fillText(n.label.slice(0,14),nx,ny+r+4);
+      // Latency
+      if(n.latency!=null){
+        ctx.fillStyle='rgba(0,212,255,0.7)';ctx.font='8px Courier New';
+        ctx.fillText(n.latency+'ms',nx,ny+r+15);
+      }
+    });
+
+    // Empty hint
+    if(graphNodes.length<=1){
+      ctx.fillStyle='rgba(36,36,56,0.5)';
+      ctx.font='11px Courier New';ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText('Connect a peer to see the graph',W/2,H/2+60);
+    }
+  }
+  frame();
+}
+
+// ─────────────────────────────────────────────
+//  SIGNAL LOG
+// ─────────────────────────────────────────────
+const logLines=[];
+function rlog(cls,tag,msg){
+  const ts=new Date().toLocaleTimeString('en',{hour12:false});
+  logLines.push({cls,tag,msg,ts});
+  if(logLines.length>LOG_MAX)logLines.shift();
+  renderLog();
+}
+
+function renderLog(){
+  const el=document.getElementById('sig-log');if(!el)return;
+  const filtered=logFilter==='all'?logLines:
+    logFilter==='rtc'?logLines.filter(l=>l.cls==='rtc'):
+    logFilter==='sig'?logLines.filter(l=>['sig','info','ok','warn'].includes(l.cls)):
+    logFilter==='data'?logLines.filter(l=>l.cls==='data'):
+    logLines.filter(l=>l.cls==='err');
+  const atBottom=el.scrollHeight-el.scrollTop-el.clientHeight<30;
+  el.innerHTML=filtered.map(l=>
+    `<div class="ll ${l.cls}"><span class="ll-ts">[${l.ts}]</span><span class="ll-tag">${esc(l.tag)}</span><span class="ll-msg">${esc(l.msg)}</span></div>`
+  ).join('');
+  if(atBottom)el.scrollTop=el.scrollHeight;
+}
+
+function setLogFilter(f){
+  logFilter=f;
+  document.querySelectorAll('.log-filter').forEach(b=>b.classList.toggle('active',b.dataset.f===f));
+  renderLog();
+}
+function clearLog(){logLines.length=0;renderLog();}
+
+// ─────────────────────────────────────────────
+//  SDP MODAL (manual fallback)
+// ─────────────────────────────────────────────
+function openModal(){document.getElementById('modal').classList.add('open');}
+function closeModal(){document.getElementById('modal').classList.remove('open');document.getElementById('sdp-err').textContent='';}
+document.getElementById('modal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal();});
+
+async function processSDP(){
+  const did=document.getElementById('sdp-peer-did').value.trim();
+  const raw=document.getElementById('sdp-input').value.trim();
+  const err=document.getElementById('sdp-err');err.textContent='';
+  if(!did.startsWith('did:')){err.textContent='Invalid peer DID';return;}
+  let pkt;try{pkt=JSON.parse(raw);}catch{err.textContent='Invalid JSON';return;}
+  if(pkt.type==='offer'){
+    let p=peers.get(did);
+    if(!p){p=new PeerConn(did,'remote peer',false);peers.set(did,p);updatePeerList();updateChanList();updateGraphData();}
+    await p.receiveOffer(pkt);closeModal();
+  } else if(pkt.type==='answer'){
+    const p=peers.get(did);if(!p){err.textContent='No pending offer for this DID';return;}
+    await p.receiveAnswer(pkt);closeModal();
+  } else if(pkt.candidate){
+    const p=peers.get(did);if(!p){err.textContent='No connection for this DID';return;}
+    await p.addIce(pkt);closeModal();
+  } else err.textContent='Unknown packet type';
+}
+
+// ─────────────────────────────────────────────
+//  BADGE UPDATES
+// ─────────────────────────────────────────────
+function sigBadge(live){
+  const b=document.getElementById('badge-sig');
+  const l=document.getElementById('badge-sig-lbl');
+  if(live){b.classList.add('live');b.classList.remove('warn','err');l.textContent='SIGNAL LIVE';}
+  else{b.classList.remove('live');b.classList.add('warn');l.textContent='SIGNAL';}
+}
+
+// ─────────────────────────────────────────────
+//  UI HELPERS
+// ─────────────────────────────────────────────
+function showTab(name){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));
+  document.querySelectorAll('.tab-pane').forEach(p=>p.classList.toggle('active',p.id==='pane-'+name));
+}
+function autoResize(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,100)+'px';}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function relT(ts){const d=Date.now()-ts;if(d<60000)return'now';if(d<3600000)return Math.floor(d/60000)+'m';if(d<86400000)return Math.floor(d/3600000)+'h';return Math.floor(d/86400000)+'d';}
+function fmtBytes(b){if(b<1024)return b+'B';if(b<1048576)return(b/1024).toFixed(1)+'KB';return(b/1048576).toFixed(2)+'MB';}
+function toast(msg){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),2300);}
+
+function showManualBoot(){
+  document.getElementById('boot-detecting').style.display='none';
+  document.getElementById('boot-manual').style.display='block';
+}
+function bootManual(){
+  const did=document.getElementById('manual-did').value.trim();
+  const name=document.getElementById('manual-name').value.trim()||did.slice(0,16)+'…';
+  const err=document.getElementById('boot-err');err.textContent='';
+  if(!did.startsWith('did:')){err.textContent='Invalid DID';return;}
+  linkIdentity({did,username:name,pubKeyHex:''});
+}
+
+// ─────────────────────────────────────────────
+//  ENTER APP
+// ─────────────────────────────────────────────
+function enterRelay(){
+  if(!myIdentity)return;
+  document.getElementById('boot').style.display='none';
+  document.getElementById('app').classList.add('up');
+  document.getElementById('tb-user').textContent=myIdentity.username;
+  setupMQTT();
+  updateGraphData();
+  startGraphLoop();
+  rlog('ok','RELAY','⬡ Sovereign Relay Node online');
+  rlog('info','RELAY','DID: '+myIdentity.did);
+  rlog('info','RELAY','STUN: stun.l.google.com:19302');
+  rlog('info','RELAY','Waiting for peers…');
+}
+
+// ─────────────────────────────────────────────
+//  BOOT — detect genesis or manual
+// ─────────────────────────────────────────────
+setupBus();
+// Give bus 2.5 seconds to auto-link from genesis node
+setTimeout(()=>{
+  if(!myIdentity){
+    const ds=document.getElementById('detect-status');
+    if(ds)ds.textContent='Genesis Node not found in this session.';
+  }
+},2500);
+</script>
+</body>
+</html>

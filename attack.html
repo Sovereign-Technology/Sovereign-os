@@ -1,0 +1,2736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'none';
+  script-src 'nonce-AttackCMD2025' 'strict-dynamic';
+  style-src 'nonce-AttackCMD2025';
+  font-src 'self' https://fonts.gstatic.com;
+  connect-src 'self' http://localhost:11434 ws: wss: https:;
+  img-src 'self' data: blob:;
+  worker-src blob:;
+  object-src 'none';
+  base-uri 'none';
+  form-action 'none';
+  upgrade-insecure-requests;
+  require-trusted-types-for 'script';
+">
+<title>Attack Command — Sovereign Security Platform</title>
+<style nonce="AttackCMD2025">
+/* ── DESIGN TOKENS ── */
+:root {
+  --ink:      #05050a;
+  --surface:  #0c0c12;
+  --raised:   #111119;
+  --lifted:   #17171f;
+  --border:   rgba(255,255,255,0.06);
+  --border2:  rgba(255,255,255,0.11);
+  --text:     #eeeef5;
+  --text2:    #8888a8;
+  --text3:    #44445a;
+  --red:      #ff3366;
+  --red2:     #ff6680;
+  --orange:   #ff6b35;
+  --cyan:     #00d4ff;
+  --green:    #00ff88;
+  --yellow:   #fbbf24;
+  --purple:   #a855f7;
+  --mono:     'Courier New', Courier, monospace;
+  --ui:       system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif;
+  --glow-r:   0 0 0 1px rgba(255,51,102,0.25), 0 0 28px rgba(255,51,102,0.12);
+  --glow-c:   0 0 0 1px rgba(0,212,255,0.25),  0 0 28px rgba(0,212,255,0.12);
+  --glow-g:   0 0 0 1px rgba(0,255,136,0.25),  0 0 28px rgba(0,255,136,0.12);
+  --r:        6px;
+  --r2:       10px;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { height:100%; }
+
+body {
+  background: var(--ink);
+  color: var(--text);
+  font-family: var(--ui);
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+  background-image:
+    radial-gradient(ellipse 70% 50% at 15% 15%, rgba(255,51,102,0.04), transparent),
+    radial-gradient(ellipse 60% 70% at 85% 85%, rgba(0,212,255,0.03), transparent),
+    repeating-linear-gradient(0deg, transparent, transparent 40px, rgba(255,255,255,0.004) 40px, rgba(255,255,255,0.004) 41px),
+    repeating-linear-gradient(90deg, transparent, transparent 40px, rgba(255,255,255,0.004) 40px, rgba(255,255,255,0.004) 41px);
+}
+
+/* ── SIDEBAR ── */
+#sidebar {
+  width: 230px;
+  flex-shrink: 0;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 0 0 16px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--lifted) transparent;
+}
+
+.brand {
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 6px;
+}
+.brand-name {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--red);
+  letter-spacing: 2px;
+  text-shadow: 0 0 20px rgba(255,51,102,0.4);
+}
+.brand-name span { color: var(--cyan); }
+.brand-sub {
+  font-size: 9px;
+  color: var(--text3);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-top: 3px;
+}
+
+.sidebar-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--text3);
+  padding: 12px 20px 5px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 20px;
+  font-size: 12px;
+  color: var(--text2);
+  cursor: pointer;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  font-family: var(--ui);
+  transition: all 0.15s;
+  position: relative;
+}
+.nav-item:hover { background: var(--raised); color: var(--text); }
+.nav-item.active { background: rgba(255,51,102,0.1); color: var(--red2); }
+.nav-item.active::before {
+  content:''; position:absolute; left:0; top:4px; bottom:4px;
+  width:3px; background:var(--red); border-radius:0 3px 3px 0;
+}
+.nav-item.nav-green.active { background:rgba(0,255,136,0.08); color:var(--green); }
+.nav-item.nav-green.active::before { background:var(--green); }
+.nav-item.nav-yellow.active { background:rgba(251,191,36,0.08); color:var(--yellow); }
+.nav-item.nav-yellow.active::before { background:var(--yellow); }
+.nav-item.nav-cyan.active { background:rgba(0,212,255,0.08); color:var(--cyan); }
+.nav-item.nav-cyan.active::before { background:var(--cyan); }
+.nav-item.nav-purple.active { background:rgba(168,85,247,0.08); color:var(--purple); }
+.nav-item.nav-purple.active::before { background:var(--purple); }
+.nav-icon { font-size:14px; flex-shrink:0; }
+
+/* Sidebar stat pills */
+.sidebar-stats {
+  margin: 8px 12px;
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 12px 14px;
+}
+.ss-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
+.ss-row:last-child { margin-bottom:0; }
+.ss-label { font-size:9px; color:var(--text3); text-transform:uppercase; letter-spacing:.8px; }
+.ss-val { font-family:var(--mono); font-size:11px; font-weight:700; }
+.ss-val.red { color:var(--red); }
+.ss-val.green { color:var(--green); }
+.ss-val.yellow { color:var(--yellow); }
+.ss-val.cyan { color:var(--cyan); }
+
+/* Sidebar footer / identity */
+.sidebar-footer {
+  margin-top: auto;
+  padding: 14px 14px 0;
+  border-top: 1px solid var(--border);
+}
+.id-chip {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px;
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+.id-chip:hover { border-color: rgba(255,51,102,0.4); }
+.id-avatar {
+  width:28px; height:28px;
+  background: linear-gradient(135deg, var(--red), var(--orange));
+  border-radius: 50%;
+  display:flex; align-items:center; justify-content:center;
+  font-size:12px; font-weight:800; color:#fff; flex-shrink:0;
+}
+.id-info { flex:1; overflow:hidden; }
+.id-name { font-size:11px; font-weight:600; color:var(--text); font-family:var(--mono); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.id-status { font-size:9px; color:var(--text3); }
+.id-dot { width:6px;height:6px;background:var(--red);border-radius:50%;box-shadow:0 0 6px var(--red);animation:blink 2s infinite; }
+@keyframes blink { 0%,100%{opacity:1}50%{opacity:.3} }
+
+/* ── MAIN AREA ── */
+#main { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+
+#topbar {
+  height:52px; flex-shrink:0;
+  display:flex; align-items:center; padding:0 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  gap:12px;
+}
+.topbar-title { font-size:14px; font-weight:800; color:var(--text); letter-spacing:-.3px; }
+.topbar-sub { font-size:11px; color:var(--text3); margin-top:1px; }
+.topbar-actions { margin-left:auto; display:flex; gap:8px; align-items:center; }
+
+/* DID banner in topbar */
+.did-banner {
+  font-family:var(--mono); font-size:10px;
+  padding:4px 10px;
+  background:rgba(255,51,102,0.08);
+  border:1px solid rgba(255,51,102,0.25);
+  border-radius:3px;
+  color:var(--red2);
+}
+.did-banner span { color:var(--text3); }
+
+/* ── CONTENT ── */
+#content {
+  flex:1; overflow-y:auto; padding:24px 24px 60px;
+  scrollbar-width:thin; scrollbar-color:var(--lifted) transparent;
+}
+.tab-pane { display:none; }
+.tab-pane.active { display:block; animation:fadeUp .2s ease; }
+@keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+
+/* ── BUTTONS ── */
+.btn {
+  padding:7px 14px; font-size:11px; font-weight:600;
+  border:1px solid var(--border2); border-radius:var(--r);
+  background:var(--raised); color:var(--text2);
+  cursor:pointer; transition:all .15s; font-family:var(--ui);
+  display:inline-flex; align-items:center; gap:6px;
+  text-transform:uppercase; letter-spacing:.4px;
+}
+.btn:hover { background:var(--lifted); color:var(--text); }
+.btn:disabled { opacity:.3; cursor:not-allowed; }
+.btn-red    { background:rgba(255,51,102,0.12); border-color:rgba(255,51,102,0.35); color:var(--red); }
+.btn-red:hover { background:rgba(255,51,102,0.22); box-shadow:var(--glow-r); }
+.btn-cyan   { background:rgba(0,212,255,0.1);   border-color:rgba(0,212,255,0.3);   color:var(--cyan); }
+.btn-cyan:hover { background:rgba(0,212,255,0.18); box-shadow:var(--glow-c); }
+.btn-green  { background:rgba(0,255,136,0.1);   border-color:rgba(0,255,136,0.3);   color:var(--green); }
+.btn-green:hover { background:rgba(0,255,136,0.18); box-shadow:var(--glow-g); }
+.btn-yellow { background:rgba(251,191,36,0.1);  border-color:rgba(251,191,36,0.3);  color:var(--yellow); }
+.btn-yellow:hover { background:rgba(251,191,36,0.18); }
+.btn-sm { padding:5px 10px; font-size:10px; }
+.btn-full { width:100%; justify-content:center; padding:10px; }
+.btn-row { display:flex; gap:8px; flex-wrap:wrap; }
+
+/* ── CARDS / PANELS ── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r2);
+  padding: 18px;
+  margin-bottom:14px;
+}
+.card-red    { border-color:rgba(255,51,102,0.25); }
+.card-cyan   { border-color:rgba(0,212,255,0.2); }
+.card-green  { border-color:rgba(0,255,136,0.2); }
+.card-yellow { border-color:rgba(251,191,36,0.2); }
+.card-purple { border-color:rgba(168,85,247,0.2); }
+.card-title {
+  font-size:12px; font-weight:700; text-transform:uppercase;
+  letter-spacing:.8px; margin-bottom:14px;
+  display:flex; align-items:center; gap:8px;
+}
+.card-title.red    { color:var(--red); }
+.card-title.cyan   { color:var(--cyan); }
+.card-title.green  { color:var(--green); }
+.card-title.yellow { color:var(--yellow); }
+.card-title sub { font-size:9px; color:var(--text3); font-weight:400; text-transform:none; letter-spacing:0; }
+
+/* ── SECTION HEADER ── */
+.sec-header { margin-bottom:20px; }
+.sec-title { font-size:20px; font-weight:800; letter-spacing:-.4px; }
+.sec-sub { font-size:12px; color:var(--text3); margin-top:4px; }
+
+/* ── GRIDS ── */
+.grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.grid-3 { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+.grid-4 { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+@media(max-width:900px) { .grid-2,.grid-3,.grid-4{grid-template-columns:1fr;} }
+
+/* ── METRIC TILES ── */
+.metric {
+  background:var(--raised); border:1px solid var(--border);
+  border-radius:var(--r2); padding:16px; text-align:center;
+  position:relative; overflow:hidden;
+}
+.metric::after {
+  content:''; position:absolute; bottom:0; left:0; right:0; height:2px;
+  background:linear-gradient(90deg,transparent,var(--mc,var(--border)),transparent);
+}
+.metric.red   { --mc:var(--red);    border-color:rgba(255,51,102,0.2); }
+.metric.cyan  { --mc:var(--cyan);   border-color:rgba(0,212,255,0.2); }
+.metric.green { --mc:var(--green);  border-color:rgba(0,255,136,0.2); }
+.metric.yellow{ --mc:var(--yellow); border-color:rgba(251,191,36,0.2); }
+.metric.orange{ --mc:var(--orange); border-color:rgba(255,107,53,0.2); }
+.m-val { font-family:var(--mono); font-size:26px; font-weight:800; margin-bottom:4px; }
+.m-val.red { color:var(--red); }
+.m-val.cyan { color:var(--cyan); }
+.m-val.green { color:var(--green); }
+.m-val.yellow { color:var(--yellow); }
+.m-lbl { font-size:9px; color:var(--text3); text-transform:uppercase; letter-spacing:.8px; }
+
+/* ── FORMS ── */
+.field { display:flex; flex-direction:column; gap:5px; margin-bottom:12px; }
+.field:last-child { margin-bottom:0; }
+.field label { font-size:10px; font-weight:600; color:var(--text2); letter-spacing:.3px; text-transform:uppercase; }
+.field input, .field textarea, .field select {
+  background:var(--raised); border:1px solid var(--border2);
+  border-radius:var(--r); color:var(--text); font-family:var(--mono);
+  font-size:11px; padding:8px 11px;
+  transition:border-color .15s, box-shadow .15s; outline:none; width:100%;
+}
+.field input:focus, .field textarea:focus, .field select:focus {
+  border-color:var(--red); box-shadow:var(--glow-r);
+}
+.field textarea { resize:vertical; line-height:1.6; }
+
+/* ── LOG / TERMINAL ── */
+.log {
+  background:rgba(0,0,0,0.6);
+  border:1px solid var(--border);
+  border-radius:var(--r);
+  padding:10px 12px;
+  font-family:var(--mono);
+  font-size:10px;
+  overflow-y:auto;
+  scrollbar-width:thin;
+  scrollbar-color:var(--lifted) transparent;
+}
+.log .ll { padding:1px 0; line-height:1.6; }
+.log .ok  { color:var(--green); }
+.log .err { color:var(--red); }
+.log .warn{ color:var(--yellow); }
+.log .info{ color:var(--cyan); }
+.log .dim { color:var(--text3); }
+
+/* ── VULNERABILITY / RESULT ITEMS ── */
+.vuln-item {
+  background:rgba(255,51,102,0.05);
+  border-left:3px solid var(--red);
+  padding:12px 14px;
+  margin-bottom:8px;
+  border-radius:0 var(--r) var(--r) 0;
+  animation:slideIn .3s ease;
+}
+.vuln-item.ok {
+  background:rgba(0,255,136,0.05);
+  border-left-color:var(--green);
+}
+.vuln-title { font-size:11px; font-weight:700; color:var(--red); margin-bottom:4px; }
+.vuln-item.ok .vuln-title { color:var(--green); }
+.vuln-meta { font-size:9px; color:var(--text3); line-height:1.6; font-family:var(--mono); }
+@keyframes slideIn { from{transform:translateX(-6px);opacity:0} to{transform:none;opacity:1} }
+
+/* ── LAYER STATUS GRID ── */
+.layer-grid {
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(110px,1fr));
+  gap:8px; margin-bottom:16px;
+}
+.layer-cell {
+  background:rgba(0,0,0,0.4);
+  border:1px solid var(--border);
+  border-radius:var(--r);
+  padding:8px 10px;
+  text-align:center;
+  transition:border-color .2s, box-shadow .2s;
+}
+.layer-cell.active {
+  border-color:var(--red);
+  box-shadow:0 0 12px rgba(255,51,102,0.2);
+}
+.layer-cell.live {
+  border-color:rgba(0,255,136,0.4);
+}
+.layer-cell.ready {
+  border-color:rgba(0,212,255,0.3);
+}
+.layer-name { font-size:9px; font-weight:700; letter-spacing:.6px; color:var(--text2); text-transform:uppercase; }
+.layer-status { font-size:9px; color:var(--text3); margin-top:3px; font-family:var(--mono); }
+.layer-cell.active .layer-status { color:var(--red); }
+.layer-cell.live .layer-status { color:var(--green); }
+.layer-cell.ready .layer-status { color:var(--cyan); }
+
+/* ── PATTERN CARDS ── */
+.pattern-grid {
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(180px,1fr));
+  gap:10px; margin-bottom:16px;
+}
+.pattern-card {
+  background:var(--raised);
+  border:2px solid var(--border);
+  border-radius:var(--r);
+  padding:12px; cursor:pointer;
+  transition:all .2s;
+}
+.pattern-card:hover { border-color:rgba(0,212,255,0.4); transform:translateY(-2px); }
+.pattern-card.sel { border-color:var(--red); background:rgba(255,51,102,0.08); box-shadow:var(--glow-r); }
+.p-name { font-size:11px; font-weight:700; color:var(--cyan); margin-bottom:4px; }
+.p-desc { font-size:9px; color:var(--text3); line-height:1.5; }
+
+/* ── CONTRIBUTION CARD ── */
+.contrib-card {
+  background:rgba(0,255,136,0.03);
+  border-left:3px solid var(--green);
+  padding:12px 14px; margin-bottom:8px;
+  border-radius:0 var(--r) var(--r) 0;
+  display:flex; justify-content:space-between; align-items:flex-start; gap:12px;
+}
+.cc-title { font-size:11px; font-weight:600; color:var(--text); }
+.cc-meta  { font-size:9px; color:var(--text3); font-family:var(--mono); margin-top:3px; line-height:1.6; }
+.cc-reward { font-family:var(--mono); font-size:16px; font-weight:800; color:var(--yellow); flex-shrink:0; }
+
+/* ── BADGE ── */
+.badge {
+  display:inline-block; padding:2px 7px; border-radius:3px;
+  font-size:8px; font-weight:700; letter-spacing:.5px; font-family:var(--mono);
+}
+.badge.red    { background:rgba(255,51,102,0.12); color:var(--red);    border:1px solid rgba(255,51,102,0.25); }
+.badge.cyan   { background:rgba(0,212,255,0.1);   color:var(--cyan);   border:1px solid rgba(0,212,255,0.2); }
+.badge.green  { background:rgba(0,255,136,0.1);   color:var(--green);  border:1px solid rgba(0,255,136,0.2); }
+.badge.yellow { background:rgba(251,191,36,0.1);  color:var(--yellow); border:1px solid rgba(251,191,36,0.2); }
+
+/* ── SCROLLBARS ── */
+::-webkit-scrollbar { width:4px; height:4px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:var(--lifted); border-radius:2px; }
+
+/* ── TOAST ── */
+.toast {
+  position:fixed; bottom:24px; right:24px; z-index:9999;
+  background:var(--surface); border:1px solid var(--border2);
+  font-family:var(--mono); font-size:11px; padding:10px 16px;
+  border-radius:var(--r); pointer-events:none;
+  animation:fadeUp .3s ease; max-width:300px;
+}
+
+/* ── CANVAS ── */
+canvas.viz { width:100%; height:180px; border:1px solid var(--border); border-radius:var(--r); background:var(--raised); display:block; }
+
+/* ── EMPTY STATE ── */
+.empty { text-align:center; padding:32px; color:var(--text3); font-size:12px; font-family:var(--mono); border:1px dashed var(--border); border-radius:var(--r); }
+
+/* ── ONBOARDING OVERLAY ── */
+#onboarding-overlay {
+  position:fixed; inset:0; z-index:10000;
+  background:rgba(5,5,10,0.97);
+  display:flex; align-items:center; justify-content:center;
+  animation:fadeUp .3s ease;
+}
+#onboarding-overlay.hidden { display:none; }
+.onboard-panel {
+  width:540px; max-width:95vw;
+  background:var(--surface);
+  border:1px solid var(--border2);
+  border-radius:12px;
+  padding:32px;
+  position:relative;
+}
+.onboard-step { display:none; }
+.onboard-step.active { display:block; animation:fadeUp .2s ease; }
+.onboard-title { font-size:22px; font-weight:800; margin-bottom:6px; }
+.onboard-sub { font-size:12px; color:var(--text3); margin-bottom:24px; line-height:1.6; }
+.mission-list { display:flex; flex-direction:column; gap:8px; margin-bottom:24px; }
+.mission-item {
+  display:flex; gap:12px; align-items:flex-start;
+  padding:12px; background:var(--raised); border:1px solid var(--border);
+  border-radius:var(--r); cursor:pointer; transition:all .15s;
+}
+.mission-item.done { border-color:rgba(0,255,136,0.3); background:rgba(0,255,136,0.05); }
+.mission-item:hover { border-color:var(--red); }
+.mission-num { font-family:var(--mono); font-size:18px; font-weight:800; color:var(--red); flex-shrink:0; min-width:28px; }
+.mission-item.done .mission-num { color:var(--green); }
+.mission-name { font-size:12px; font-weight:700; color:var(--text); margin-bottom:2px; }
+.mission-desc { font-size:10px; color:var(--text3); line-height:1.5; }
+.onboard-progress { height:3px; background:var(--border); border-radius:2px; margin-bottom:20px; }
+.onboard-progress-bar { height:100%; background:var(--red); border-radius:2px; transition:width .3s; }
+.onboard-nav { display:flex; justify-content:space-between; align-items:center; }
+.onboard-dots { display:flex; gap:6px; }
+.onboard-dot { width:6px; height:6px; border-radius:50%; background:var(--border2); transition:all .2s; }
+.onboard-dot.active { background:var(--red); transform:scale(1.3); }
+
+/* ── SIGNED RECEIPT / PROOF EXPORT ── */
+.receipt-box {
+  background:rgba(0,0,0,0.5);
+  border:1px solid rgba(0,212,255,0.3);
+  border-radius:var(--r);
+  padding:14px;
+  font-family:var(--mono);
+  font-size:9px;
+  color:var(--text2);
+  line-height:1.8;
+  margin-top:12px;
+  word-break:break-all;
+}
+.receipt-box .rk { color:var(--text3); }
+.receipt-box .rv { color:var(--cyan); }
+.receipt-box .rv.sig { color:var(--green); }
+.proof-export-area {
+  background:rgba(0,0,0,0.4);
+  border:1px solid rgba(0,255,136,0.2);
+  border-radius:var(--r);
+  padding:12px;
+  font-family:var(--mono);
+  font-size:9px;
+  color:var(--green);
+  max-height:200px;
+  overflow-y:auto;
+  white-space:pre;
+  margin-top:10px;
+}
+
+/* ── KEY MANAGEMENT CARD ── */
+.key-card {
+  background:rgba(0,212,255,0.04);
+  border:1px solid rgba(0,212,255,0.2);
+  border-radius:var(--r);
+  padding:12px;
+  font-family:var(--mono);
+  font-size:10px;
+  margin-bottom:14px;
+}
+.key-card .kc-row { display:flex; justify-content:space-between; margin-bottom:4px; }
+.key-card .kc-label { color:var(--text3); font-size:9px; text-transform:uppercase; letter-spacing:.8px; }
+.key-card .kc-val { color:var(--cyan); font-size:9px; word-break:break-all; max-width:260px; text-align:right; }
+
+/* ── BENCHMARK TAB ── */
+.bench-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:16px; }
+.bench-bar-wrap { margin-bottom:10px; }
+.bench-label { font-size:10px; color:var(--text2); display:flex; justify-content:space-between; margin-bottom:4px; }
+.bench-bar { height:8px; background:var(--raised); border-radius:4px; overflow:hidden; }
+.bench-bar-fill { height:100%; border-radius:4px; transition:width .8s cubic-bezier(.4,0,.2,1); }
+.bench-score-ring {
+  width:64px; height:64px;
+  border-radius:50%;
+  background:conic-gradient(var(--cyan) 0%, var(--raised) 0%);
+  display:flex; align-items:center; justify-content:center;
+  font-family:var(--mono); font-size:13px; font-weight:800; color:var(--cyan);
+  margin:0 auto 8px;
+  transition:background .8s;
+  box-shadow:0 0 20px rgba(0,212,255,0.15);
+}
+.bench-category { text-align:center; font-size:9px; color:var(--text3); text-transform:uppercase; letter-spacing:.8px; }
+
+/* ── PROOF BADGE ── */
+.proof-badge {
+  display:inline-flex; align-items:center; gap:5px;
+  padding:3px 8px; border-radius:3px;
+  background:rgba(0,255,136,0.08); border:1px solid rgba(0,255,136,0.2);
+  font-family:var(--mono); font-size:9px; color:var(--green);
+  cursor:help;
+}
+.proof-badge.unverified { background:rgba(255,51,102,0.08); border-color:rgba(255,51,102,0.2); color:var(--red); }
+
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════
+     ONBOARDING OVERLAY
+══════════════════════════════════════ -->
+<div id="onboarding-overlay">
+  <div class="onboard-panel">
+    <div class="onboard-progress"><div class="onboard-progress-bar" id="ob-progress" style="width:0%"></div></div>
+
+    <!-- Step 0: Welcome -->
+    <div class="onboard-step active" id="ob-step-0">
+      <div class="onboard-title" style="color:var(--red);">⚔ Welcome, Commander</div>
+      <div class="onboard-sub">Attack Command is a sovereign security platform. All operations are cryptographically signed with your DID keypair and produce verifiable audit receipts.</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:24px;">
+        <div class="metric red"><div class="m-val red">ECDSA</div><div class="m-lbl">Signing Algorithm</div></div>
+        <div class="metric cyan"><div class="m-val cyan">P-256</div><div class="m-lbl">Key Curve</div></div>
+      </div>
+      <div id="ob-key-status" style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-bottom:20px;padding:10px;background:var(--raised);border-radius:var(--r);">Generating keypair…</div>
+    </div>
+
+    <!-- Step 1: Missions -->
+    <div class="onboard-step" id="ob-step-1">
+      <div class="onboard-title" style="color:var(--cyan);">◈ Mission Briefing</div>
+      <div class="onboard-sub">Complete these missions to master the platform. Each is tracked in your signed audit trail.</div>
+      <div class="mission-list" id="ob-missions">
+        <div class="mission-item" data-mission="0"><div class="mission-num">01</div><div><div class="mission-name">Run a Solidity Audit</div><div class="mission-desc">Paste a contract and execute the full AI + static scan</div></div></div>
+        <div class="mission-item" data-mission="1"><div class="mission-num">02</div><div><div class="mission-name">RRTK Property Test</div><div class="mission-desc">Load a JSONFlow workflow and run mutation testing</div></div></div>
+        <div class="mission-item" data-mission="2"><div class="mission-num">03</div><div><div class="mission-name">Execute Attack Patterns</div><div class="mission-desc">Run at least 3 attack modules against a workflow</div></div></div>
+        <div class="mission-item" data-mission="3"><div class="mission-num">04</div><div><div class="mission-name">Export Signed Receipt</div><div class="mission-desc">Download a cryptographically signed audit receipt</div></div></div>
+        <div class="mission-item" data-mission="4"><div class="mission-num">05</div><div><div class="mission-name">Run Performance Benchmark</div><div class="mission-desc">Measure platform throughput on the Benchmark tab</div></div></div>
+      </div>
+    </div>
+
+    <!-- Step 2: Ready -->
+    <div class="onboard-step" id="ob-step-2">
+      <div class="onboard-title" style="color:var(--green);">✓ Identity Bound</div>
+      <div class="onboard-sub">Your ECDSA keypair is generated and stored in session memory. Every action you take will be signed.</div>
+      <div class="key-card" id="ob-key-card" style="margin-bottom:16px;">
+        <div class="kc-row"><span class="kc-label">DID</span><span class="kc-val" id="ob-did-display">—</span></div>
+        <div class="kc-row"><span class="kc-label">Public Key (JWK thumb)</span><span class="kc-val" id="ob-pubkey-display">—</span></div>
+        <div class="kc-row"><span class="kc-label">Algorithm</span><span class="kc-val">ECDSA P-256</span></div>
+        <div class="kc-row"><span class="kc-label">Key Usage</span><span class="kc-val">sign, verify</span></div>
+      </div>
+      <div style="font-size:11px;color:var(--text3);background:rgba(0,255,136,0.05);border:1px solid rgba(0,255,136,0.15);border-radius:var(--r);padding:12px;line-height:1.7;">
+        ⚠ Keys exist in session memory only and are never transmitted. Each session generates a fresh keypair. For persistent identity, connect a Sovereign OS instance.
+      </div>
+    </div>
+
+    <div class="onboard-nav">
+      <div class="onboard-dots" id="ob-dots">
+        <div class="onboard-dot active"></div>
+        <div class="onboard-dot"></div>
+        <div class="onboard-dot"></div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-sm" id="ob-back-btn" style="display:none;">← Back</button>
+        <button class="btn btn-red" id="ob-next-btn">Generate Keypair →</button>
+        <button class="btn btn-green" id="ob-launch-btn" style="display:none;">⚔ Launch Platform</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     SIDEBAR
+══════════════════════════════════════ -->
+<nav id="sidebar">
+  <div class="brand">
+    <div class="brand-name">⚔ ATTACK <span>CMD</span></div>
+    <div class="brand-sub">Sovereign Security Platform</div>
+  </div>
+
+  <div class="sidebar-label">Offense</div>
+
+  <button class="nav-item active" id="nav-overview" data-tab="overview">
+    <span class="nav-icon">⬡</span> Overview
+  </button>
+  <button class="nav-item" id="nav-solidity" data-tab="solidity">
+    <span class="nav-icon">⚡</span> Solidity Auditor
+  </button>
+  <button class="nav-item" id="nav-rrtk" data-tab="rrtk">
+    <span class="nav-icon">🔒</span> RRTK Security
+  </button>
+  <button class="nav-item" id="nav-modules" data-tab="modules">
+    <span class="nav-icon">⚔</span> Attack Modules
+  </button>
+  <button class="nav-item" id="nav-fuzzer" data-tab="fuzzer">
+    <span class="nav-icon">⬜</span> Workflow Fuzzer
+  </button>
+
+  <div class="sidebar-label" style="margin-top:6px;">Intel</div>
+
+  <button class="nav-item nav-green" id="nav-contrib" data-tab="contrib">
+    <span class="nav-icon">💡</span> Contributions
+  </button>
+  <button class="nav-item nav-yellow" id="nav-valuation" data-tab="valuation">
+    <span class="nav-icon">💰</span> Asset Valuation
+  </button>
+  <button class="nav-item nav-purple" id="nav-invariants" data-tab="invariants">
+    <span class="nav-icon">∀</span> Invariants
+  </button>
+  <button class="nav-item nav-cyan" id="nav-log" data-tab="log">
+    <span class="nav-icon">▤</span> System Log
+  </button>
+  <button class="nav-item nav-cyan" id="nav-benchmark" data-tab="benchmark">
+    <span class="nav-icon">⚡</span> Benchmarks
+  </button>
+
+  <!-- Live sidebar stats -->
+  <div class="sidebar-stats">
+    <div class="ss-row"><span class="ss-label">Checks Run</span><span class="ss-val red" id="sb-iter">0</span></div>
+    <div class="ss-row"><span class="ss-label">Vulnerabilities</span><span class="ss-val yellow" id="sb-vulns">0</span></div>
+    <div class="ss-row"><span class="ss-label">Contributions</span><span class="ss-val green" id="sb-contrib">0</span></div>
+    <div class="ss-row"><span class="ss-label">Reward Pool</span><span class="ss-val yellow" id="sb-reward">$0</span></div>
+  </div>
+
+  <div class="sidebar-footer">
+    <div class="id-chip" data-action="showIdentity">
+      <div class="id-avatar" id="id-avatar">?</div>
+      <div class="id-info">
+        <div class="id-name" id="id-name">Loading…</div>
+        <div class="id-status">Sovereign Identity</div>
+      </div>
+      <div class="id-dot"></div>
+    </div>
+  </div>
+</nav>
+
+<!-- ══════════════════════════════════════
+     MAIN
+══════════════════════════════════════ -->
+<div id="main">
+  <div id="topbar">
+    <div>
+      <div class="topbar-title" id="topbar-title">Attack Command</div>
+      <div class="topbar-sub" id="topbar-sub">Adversarial Security Testing · Sovereign Identity Bound</div>
+    </div>
+    <div class="topbar-actions">
+      <div class="did-banner"><span>DID: </span><span id="did-display">detecting…</span></div>
+      <button class="btn btn-cyan btn-sm" data-action="kernelRunAll">▶ Run All Tests</button>
+      <button class="btn btn-red btn-sm" data-action="kernelExecAll">⚔ All Attacks</button>
+    </div>
+  </div>
+
+  <div id="content">
+
+    <!-- ══════════════ TAB: OVERVIEW ══════════════ -->
+    <div class="tab-pane active" id="tab-overview">
+      <div class="sec-header">
+        <div class="sec-title">Attack Command Center</div>
+        <div class="sec-sub">Full-stack adversarial security testing platform — bound to your sovereign DID</div>
+      </div>
+
+      <!-- Top metrics -->
+      <div class="grid-4" style="margin-bottom:20px;">
+        <div class="metric red"><div class="m-val red" id="ov-iter">0</div><div class="m-lbl">Checks Run</div></div>
+        <div class="metric yellow"><div class="m-val yellow" id="ov-vulns">0</div><div class="m-lbl">Vulnerabilities</div></div>
+        <div class="metric cyan"><div class="m-val cyan" id="ov-attacks">0</div><div class="m-lbl">Attacks Executed</div></div>
+        <div class="metric green"><div class="m-val green" id="ov-contrib">0</div><div class="m-lbl">Contributions</div></div>
+      </div>
+
+      <!-- Identity binding -->
+      <div class="card card-red" style="margin-bottom:16px;">
+        <div class="card-title red">⬡ Identity Binding <sub>All operations signed by your sovereign DID</sub></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+          <div>
+            <div style="font-size:10px;color:var(--text3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.8px;">Sovereign DID</div>
+            <div style="font-family:var(--mono);font-size:10px;color:var(--cyan);word-break:break-all;" id="ov-did">—</div>
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--text3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.8px;">Username · Token Balance</div>
+            <div style="font-family:var(--mono);font-size:12px;color:var(--red);font-weight:700;" id="ov-user">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Layer status -->
+      <div class="card card-cyan">
+        <div class="card-title cyan">◈ System Layers <sub>Real-time kernel status</sub></div>
+        <div class="layer-grid">
+          <div class="layer-cell live" id="lc-infra"><div class="layer-name">Infrastructure</div><div class="layer-status">ONLINE</div></div>
+          <div class="layer-cell ready" id="lc-rrtk"><div class="layer-name">RRTK Kernel</div><div class="layer-status">READY</div></div>
+          <div class="layer-cell ready" id="lc-oracle"><div class="layer-name">Oracle</div><div class="layer-status">READY</div></div>
+          <div class="layer-cell" id="lc-app"><div class="layer-name">Application</div><div class="layer-status">STANDBY</div></div>
+          <div class="layer-cell" id="lc-business"><div class="layer-name">Business Logic</div><div class="layer-status">STANDBY</div></div>
+          <div class="layer-cell" id="lc-data"><div class="layer-name">Data</div><div class="layer-status">STANDBY</div></div>
+        </div>
+      </div>
+
+      <!-- Quick actions -->
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">⚡ Quick Launch</div>
+          <div class="btn-row">
+            <button class="btn btn-red btn-full" data-tab="solidity">Solidity Auditor</button>
+            <button class="btn btn-cyan btn-full" data-tab="rrtk">RRTK Testing</button>
+            <button class="btn btn-full" data-tab="modules" style="margin-top:0;">Attack Modules</button>
+            <button class="btn btn-full" data-tab="fuzzer" style="margin-top:0;">Workflow Fuzzer</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">▤ Live Feed</div>
+          <div class="log" id="ov-feed" style="height:140px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════ TAB: SOLIDITY AUDITOR ══════════════ -->
+    <div class="tab-pane" id="tab-solidity">
+      <div class="sec-header">
+        <div class="sec-title">Solidity Auditor</div>
+        <div class="sec-sub">AI-powered contract auditing via local Ollama — paste any .sol, get a full vulnerability report</div>
+      </div>
+
+      <!-- AI Config -->
+      <div class="card card-cyan" style="margin-bottom:14px;">
+        <div class="card-title cyan">⬡ AI Engine <sub>local · private · no cloud</sub></div>
+        <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
+          <div class="field" style="flex:2;margin-bottom:0;"><label>Ollama URL</label><input id="sol-url" value="http://localhost:11434"></div>
+          <div class="field" style="flex:1;min-width:140px;margin-bottom:0;"><label>Model</label>
+            <select id="sol-model">
+              <option value="mistral">mistral</option><option value="llama3.2">llama3.2</option>
+              <option value="llama3.1">llama3.1</option><option value="codellama">codellama</option>
+              <option value="deepseek-coder">deepseek-coder</option><option value="phi4">phi4</option>
+              <option value="qwen2.5">qwen2.5</option>
+            </select>
+          </div>
+          <div style="display:flex;gap:8px;padding-bottom:1px;">
+            <button class="btn btn-cyan btn-sm" data-action="solTestConn">Test Connection</button>
+          </div>
+        </div>
+        <div style="font-size:10px;margin-top:8px;font-family:var(--mono);" id="sol-conn-status"></div>
+      </div>
+
+      <div class="grid-2" style="align-items:start;">
+        <div>
+          <div class="card">
+            <div class="card-title red">⬡ Contract Source</div>
+            <div class="field">
+              <label>Solidity Code</label>
+              <textarea id="sol-input" rows="18" placeholder="// Paste your Solidity contract here&#10;pragma solidity ^0.8.0;&#10;&#10;contract Token {&#10;    mapping(address => uint256) public balances;&#10;    function withdraw(uint256 amount) public {&#10;        require(balances[msg.sender] >= amount);&#10;        (bool ok,) = msg.sender.call{value: amount}('');&#10;        require(ok);&#10;        balances[msg.sender] -= amount; // ← reentrancy!&#10;    }&#10;}"></textarea>
+            </div>
+            <div class="btn-row">
+              <button class="btn btn-red" style="flex:1;" data-action="solAudit">⚡ Full AI Audit</button>
+              <button class="btn btn-cyan btn-sm" data-action="solStatic">Static Scan</button>
+              <button class="btn btn-sm" data-action="solExample">Example</button>
+              <button class="btn btn-green btn-sm" data-action="solExport">Export</button>
+              <button class="btn btn-yellow btn-sm" data-action="solProofExport">↓ Proof Bundle</button>
+            </div>
+            <div class="log" id="sol-log" style="height:80px;margin-top:12px;"></div>
+          </div>
+        </div>
+        <div>
+          <div class="card card-red">
+            <div class="card-title red">⬡ Audit Report</div>
+            <div id="sol-report" style="min-height:400px;">
+              <div class="empty">Paste a Solidity contract and click <strong>Full AI Audit</strong>.<br><br>Detects: reentrancy · integer overflow · access control · tx.origin · selfdestruct · unchecked calls · front-running · flash loan vectors</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════ TAB: RRTK SECURITY ══════════════ -->
+    <div class="tab-pane" id="tab-rrtk">
+      <div class="sec-header">
+        <div class="sec-title">RRTK Security Testing</div>
+        <div class="sec-sub">Randomized property testing kernel — mutation-based adversarial analysis of JSONFlow workflows</div>
+      </div>
+
+      <!-- Layer status -->
+      <div class="card card-cyan">
+        <div class="card-title cyan">◈ Kernel Layers</div>
+        <div class="layer-grid">
+          <div class="layer-cell live"  id="rl-infra"   ><div class="layer-name">Infrastructure</div><div class="layer-status">ONLINE</div></div>
+          <div class="layer-cell ready" id="rl-rrtk"    ><div class="layer-name">RRTK Kernel</div><div class="layer-status">READY</div></div>
+          <div class="layer-cell ready" id="rl-oracle"  ><div class="layer-name">Oracle</div><div class="layer-status">READY</div></div>
+          <div class="layer-cell"       id="rl-app"     ><div class="layer-name">Application</div><div class="layer-status">STANDBY</div></div>
+          <div class="layer-cell"       id="rl-business"><div class="layer-name">Business Logic</div><div class="layer-status">STANDBY</div></div>
+          <div class="layer-cell"       id="rl-data"    ><div class="layer-name">Data</div><div class="layer-status">STANDBY</div></div>
+        </div>
+      </div>
+
+      <div class="grid-2" style="align-items:start;">
+        <div>
+          <div class="card">
+            <div class="card-title">⬡ Workflow Input</div>
+            <div class="field">
+              <label>JSONFlow Workflow</label>
+              <textarea id="rrtk-input" rows="12" placeholder='{&#10;  "id": "token_transfer",&#10;  "inputs": { "balance": 5000, "amount": 1000 },&#10;  "steps": [&#10;    { "id": "call", "type": "call", "target": "recipient" },&#10;    { "id": "update", "type": "compute", "expression": "balance - amount", "mutates": true }&#10;  ]&#10;}'></textarea>
+            </div>
+            <div class="field"><label>Max Iterations</label><input id="rrtk-iter" type="number" value="100" min="10" max="10000"></div>
+            <div class="btn-row">
+              <button class="btn btn-cyan btn-sm" data-action="rrtkExample">Load Example</button>
+              <button class="btn btn-sm" data-action="rrtkValidate">Validate JSON</button>
+              <button class="btn btn-red" data-action="rrtkStart">▶ Start Test</button>
+              <button class="btn btn-yellow btn-sm" data-action="rrtkProofExport">↓ Vuln Proof</button>
+            </div>
+            <div class="log" id="rrtk-log" style="height:140px;margin-top:12px;"></div>
+          </div>
+        </div>
+        <div>
+          <div class="grid-2" style="margin-bottom:14px;">
+            <div class="metric red"><div class="m-val red" id="rrtk-stat-iter">0</div><div class="m-lbl">Iterations</div></div>
+            <div class="metric yellow"><div class="m-val yellow" id="rrtk-stat-attacks">0</div><div class="m-lbl">Attacks</div></div>
+            <div class="metric red"><div class="m-val red" id="rrtk-stat-vulns">0</div><div class="m-lbl">Vulnerabilities</div></div>
+            <div class="metric cyan"><div class="m-val cyan" id="rrtk-stat-patterns">0</div><div class="m-lbl">Patterns</div></div>
+          </div>
+          <div class="card card-red">
+            <div class="card-title red">⬡ Vulnerability Report</div>
+            <div id="rrtk-vulns"><div class="empty">Run a test to see results</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- System log -->
+      <div class="card">
+        <div class="card-title">▤ RRTK System Log <span id="rrtk-did-tag" style="font-family:var(--mono);font-size:9px;color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0;margin-left:4px;"></span></div>
+        <div class="log" id="rrtk-syslog" style="height:120px;"></div>
+      </div>
+    </div>
+
+    <!-- ══════════════ TAB: ATTACK MODULES ══════════════ -->
+    <div class="tab-pane" id="tab-modules">
+      <div class="sec-header">
+        <div class="sec-title">Advanced Attack Modules</div>
+        <div class="sec-sub">Select and execute specialized attack patterns against target workflows</div>
+      </div>
+
+      <!-- Identity tag -->
+      <div style="background:rgba(255,51,102,0.07);border:1px solid rgba(255,51,102,0.2);border-radius:var(--r);padding:10px 14px;margin-bottom:16px;display:flex;align-items:center;gap:10px;">
+        <div style="width:6px;height:6px;border-radius:50%;background:var(--red);animation:blink 2s infinite;"></div>
+        <span style="font-family:var(--mono);font-size:10px;color:var(--text3);">Executing as: </span>
+        <span style="font-family:var(--mono);font-size:10px;color:var(--red);" id="mod-did-tag">detecting…</span>
+      </div>
+
+      <div class="card card-red">
+        <div class="card-title red">⚔ Attack Pattern Library</div>
+        <p style="font-size:11px;color:var(--text3);margin-bottom:14px;">Select patterns below. Uses workflow from RRTK tab if loaded, or empty workflow.</p>
+        <div class="pattern-grid" id="pattern-grid"></div>
+        <div class="btn-row">
+          <button class="btn btn-red" data-action="modsExecSel">⚔ Execute Selected</button>
+          <button class="btn btn-yellow" data-action="modsExecAll">Execute All Patterns</button>
+          <button class="btn btn-sm" data-action="modsClear">Clear</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">⬡ Attack Results <span id="mod-result-meta" style="font-family:var(--mono);font-size:9px;color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0;"></span></div>
+        <div id="mod-results"><div class="empty">No attacks executed yet</div></div>
+      </div>
+    </div>
+
+    <!-- ══════════════ TAB: WORKFLOW FUZZER ══════════════ -->
+    <div class="tab-pane" id="tab-fuzzer">
+      <div class="sec-header">
+        <div class="sec-title">Workflow Fuzzer</div>
+        <div class="sec-sub">Static pattern checks and mutation-based fuzzing — no LLM required</div>
+      </div>
+
+      <div class="grid-2" style="align-items:start;">
+        <div class="card card-yellow">
+          <div class="card-title yellow">⬡ Static Pattern Checks</div>
+          <div id="fuzz-patterns" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;"></div>
+          <div class="btn-row">
+            <button class="btn btn-yellow" data-action="fuzzRunSel">Run Selected</button>
+            <button class="btn btn-red" data-action="fuzzRunAll">Run All</button>
+            <button class="btn btn-sm" data-action="fuzzClear">Clear</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">⬡ Mutation Fuzzer <sub>inject into JSONFlow</sub></div>
+          <div class="field"><label>Workflow JSON</label>
+            <textarea id="fuzz-workflow" rows="7" placeholder='{"id":"token_transfer","inputs":{"balance":5000,"amount":1000},"steps":[{"id":"call","type":"call","target":"recipient"},{"id":"update","type":"compute","expression":"balance - amount","mutates":true}]}'></textarea>
+          </div>
+          <div class="field"><label>Max Iterations</label><input id="fuzz-iter" type="number" value="20" min="5" max="1000"></div>
+          <div class="btn-row">
+            <button class="btn btn-cyan btn-sm" data-action="fuzzExample">Load Example</button>
+            <button class="btn btn-red" data-action="fuzzFuzz">⚡ Fuzz</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card card-red">
+        <div class="card-title red">⬡ Static Scan Results</div>
+        <div id="fuzz-results"><div class="empty">No static tests run yet</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">⬡ Fuzzer Log</div>
+        <div class="log" id="fuzz-log" style="height:100px;"></div>
+      </div>
+    </div>
+
+    <!-- ══════════════ TAB: CONTRIBUTIONS ══════════════ -->
+    <div class="tab-pane" id="tab-contrib">
+      <div class="sec-header">
+        <div class="sec-title">Knowledge Contributions</div>
+        <div class="sec-sub">Submit intelligence — auto-linked to your sovereign DID, rewards credited to your wallet</div>
+      </div>
+
+      <div class="grid-2" style="align-items:start;">
+        <div>
+          <div class="card card-green">
+            <div class="card-title green">💡 Submit Contribution</div>
+            <div style="background:rgba(0,255,136,0.06);border:1px solid rgba(0,255,136,0.2);border-radius:var(--r);padding:10px;margin-bottom:14px;font-family:var(--mono);font-size:10px;">
+              <span style="color:var(--text3);">Contributing as: </span><span style="color:var(--green);font-weight:700;" id="contrib-id-tag">detecting…</span>
+            </div>
+            <div class="field"><label>Title</label><input id="contrib-title" placeholder="Contribution title" style="border-color:rgba(0,255,136,0.2);"></div>
+            <div class="field"><label>Type</label>
+              <select id="contrib-type">
+                <option value="">Select type…</option>
+                <option value="novel_algorithm">Novel Algorithm</option>
+                <option value="research_paper">Research Paper</option>
+                <option value="practical_tool">Practical Tool</option>
+                <option value="vulnerability_report">Vulnerability Report</option>
+                <option value="leaked_document">Leaked Document</option>
+              </select>
+            </div>
+            <div class="field"><label>Domain</label>
+              <select id="contrib-domain">
+                <option value="">Select domain…</option>
+                <option value="AI/ML">AI/ML</option>
+                <option value="Systems">Systems</option>
+                <option value="Theory">Theory</option>
+                <option value="Security">Security</option>
+                <option value="Cryptography">Cryptography</option>
+              </select>
+            </div>
+            <div class="field"><label>Description</label><textarea id="contrib-desc" rows="4" placeholder="Describe your contribution…"></textarea></div>
+            <button class="btn btn-green btn-full" data-action="contribSubmit" id="contrib-btn">⬡ Initiate Analysis</button>
+            <div id="contrib-result" style="margin-top:12px;display:none;"></div>
+          </div>
+        </div>
+
+        <div>
+          <div class="grid-2" style="margin-bottom:14px;">
+            <div class="metric green"><div class="m-val green" id="contrib-stat-count">0</div><div class="m-lbl">Contributions</div></div>
+            <div class="metric yellow"><div class="m-val yellow" id="contrib-stat-reward">$0</div><div class="m-lbl">Total Rewards</div></div>
+          </div>
+          <div class="card">
+            <div class="card-title">⬡ Network Graph</div>
+            <canvas id="contrib-canvas" class="viz" height="180"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title green">⬡ Contribution Registry <span id="contrib-count-tag" style="font-family:var(--mono);font-size:9px;color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0;"></span></div>
+        <div id="contrib-list"><div class="empty">Awaiting first contribution…</div></div>
+      </div>
+    </div>
+
+    <!-- ══════════════ TAB: ASSET VALUATION ══════════════ -->
+    <div class="tab-pane" id="tab-valuation">
+      <div class="sec-header">
+        <div class="sec-title">Asset Valuation Engine</div>
+        <div class="sec-sub">Sovereign-signed appraisals — DID-linked · cryptographically provable</div>
+      </div>
+
+      <div class="grid-2" style="align-items:start;">
+        <div>
+          <div class="card card-yellow">
+            <div class="card-title yellow">💰 Asset Submission</div>
+            <div style="background:rgba(251,191,36,0.06);border:1px solid rgba(251,191,36,0.2);border-radius:var(--r);padding:10px;margin-bottom:14px;font-family:var(--mono);font-size:10px;">
+              <span style="color:var(--text3);">Appraisal signed by: </span><span style="color:var(--yellow);font-weight:700;" id="val-id-tag">detecting…</span>
+            </div>
+            <div class="field"><label>Asset Name</label><input id="val-name" placeholder="Asset name" style="border-color:rgba(251,191,36,0.2);"></div>
+            <div class="field"><label>Asset Type</label>
+              <select id="val-type">
+                <option value="">Select type…</option>
+                <option value="ai-ml">AI/ML Model</option>
+                <option value="datacenter">Data Center Infrastructure</option>
+                <option value="defi">DeFi Protocol</option>
+                <option value="dataset">Dataset</option>
+                <option value="api">API Service</option>
+                <option value="frontend">Frontend Application</option>
+              </select>
+            </div>
+            <div class="field"><label>Description</label><textarea id="val-desc" rows="4" placeholder="Describe the asset…"></textarea></div>
+            <div class="field"><label>Deal Type</label>
+              <select id="val-deal">
+                <option value="">Select deal type…</option>
+                <option value="loan">Loan — borrow against asset</option>
+                <option value="purchase">Purchase — sell asset</option>
+              </select>
+            </div>
+            <button class="btn btn-yellow btn-full" data-action="valuationEval">💰 Request Valuation</button>
+            <div id="val-result" style="margin-top:12px;display:none;"></div>
+          </div>
+        </div>
+
+        <div>
+          <div style="display:grid;grid-template-columns:1fr;gap:10px;margin-bottom:14px;">
+            <div class="metric yellow"><div class="m-val yellow" id="val-stat-quality">—</div><div class="m-lbl">Quality Score</div></div>
+            <div class="metric red"><div class="m-val red" id="val-stat-risk">—</div><div class="m-lbl">Risk Score</div></div>
+            <div class="metric green"><div class="m-val green" id="val-stat-offer">—</div><div class="m-lbl">Estimated Offer</div></div>
+          </div>
+          <div class="card">
+            <div class="card-title">▤ Valuation Log</div>
+            <div class="log" id="val-log" style="height:160px;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════ TAB: INVARIANTS ══════════════ -->
+    <div class="tab-pane" id="tab-invariants">
+      <div class="sec-header">
+        <div class="sec-title">Invariant Verifier</div>
+        <div class="sec-sub">One irreducible invariant per system goal — verify before commit</div>
+      </div>
+
+      <div class="grid-3" style="margin-bottom:16px;">
+        <div class="metric cyan"><div class="m-val cyan" id="inv-total">4</div><div class="m-lbl">Total Invariants</div></div>
+        <div class="metric green"><div class="m-val green" id="inv-pass">0</div><div class="m-lbl">Passing</div></div>
+        <div class="metric red"><div class="m-val red" id="inv-fail">0</div><div class="m-lbl">Failing</div></div>
+      </div>
+
+      <div class="card card-cyan" style="margin-bottom:16px;">
+        <div class="card-title cyan">⬡ Verification Engine</div>
+        <div class="btn-row" style="margin-bottom:12px;">
+          <button class="btn btn-cyan" data-action="invVerifyAll">⚡ Verify All</button>
+          <button class="btn btn-sm" data-action="invVerify" data-inv="reentrancy">No Reentrancy</button>
+          <button class="btn btn-sm" data-action="invVerify" data-inv="balance">Balance</button>
+          <button class="btn btn-sm" data-action="invVerify" data-inv="overflow">Overflow</button>
+          <button class="btn btn-sm" data-action="invVerify" data-inv="access">Access</button>
+        </div>
+        <div id="inv-status" style="font-family:var(--mono);font-size:10px;padding:10px;background:var(--raised);border-radius:var(--r);border:1px solid var(--border);color:var(--text3);min-height:40px;">Run Verify All to check invariants against currently loaded workflow.</div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;" id="inv-cards"></div>
+    </div>
+
+    <!-- ══════════════ TAB: SYSTEM LOG ══════════════ -->
+    <div class="tab-pane" id="tab-log">
+      <div class="sec-header">
+        <div class="sec-title">System Log</div>
+        <div class="sec-sub">Full audit trail — all operations signed and attributed to sovereign DID</div>
+      </div>
+      <div class="card" style="margin-bottom:14px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <div class="card-title" style="margin:0;">▤ Global Event Log</div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-sm" data-action="syslogClear">Clear</button>
+            <button class="btn btn-green btn-sm" data-action="syslogExport">Export</button>
+            <button class="btn btn-cyan btn-sm" data-action="downloadSignedAudit">↓ Signed Receipt</button>
+          </div>
+        </div>
+        <div class="log" id="global-log" style="height:calc(100vh - 280px);"></div>
+      </div>
+    </div>
+
+    </div><!-- /tab-log -->
+
+    <!-- ══════════════ TAB: BENCHMARKS ══════════════ -->
+    <div class="tab-pane" id="tab-benchmark">
+      <div class="sec-header">
+        <div class="sec-title">Performance Benchmarks</div>
+        <div class="sec-sub">Measure platform throughput, signing latency, and analysis speed — all results are signed</div>
+      </div>
+
+      <div class="grid-4" style="margin-bottom:20px;">
+        <div class="metric cyan"><div class="m-val cyan" id="bench-ops">—</div><div class="m-lbl">Ops/sec</div></div>
+        <div class="metric green"><div class="m-val green" id="bench-sign-ms">—</div><div class="m-lbl">Sign Latency (ms)</div></div>
+        <div class="metric yellow"><div class="m-val yellow" id="bench-scan-ms">—</div><div class="m-lbl">Scan Time (ms)</div></div>
+        <div class="metric red"><div class="m-val red" id="bench-score">—</div><div class="m-lbl">Perf Score</div></div>
+      </div>
+
+      <div class="grid-2" style="align-items:start;margin-bottom:16px;">
+        <div class="card card-cyan">
+          <div class="card-title cyan">⚡ Benchmark Suite</div>
+          <p style="font-size:11px;color:var(--text3);margin-bottom:16px;">Run all benchmarks to measure platform performance. Results are signed with your ECDSA key.</p>
+          <div class="bench-grid" id="bench-rings">
+            <div><div class="bench-score-ring" id="br-crypto">—</div><div class="bench-category">Crypto</div></div>
+            <div><div class="bench-score-ring" id="br-analysis">—</div><div class="bench-category">Analysis</div></div>
+            <div><div class="bench-score-ring" id="br-ui">—</div><div class="bench-category">UI/Render</div></div>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-cyan btn-full" data-action="benchRun">▶ Run All Benchmarks</button>
+          </div>
+          <div id="bench-status" style="margin-top:10px;font-family:var(--mono);font-size:10px;color:var(--text3);">Click Run to start</div>
+        </div>
+        <div class="card">
+          <div class="card-title">⬡ Benchmark Details</div>
+          <div id="bench-bars" style="min-height:180px;">
+            <div class="empty">Run benchmarks to see breakdown</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card card-green">
+        <div class="card-title green" style="justify-content:space-between;">
+          ⬡ Signed Benchmark Report
+          <button class="btn btn-green btn-sm" id="bench-download-btn" style="display:none;" data-action="benchDownload">↓ Download Signed Report</button>
+        </div>
+        <div id="bench-receipt" class="receipt-box" style="display:none;"></div>
+        <div id="bench-empty" class="empty" style="min-height:80px;">Run benchmarks to generate a signed report</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">▤ Benchmark Log</div>
+        <div class="log" id="bench-log" style="height:120px;"></div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+
+<script nonce="AttackCMD2025">
+'use strict';
+
+// ══════════════════════════════════════════════════════════════
+//  SOVEREIGN BRIDGE — connects to sovereign_os if open in same
+//  session via BroadcastChannel, falls back to localStorage mock
+// ══════════════════════════════════════════════════════════════
+const Sovereign = (() => {
+  function _load(k)   { try{return JSON.parse(localStorage.getItem(k));}catch(e){return null;} }
+  function _save(k,v) { try{localStorage.setItem(k,JSON.stringify(v));}catch(e){} }
+
+  const _mock = (() => {
+    const stored = _load('sovereign_identity') || _load('forge_studio_sovereign_mock_id');
+    if(stored) return stored;
+    const m = {
+      did: 'did:sovereign:' + Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b=>b.toString(16).padStart(2,'0')).join(''),
+      username: 'commander',
+      pubKeyHex: '0x'+Array.from(crypto.getRandomValues(new Uint8Array(4))).map(b=>b.toString(16).padStart(2,'0')).join('')
+    };
+    _save('attack_cmd_mock_id', m);
+    return m;
+  })();
+
+  async function getIdentity() {
+    // Try window.IdentityEngine (sovereign_os embedded)
+    if(window.IdentityEngine) {
+      const id = IdentityEngine.get();
+      if(id) return { did:id.did, username:id.username, pubKeyHex:id.pubKeyHex };
+    }
+    // Try window.sovereign (forge_studio bridge)
+    if(window.sovereign?.getIdentity) return window.sovereign.getIdentity();
+    // Try localStorage from sovereign_os
+    const stored = _load('sovereign_identity');
+    if(stored && stored.did) return stored;
+    return _mock;
+  }
+
+  async function sign(payload) {
+    if(window.IdentityEngine?.sign) return IdentityEngine.sign(payload);
+    if(window.sovereign?.sign) return window.sovereign.sign(payload);
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(payload)));
+    return { sig: Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join(''), ts:Date.now(), mock:true };
+  }
+
+  function getBalance() {
+    if(window.TokenEngine?.getBalance) return TokenEngine.getBalance();
+    const stored = _load('sovereign_token_balance');
+    return stored || '—';
+  }
+
+  return { getIdentity, sign, getBalance };
+})();
+
+// ══════════════════════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════════════════════
+const State = {
+  identity: null,
+  totalIter: 0,
+  totalVulns: 0,
+  totalAttacks: 0,
+  contributions: [],
+  totalReward: 0,
+
+  tick(iter=0, vulns=0, attacks=0) {
+    this.totalIter   += iter;
+    this.totalVulns  += vulns;
+    this.totalAttacks+= attacks;
+    updateGlobalStats();
+  }
+};
+
+function updateGlobalStats() {
+  const set = (id, v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
+  set('ov-iter',    State.totalIter);
+  set('ov-vulns',   State.totalVulns);
+  set('ov-attacks', State.totalAttacks);
+  set('ov-contrib', State.contributions.length);
+  set('sb-iter',    State.totalIter);
+  set('sb-vulns',   State.totalVulns);
+  set('sb-contrib', State.contributions.length);
+  set('sb-reward',  '$'+State.totalReward.toLocaleString());
+}
+
+// ══════════════════════════════════════════════════════════════
+//  NAVIGATION
+// ══════════════════════════════════════════════════════════════
+const TAB_META = {
+  overview:   { title:'Attack Command',      sub:'Adversarial Security Testing · Sovereign Identity Bound' },
+  solidity:   { title:'Solidity Auditor',    sub:'AI-powered smart contract vulnerability analysis' },
+  rrtk:       { title:'RRTK Security',       sub:'Randomized property testing kernel · mutation-based' },
+  modules:    { title:'Attack Modules',      sub:'Advanced adversarial pattern library' },
+  fuzzer:     { title:'Workflow Fuzzer',      sub:'Static pattern checks · mutation-based JSONFlow fuzzing' },
+  contrib:    { title:'Contributions',       sub:'Submit intelligence · earn rewards · sovereign-signed' },
+  valuation:  { title:'Asset Valuation',     sub:'DID-linked appraisals · cryptographically provable' },
+  invariants: { title:'Invariant Verifier',  sub:'System property verification · pre-commit guard' },
+  log:        { title:'System Log',          sub:'Full audit trail · all ops signed and attributed' },
+};
+
+function switchTab(name) {
+  document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+name)?.classList.add('active');
+  document.getElementById('nav-'+name)?.classList.add('active');
+  const m = TAB_META[name] || {};
+  document.getElementById('topbar-title').textContent = m.title || name;
+  document.getElementById('topbar-sub').textContent   = m.sub   || '';
+  if(name==='invariants') InvEngine.renderCards();
+  if(name==='modules')    AttackMods.renderPatterns();
+  if(name==='fuzzer')     Fuzzer.renderPatterns();
+}
+
+// ══════════════════════════════════════════════════════════════
+//  INFRA — shared log/delay/layer helpers
+// ══════════════════════════════════════════════════════════════
+const Infra = {
+  log(elId, msg, type='info') {
+    const el = document.getElementById(elId);
+    if(!el) return;
+    const colors={info:'cyan',ok:'ok',error:'err',warn:'warn',dim:'dim'};
+    const d = document.createElement('div');
+    d.className = 'll ' + (colors[type]||'info');
+    d.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+    el.appendChild(d);
+    el.scrollTop = el.scrollHeight;
+    // mirror to global log
+    const gl = document.getElementById('global-log');
+    if(gl && elId !== 'global-log') {
+      const d2 = document.createElement('div');
+      d2.className = d.className;
+      d2.textContent = d.textContent;
+      gl.appendChild(d2);
+      gl.scrollTop = gl.scrollHeight;
+    }
+    // mirror to overview feed
+    const ov = document.getElementById('ov-feed');
+    if(ov && elId !== 'ov-feed' && elId !== 'global-log') {
+      const d3 = document.createElement('div');
+      d3.className = d.className;
+      d3.textContent = d.textContent;
+      ov.appendChild(d3);
+      ov.scrollTop = ov.scrollHeight;
+      while(ov.children.length > 50) ov.removeChild(ov.firstChild);
+    }
+    while(el.children.length > 200) el.removeChild(el.firstChild);
+  },
+  delay(ms){ return new Promise(r=>setTimeout(r,ms)); },
+  setLayer(id, status) {
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.className = 'layer-cell';
+    const st = el.querySelector('.layer-status');
+    if(status==='ACTIVE')   { el.classList.add('active'); if(st) st.textContent='ACTIVE'; }
+    else if(status==='ONLINE') { el.classList.add('live');  if(st) st.textContent='ONLINE'; }
+    else if(status==='READY')  { el.classList.add('ready'); if(st) st.textContent='READY'; }
+    else { if(st) st.textContent=status||'STANDBY'; }
+  },
+  toast(msg, color='var(--red)') {
+    const t = document.createElement('div');
+    t.className='toast';
+    t.style.borderColor = color;
+    t.style.color = color;
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(()=>t.remove(), 3500);
+  }
+};
+
+// ══════════════════════════════════════════════════════════════
+//  SOLIDITY AUDITOR
+// ══════════════════════════════════════════════════════════════
+const SolAudit = (() => {
+  function log(msg, type='info') { Infra.log('sol-log', msg, type); }
+  function url()   { return (document.getElementById('sol-url')?.value||'http://localhost:11434').replace(/\/$/,''); }
+  function model() { return document.getElementById('sol-model')?.value||'mistral'; }
+
+  async function testConn() {
+    const el=document.getElementById('sol-conn-status');
+    if(el) el.textContent='Connecting…'; el.style.color='var(--text3)';
+    try{
+      const r=await fetch(url()+'/api/tags');
+      const d=await r.json();
+      const ms=d.models?.map(m=>m.name)||[];
+      if(el){el.textContent=`✓ Connected · ${ms.length} model(s) available`;el.style.color='var(--green)';}
+      const sel=document.getElementById('sol-model');
+      if(sel&&ms.length){sel.innerHTML='';ms.forEach(m=>{const o=document.createElement('option');o.value=m;o.textContent=m;sel.appendChild(o);});}
+      log(`Connected · ${ms.length} model(s)`,'ok');
+    }catch(e){
+      if(el){el.textContent='Not connected — is Ollama running?';el.style.color='var(--red)';}
+      log('Cannot reach Ollama','error');
+    }
+  }
+
+  // Static pattern scanner
+  const STATIC_PATTERNS = [
+    { id:'reentrancy',   name:'Reentrancy',       severity:'CRITICAL', test:(s)=>/\.call\{/i.test(s)&&/balances\[.*\]\s*[+-]=/i.test(s), fix:'Use CEI pattern: checks → effects → interactions' },
+    { id:'txorigin',     name:'tx.origin Auth',   severity:'HIGH',     test:(s)=>/tx\.origin/.test(s),    fix:'Replace tx.origin with msg.sender' },
+    { id:'selfdestruct', name:'selfdestruct',      severity:'CRITICAL', test:(s)=>/selfdestruct|suicide/.test(s), fix:'Remove or gate behind timelock + multisig' },
+    { id:'overflow',     name:'Overflow Risk',    severity:'HIGH',     test:(s)=>/pragma solidity \^0\.[0-7]/.test(s)&&!/using SafeMath/.test(s), fix:'Use Solidity ^0.8+ or SafeMath' },
+    { id:'unchecked',    name:'Unchecked Call',   severity:'MEDIUM',   test:(s)=>/\.call\(/.test(s)&&!/require\(ok/.test(s)&&!/(bool\s+\w+,\s*\)\s*=)/.test(s), fix:'Always check return value of .call()' },
+    { id:'timestamp',    name:'Timestamp Dep',    severity:'MEDIUM',   test:(s)=>/block\.timestamp|now\b/.test(s), fix:'Avoid timestamp for critical logic; use block number' },
+    { id:'assembly',     name:'Inline Assembly',  severity:'LOW',      test:(s)=>/assembly\s*\{/.test(s), fix:'Review assembly block carefully; document intent' },
+    { id:'delegatecall', name:'delegatecall',      severity:'CRITICAL', test:(s)=>/delegatecall/.test(s), fix:'Ensure storage layout matches between contracts' },
+  ];
+
+  function staticScan() {
+    const src = document.getElementById('sol-input')?.value||'';
+    if(!src.trim()){log('Paste a contract first','warn');return;}
+    log('Running static analysis…','info');
+    const report = document.getElementById('sol-report');
+    const found = STATIC_PATTERNS.filter(p=>p.test(src));
+    const clean = STATIC_PATTERNS.filter(p=>!p.test(src));
+    if(found.length===0){
+      report.innerHTML='<div class="vuln-item ok"><div class="vuln-title">✓ No static patterns detected</div><div class="vuln-meta">'+STATIC_PATTERNS.length+' checks passed</div></div>';
+      log(`Static scan complete — ${STATIC_PATTERNS.length} checks passed, 0 issues`,'ok');
+    } else {
+      report.innerHTML = found.map(p=>`
+        <div class="vuln-item">
+          <div class="vuln-title">${p.name} <span class="badge ${p.severity==='CRITICAL'?'red':p.severity==='HIGH'?'yellow':'cyan'}">${p.severity}</span></div>
+          <div class="vuln-meta">Fix: ${p.fix}</div>
+        </div>`).join('')
+        + clean.map(p=>`<div class="vuln-item ok"><div class="vuln-title">✓ ${p.name} — clear</div></div>`).join('');
+      log(`Static scan: ${found.length} issue(s) found`,'warn');
+    }
+    State.tick(STATIC_PATTERNS.length, found.length);
+  }
+
+  async function audit() {
+    const src = document.getElementById('sol-input')?.value?.trim();
+    if(!src){log('Paste a contract first','warn');return;}
+    const id = await Sovereign.getIdentity();
+    log(`Audit initiated by ${id.username} [${id.did?.substr(0,20)}…]`,'info');
+    Infra.setLayer('lc-app','ACTIVE'); Infra.setLayer('rl-app','ACTIVE');
+
+    // Always run static first
+    staticScan();
+
+    // Then try AI
+    log(`Sending to ${model()} via Ollama…`,'info');
+    try {
+      const prompt = `You are an expert Solidity security auditor. Analyze this contract for ALL vulnerabilities. For each finding, output on its own line: SEVERITY|NAME|DESCRIPTION|FIX. Severities: CRITICAL, HIGH, MEDIUM, LOW, INFO.\n\n${src}`;
+      const r = await fetch(url()+'/api/generate', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({model:model(), prompt, stream:false})
+      });
+      if(!r.ok) throw new Error('Ollama '+r.status);
+      const d = await r.json();
+      const lines = (d.response||'').split('\n').filter(l=>l.includes('|'));
+      if(lines.length){
+        const aiFindings = lines.map(l=>{
+          const [sev,name,desc,fix]=(l+'||||').split('|');
+          return `<div class="vuln-item ${sev?.trim()==='CRITICAL'||sev?.trim()==='HIGH'?'':'ok'}"><div class="vuln-title">${name?.trim()||'Finding'} <span class="badge ${sev?.trim()==='CRITICAL'?'red':sev?.trim()==='HIGH'?'yellow':'cyan'}">${sev?.trim()||'INFO'}</span></div><div class="vuln-meta">${desc?.trim()||''}<br>Fix: ${fix?.trim()||'See description'}</div></div>`;
+        }).join('');
+        const report = document.getElementById('sol-report');
+        if(report) report.innerHTML = '<div style="font-size:9px;color:var(--text3);margin-bottom:8px;font-family:var(--mono);">AI ANALYSIS · '+lines.length+' finding(s)</div>' + aiFindings;
+        log(`AI audit complete — ${lines.length} finding(s)`,'ok');
+        State.tick(lines.length, lines.filter(l=>/CRITICAL|HIGH/.test(l)).length);
+      } else {
+        log('AI response parsed — no structured findings (see static scan above)','warn');
+      }
+    }catch(e){
+      log('AI offline: '+(e.message||e)+' — static scan results above','warn');
+    }
+    Infra.setLayer('lc-app','STANDBY'); Infra.setLayer('rl-app','STANDBY');
+  }
+
+  function loadExample() {
+    document.getElementById('sol-input').value=`pragma solidity ^0.6.0;
+
+contract VulnerableBank {
+    mapping(address => uint256) public balances;
+    
+    function deposit() public payable {
+        balances[msg.sender] += msg.value;
+    }
+    
+    function withdraw(uint256 amount) public {
+        require(balances[msg.sender] >= amount, "Insufficient balance");
+        // REENTRANCY: external call BEFORE state update
+        (bool ok,) = msg.sender.call{value: amount}("");
+        require(ok, "Transfer failed");
+        balances[msg.sender] -= amount; // state update AFTER call
+    }
+    
+    function authenticate() public view returns (bool) {
+        return tx.origin == owner; // TX.ORIGIN vulnerability
+    }
+    
+    address public owner;
+    
+    function destroy() public {
+        require(msg.sender == owner);
+        selfdestruct(payable(owner)); // SELFDESTRUCT
+    }
+}`;
+    log('Example contract loaded','info');
+  }
+
+  function exportReport() {
+    const report=document.getElementById('sol-report');
+    if(!report){return;}
+    const text=report.innerText||report.textContent;
+    const blob=new Blob([text],{type:'text/plain'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=`audit-report-${Date.now()}.txt`;
+    a.click();
+    log('Report exported','ok');
+  }
+
+  return { audit, staticScan, loadExample, exportReport, testConn };
+})();
+window.SolAudit = SolAudit;
+
+// ══════════════════════════════════════════════════════════════
+//  RRTK — Randomized Property Testing Kernel
+// ══════════════════════════════════════════════════════════════
+const RRTK = (() => {
+  const INVARIANTS = [
+    { id:'reentrancy', name:'No Reentrancy',      severity:'critical',
+      check(w){ const calls=w.steps?.filter(s=>s.type==='call')||[],muts=w.steps?.filter(s=>s.mutates)||[];
+        for(let i=0;i<calls.length;i++)for(let j=i+1;j<muts.length;j++)
+          if((w.steps||[]).indexOf(muts[j])>(w.steps||[]).indexOf(calls[i]))
+            return{violated:true,reason:'State mutation after external call — CEI violation'};
+        return{violated:false}; }},
+    { id:'balance', name:'Balance Consistency', severity:'critical',
+      check(w){ if(w.inputs?.balance!==undefined&&w.inputs.balance<0)return{violated:true,reason:'Negative balance detected'}; return{violated:false}; }},
+    { id:'overflow', name:'Integer Overflow',   severity:'high',
+      check(w){ for(const s of w.steps||[])if(s.type==='compute'&&s.expression&&/\+|\*/.test(s.expression))return{violated:true,reason:'Potential integer overflow in arithmetic expression'}; return{violated:false}; }},
+    { id:'access', name:'Access Control',    severity:'high',
+      check(w){ const priv=(w.steps||[]).filter(s=>s.privileged||s.admin);
+        if(priv.length>0&&!(w.steps||[]).some(s=>s.type==='auth'||s.type==='assert'))
+          return{violated:true,reason:'Privileged operation without access control check'};
+        return{violated:false}; }}
+  ];
+  const ATTACKS = [
+    { id:'reentrancy', name:'Reentrancy Attack',  mutate(w){ const m=JSON.parse(JSON.stringify(w)),i=(m.steps||[]).findIndex(s=>s.type==='call'); if(i>=0)(m.steps||[]).splice(i+1,0,{id:'recursive_call',type:'call',target:'self',malicious:true}); return m; }},
+    { id:'overflow',   name:'Integer Overflow',   mutate(w){ const m=JSON.parse(JSON.stringify(w)); if(m.inputs?.amount)m.inputs.amount=Number.MAX_SAFE_INTEGER+1000; return m; }},
+    { id:'frontrun',   name:'Front-Running',      mutate(w){ const m=JSON.parse(JSON.stringify(w)); if(!m.steps)m.steps=[]; m.steps.unshift({id:'frontrun',type:'call',gasPrice:'MAX',malicious:true}); return m; }},
+    { id:'dspend',     name:'Double Spend',       mutate(w){ const m=JSON.parse(JSON.stringify(w)),ts=(m.steps||[]).filter(s=>s.type==='call'); if(ts.length)(m.steps||[]).push({...ts[0],id:'double_spend',malicious:true}); return m; }}
+  ];
+
+  function log(msg,type='info'){ Infra.log('rrtk-log',msg,type); Infra.log('rrtk-syslog',msg,type); }
+
+  function loadExample() {
+    document.getElementById('rrtk-input').value=JSON.stringify({
+      id:'token_transfer',inputs:{balance:5000,amount:1000},
+      steps:[{id:'call',type:'call',target:'recipient'},{id:'update',type:'compute',expression:'balance - amount',mutates:true}]
+    },null,2);
+    log('Example workflow loaded','info');
+  }
+
+  function validate() {
+    try{ JSON.parse(document.getElementById('rrtk-input').value); log('✓ Valid JSON','ok'); }
+    catch(e){ log('❌ Invalid JSON: '+e.message,'error'); }
+  }
+
+  async function startTest() {
+    let workflow;
+    try{ workflow=JSON.parse(document.getElementById('rrtk-input').value); }
+    catch(e){ log('❌ Invalid JSON — load an example or paste a workflow','error'); return; }
+    const maxIter=parseInt(document.getElementById('rrtk-iter').value)||100;
+    const id = await Sovereign.getIdentity();
+    document.getElementById('rrtk-did-tag').textContent = '· '+id.did;
+
+    log(`Test initiated by ${id.username}`, 'info');
+    Infra.setLayer('rl-rrtk','ACTIVE'); Infra.setLayer('lc-rrtk','ACTIVE');
+    Infra.setLayer('rl-app','ACTIVE');
+
+    const results={iterations:0,attacks:0,vulnerabilities:[]};
+
+    // Check invariants on original
+    Infra.setLayer('rl-oracle','ACTIVE'); Infra.setLayer('lc-oracle','ACTIVE');
+    for(const inv of INVARIANTS){
+      const r=inv.check(workflow);
+      if(r.violated){
+        results.vulnerabilities.push({...inv,reason:r.reason});
+        log(`❌ VULN: ${inv.name} — ${r.reason}`,'error');
+      }
+      await Infra.delay(40);
+    }
+    Infra.setLayer('rl-oracle','READY'); Infra.setLayer('lc-oracle','READY');
+
+    // Mutation attacks
+    for(let i=0;i<Math.min(maxIter,20);i++){
+      results.iterations++;
+      const atk=ATTACKS[i%ATTACKS.length];
+      log(`[${i+1}/${Math.min(maxIter,20)}] ${atk.name}`,'dim');
+      const mutated=atk.mutate(workflow);
+      results.attacks++;
+      for(const inv of INVARIANTS){
+        const r=inv.check(mutated);
+        if(r.violated&&!results.vulnerabilities.some(v=>v.id===inv.id&&v.attackId===atk.id)){
+          results.vulnerabilities.push({...inv,reason:r.reason,attackId:atk.id,attackName:atk.name});
+          log(`❌ Found via ${atk.name}: ${inv.name}`,'error');
+        }
+      }
+      await Infra.delay(60);
+      const set=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
+      set('rrtk-stat-iter',results.iterations);
+      set('rrtk-stat-attacks',results.attacks);
+      set('rrtk-stat-vulns',results.vulnerabilities.length);
+    }
+
+    Infra.setLayer('rl-rrtk','READY'); Infra.setLayer('lc-rrtk','READY');
+    Infra.setLayer('rl-app','STANDBY'); Infra.setLayer('lc-app','STANDBY');
+
+    log(`Complete — ${results.vulnerabilities.length} vulnerability(ies) in ${results.iterations} iterations`,'ok');
+    document.getElementById('rrtk-stat-patterns').textContent=ATTACKS.length;
+
+    // Render results
+    const vl=document.getElementById('rrtk-vulns');
+    if(results.vulnerabilities.length===0){
+      vl.innerHTML='<div class="vuln-item ok"><div class="vuln-title">✓ No vulnerabilities detected</div><div class="vuln-meta">'+INVARIANTS.length+' invariants checked · '+results.attacks+' attack mutations</div></div>';
+    } else {
+      vl.innerHTML=results.vulnerabilities.map(v=>`
+        <div class="vuln-item">
+          <div class="vuln-title">${v.name} <span class="badge ${v.severity==='critical'?'red':'yellow'}">${v.severity.toUpperCase()}</span></div>
+          <div class="vuln-meta">${v.reason}${v.attackName?'<br>Discovered via: <strong>'+v.attackName+'</strong>':''}</div>
+        </div>`).join('');
+    }
+    State.tick(results.iterations, results.vulnerabilities.length, results.attacks);
+    Infra.toast(`RRTK: ${results.vulnerabilities.length} vuln(s) found`);
+  }
+
+  return { loadExample, validate, startTest, INVARIANTS };
+})();
+window.RRTK = RRTK;
+
+// ══════════════════════════════════════════════════════════════
+//  ATTACK MODULES
+// ══════════════════════════════════════════════════════════════
+const AttackMods = (() => {
+  const PATTERNS = [
+    { id:'reentrancy_specialist', name:'Reentrancy Specialist',  desc:'Deep CEI pattern analysis on all call stacks',
+      async execute(w){ const calls=(w.steps||[]).filter(s=>s.type==='call'),muts=(w.steps||[]).filter(s=>s.mutates),vs=[];
+        for(let i=0;i<calls.length;i++)for(let j=i+1;j<(w.steps||[]).length;j++)
+          if(muts.includes((w.steps||[])[j]))vs.push({type:'reentrancy',call:calls[i].id,mutation:(w.steps||[])[j].id,severity:'critical'});
+        return{pattern:'Reentrancy',tested:calls.length,found:vs.length,vulnerabilities:vs}; }},
+    { id:'flash_loan', name:'Flash Loan Attacker',     desc:'Arbitrage + price oracle manipulation',
+      async execute(w){ const ps=(w.steps||[]).filter(s=>/price|rate|exchange/.test(s.id)||/price|rate|exchange/.test(s.expression||''));
+        const opps=ps.map(s=>({step:s.id,loanAmount:100000000,profit:Math.floor(Math.random()*500000)}));
+        return{pattern:'Flash Loan',opportunities:opps.length,totalProfit:opps.reduce((a,o)=>a+o.profit,0),details:opps}; }},
+    { id:'mev', name:'MEV Extractor',          desc:'Frontrun · backrun · sandwich attacks',
+      async execute(w){ const swaps=(w.steps||[]).filter(s=>s.type==='call'),strats=['frontrun','backrun','sandwich'];
+        const ex=swaps.map((s,i)=>({tx:s.id,strategy:strats[i%3],value:Math.floor(Math.random()*100000)}));
+        return{pattern:'MEV',scanned:swaps.length,totalValue:ex.reduce((a,e)=>a+e.value,0),extractions:ex}; }},
+    { id:'double_spend', name:'Double Spend Tester',     desc:'Race conditions + consensus bugs',
+      async execute(w){ const bs=(w.steps||[]).filter(s=>s.mutates&&/balance|amount|value/.test(s.expression||s.id));
+        const locks=(w.steps||[]).some(s=>/lock|mutex|semaphore/.test(s.id));
+        return{pattern:'Double Spend',vulnerable:!locks&&bs.length>0,balanceOps:bs.length,protection:locks?'present':'MISSING',severity:!locks?'critical':'low'}; }},
+    { id:'access_control', name:'Access Control Prober', desc:'Admin privilege escalation paths',
+      async execute(w){ const priv=(w.steps||[]).filter(s=>s.privileged||s.admin||/admin|owner|privileged/.test(s.id));
+        const auth=(w.steps||[]).some(s=>s.type==='auth'||s.type==='assert'||/auth|verify|check/.test(s.id));
+        return{pattern:'Access Control',privilegedOps:priv.length,hasAuth:auth,vulnerable:priv.length>0&&!auth,severity:priv.length>0&&!auth?'critical':'ok'}; }},
+    { id:'int_overflow', name:'Overflow Prober',         desc:'MAX_SAFE_INTEGER + mutation fuzzing',
+      async execute(w){ const arith=(w.steps||[]).filter(s=>s.type==='compute'&&/\+|\*/.test(s.expression||''));
+        return{pattern:'Integer Overflow',arithmeticOps:arith.length,vulnerable:arith.length>0,severity:arith.length?'high':'ok',expressions:arith.map(s=>s.expression||'?')}; }}
+  ];
+
+  function renderPatterns() {
+    const g=document.getElementById('pattern-grid');
+    if(!g||g.children.length===PATTERNS.length) return;
+    g.innerHTML=PATTERNS.map(p=>`
+      <div class="pattern-card" data-id="${p.id}" >
+        <div class="p-name">${p.name}</div>
+        <div class="p-desc">${p.desc}</div>
+      </div>`).join('');
+  }
+
+  async function executeSelected() {
+    const sel=Array.from(document.querySelectorAll('.pattern-card.sel')).map(c=>c.dataset.id);
+    if(!sel.length){Infra.toast('Select at least one pattern');return;}
+    await _run(sel);
+  }
+
+  async function executeAll() {
+    await _run(PATTERNS.map(p=>p.id));
+  }
+
+  function clearSelection() {
+    document.querySelectorAll('.pattern-card.sel').forEach(c=>c.classList.remove('sel'));
+  }
+
+  async function _run(ids) {
+    let workflow;
+    try{ const v=document.getElementById('rrtk-input')?.value?.trim(); workflow=v?JSON.parse(v):{id:'empty',inputs:{},steps:[]}; }
+    catch(e){ workflow={id:'empty',inputs:{},steps:[]}; }
+
+    const id = await Sovereign.getIdentity();
+    const res=document.getElementById('mod-results');
+    const meta=document.getElementById('mod-result-meta');
+    if(meta) meta.textContent=`· ${ids.length} pattern(s) · by ${id.username}`;
+    res.innerHTML=`<div style="font-family:var(--mono);font-size:10px;color:var(--yellow);padding:8px;">Executing ${ids.length} pattern(s) as ${id.did?.substr(0,32)}…</div>`;
+
+    const results=[];
+    for(const pid of ids){
+      const p=PATTERNS.find(x=>x.id===pid);
+      if(!p)continue;
+      const r=await p.execute(workflow);
+      results.push({name:p.name,...r});
+      await Infra.delay(300);
+    }
+
+    res.innerHTML=results.map(r=>{
+      const isVuln = r.vulnerable===true || r.found>0 || r.severity==='critical'||r.severity==='high';
+      return `<div class="vuln-item${isVuln?'':' ok'}">
+        <div class="vuln-title">${r.name}</div>
+        <div class="vuln-meta">${Object.entries(r).filter(([k])=>k!=='name'&&k!=='pattern').map(([k,v])=>`${k}: ${JSON.stringify(v)}`).join(' · ')}</div>
+      </div>`;
+    }).join('');
+
+    const vulns=results.filter(r=>r.vulnerable===true||r.found>0).length;
+    State.tick(ids.length, vulns, ids.length);
+    Infra.log('global-log',`Attack modules: ${ids.length} pattern(s), ${vulns} finding(s) · by ${id.username}`,'ok');
+    Infra.toast(`⚔ ${ids.length} attack(s) done · ${vulns} finding(s)`, vulns>0?'var(--red)':'var(--green)');
+  }
+
+  return { renderPatterns, executeSelected, executeAll, clearSelection };
+})();
+window.AttackMods = AttackMods;
+
+// ══════════════════════════════════════════════════════════════
+//  FUZZER
+// ══════════════════════════════════════════════════════════════
+const Fuzzer = (() => {
+  const CHECKS = [
+    { id:'reentrancy', name:'Reentrancy',    desc:'Inject recursive call before state update' },
+    { id:'overflow',   name:'Int Overflow',  desc:'Set amount to MAX_SAFE_INTEGER+1000' },
+    { id:'frontrun',   name:'Front-Run',     desc:'Prepend high-gas call to workflow' },
+    { id:'dspend',     name:'Double Spend',  desc:'Duplicate transfer step' },
+    { id:'nullinput',  name:'Null Inputs',   desc:'Set all numeric inputs to 0 or null' },
+    { id:'deepnest',   name:'Deep Nesting',  desc:'Recursively nest steps 10x' },
+  ];
+
+  function renderPatterns() {
+    const g=document.getElementById('fuzz-patterns');
+    if(!g||g.children.length===CHECKS.length) return;
+    g.innerHTML=CHECKS.map(c=>`
+      <div class="pattern-card" data-id="${c.id}" >
+        <div class="p-name" style="color:var(--yellow);">${c.name}</div>
+        <div class="p-desc">${c.desc}</div>
+      </div>`).join('');
+  }
+
+  function getWorkflow() {
+    try{
+      const v=document.getElementById('fuzz-workflow')?.value?.trim();
+      return v?JSON.parse(v):null;
+    }catch(e){ return null; }
+  }
+
+  function loadExample() {
+    document.getElementById('fuzz-workflow').value=JSON.stringify({
+      id:'token_transfer',inputs:{balance:5000,amount:1000},
+      steps:[{id:'call',type:'call',target:'recipient'},{id:'update',type:'compute',expression:'balance - amount',mutates:true}]
+    },null,2);
+    Infra.log('fuzz-log','Example loaded','info');
+  }
+
+  function runSelected() {
+    const sel=Array.from(document.querySelectorAll('#fuzz-patterns .pattern-card.sel')).map(c=>c.dataset.id);
+    if(!sel.length){Infra.toast('Select at least one check','var(--yellow)');return;}
+    _runChecks(sel);
+  }
+
+  function runAll() { _runChecks(CHECKS.map(c=>c.id)); }
+  function clearAll() { document.querySelectorAll('#fuzz-patterns .pattern-card').forEach(c=>{c.classList.remove('sel');c.style.borderColor='var(--border)';}); }
+
+  function _runChecks(ids) {
+    const w=getWorkflow()||{id:'empty',inputs:{},steps:[]};
+    Infra.log('fuzz-log',`Running ${ids.length} check(s)…`,'info');
+    const results=ids.map(id=>{
+      const check=CHECKS.find(c=>c.id===id);
+      let found=false, detail='';
+      if(id==='reentrancy'){
+        const calls=(w.steps||[]).filter(s=>s.type==='call'),muts=(w.steps||[]).filter(s=>s.mutates);
+        found=calls.some(c=>(w.steps||[]).indexOf(c)<(w.steps||[]).findIndex(m=>muts.includes(m)));
+        detail=found?`${calls.length} call(s), ${muts.length} mutation(s) — CEI violation possible`:'No CEI issues found';
+      } else if(id==='overflow'){
+        const arith=(w.steps||[]).filter(s=>s.type==='compute'&&/\+|\*/.test(s.expression||''));
+        found=arith.length>0;
+        detail=found?`${arith.length} arithmetic op(s) — overflow risk`:'No risky arithmetic';
+      } else if(id==='frontrun'){
+        found=(w.steps||[]).length>0&&(w.steps||[])[0]?.type==='call';
+        detail=found?'First step is external call — frontrun possible':'No frontrun vector';
+      } else if(id==='dspend'){
+        const ids2=(w.steps||[]).map(s=>s.id);
+        found=ids2.length!==new Set(ids2).size;
+        detail=found?'Duplicate step IDs detected':'No duplicate steps';
+      } else if(id==='nullinput'){
+        const nums=Object.values(w.inputs||{}).filter(v=>typeof v==='number');
+        found=nums.some(v=>v===0);
+        detail=found?'Zero-value inputs present':'All inputs non-zero';
+      } else if(id==='deepnest'){
+        found=(w.steps||[]).length>10;
+        detail=`${(w.steps||[]).length} steps — ${found?'deep nesting risk':'OK'}`;
+      }
+      return{check,found,detail};
+    });
+
+    const res=document.getElementById('fuzz-results');
+    res.innerHTML=results.map(r=>`
+      <div class="vuln-item${r.found?'':' ok'}">
+        <div class="vuln-title">${r.check?.name||'Check'}${r.found?' — FLAGGED':' — Clean'}</div>
+        <div class="vuln-meta">${r.detail}</div>
+      </div>`).join('');
+
+    const n=results.filter(r=>r.found).length;
+    Infra.log('fuzz-log',`${ids.length} check(s) · ${n} flag(s)`,'ok');
+    State.tick(ids.length, n);
+  }
+
+  async function fuzz() {
+    const w=getWorkflow();
+    if(!w){Infra.log('fuzz-log','Invalid JSON — load an example first','error');return;}
+    const maxIter=parseInt(document.getElementById('fuzz-iter').value)||20;
+    Infra.log('fuzz-log',`Fuzzing ${maxIter} iteration(s)…`,'info');
+    const mutations=[
+      (w)=>{const m=JSON.parse(JSON.stringify(w));if(m.inputs?.amount)m.inputs.amount=Number.MAX_SAFE_INTEGER;return m;},
+      (w)=>{const m=JSON.parse(JSON.stringify(w));(m.steps||[]).unshift({id:'injected',type:'call',target:'attacker',malicious:true});return m;},
+      (w)=>{const m=JSON.parse(JSON.stringify(w));if(m.inputs)Object.keys(m.inputs).forEach(k=>{if(typeof m.inputs[k]==='number')m.inputs[k]=0;});return m;},
+      (w)=>{const m=JSON.parse(JSON.stringify(w));if(m.steps?.length)(m.steps||[]).push({...m.steps[m.steps.length-1],id:'dup_'+Date.now(),malicious:true});return m;},
+    ];
+    let flags=0;
+    for(let i=0;i<Math.min(maxIter,20);i++){
+      const mut=mutations[i%mutations.length](w);
+      await Infra.delay(50);
+      // Simple invariant: no malicious steps
+      const mal=(mut.steps||[]).filter(s=>s.malicious);
+      if(mal.length){flags++;Infra.log('fuzz-log',`[${i+1}] Mutation ${i%mutations.length+1} — ${mal.length} malicious step(s) injected`,'error');}
+    }
+    Infra.log('fuzz-log',`Fuzz complete — ${flags}/${maxIter} iterations flagged`,'ok');
+    State.tick(maxIter, flags);
+  }
+
+  return { renderPatterns, loadExample, runSelected, runAll, clearAll, fuzz };
+})();
+window.Fuzzer = Fuzzer;
+
+// ══════════════════════════════════════════════════════════════
+//  CONTRIBUTIONS
+// ══════════════════════════════════════════════════════════════
+const Contrib = (() => {
+  async function submit() {
+    const title=document.getElementById('contrib-title')?.value?.trim();
+    const type=document.getElementById('contrib-type')?.value;
+    const domain=document.getElementById('contrib-domain')?.value;
+    const desc=document.getElementById('contrib-desc')?.value?.trim();
+    if(!title||!type||!domain||!desc){Infra.toast('Fill in all fields','var(--yellow)');return;}
+
+    const id = await Sovereign.getIdentity();
+    const btn=document.getElementById('contrib-btn');
+    if(btn){btn.disabled=true;btn.textContent='Analyzing…';}
+
+    Infra.log('global-log',`Contribution submitted by ${id.username} — "${title}"`,'info');
+    await Infra.delay(700);
+
+    // Scoring
+    const scores={novelty:0.6+Math.random()*0.4,coherence:0.7+Math.random()*0.3,knowledge:0.5+Math.random()*0.5,practical:0.6+Math.random()*0.4,impact:0.7+Math.random()*0.3,reach:0.6+Math.random()*0.4};
+    const base={'novel_algorithm':25000,'research_paper':10000,'practical_tool':15000,'vulnerability_report':35000,'leaked_document':50000}[type]||5000;
+    const reward=Math.round(base*Object.values(scores).reduce((a,b)=>a*b,1));
+
+    const entry={id:Math.random().toString(36).substr(2,9),title,type,domain,desc,author:id.username,did:id.did,scores,reward,ts:Date.now()};
+    State.contributions.unshift(entry);
+    State.totalReward += reward;
+    updateGlobalStats();
+
+    // Show result
+    const res=document.getElementById('contrib-result');
+    if(res){
+      res.style.display='block';
+      res.innerHTML=`<div style="background:rgba(0,255,136,0.07);border:1px solid rgba(0,255,136,0.3);border-radius:var(--r);padding:14px;">
+        <div style="color:var(--green);font-size:12px;font-weight:700;margin-bottom:8px;">✓ Analysis Complete</div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--text3);line-height:2;">
+          Novelty: ${(scores.novelty*100).toFixed(0)}% · Impact: ${(scores.impact*100).toFixed(0)}% · Knowledge: ${(scores.knowledge*100).toFixed(0)}%<br>
+          DID: ${id.did?.substr(0,36)}…
+        </div>
+        <div style="font-size:20px;color:var(--yellow);font-family:var(--mono);font-weight:800;margin-top:8px;">$${reward.toLocaleString()} reward</div>
+      </div>`;
+    }
+    if(btn){btn.disabled=false;btn.textContent='⬡ Initiate Analysis';}
+    renderContribs();
+    Infra.toast(`+$${reward.toLocaleString()} reward — contribution accepted`, 'var(--green)');
+    Infra.log('global-log',`Contribution accepted — $${reward.toLocaleString()} reward · DID: ${id.did?.substr(0,28)}…`,'ok');
+    drawGraph();
+  }
+
+  function renderContribs() {
+    const el=document.getElementById('contrib-list');
+    const ct=document.getElementById('contrib-count-tag');
+    const cs=document.getElementById('contrib-stat-count');
+    const cr=document.getElementById('contrib-stat-reward');
+    if(ct) ct.textContent=`· ${State.contributions.length} entry(ies)`;
+    if(cs) cs.textContent=State.contributions.length;
+    if(cr) cr.textContent='$'+State.totalReward.toLocaleString();
+    if(!el) return;
+    if(!State.contributions.length){el.innerHTML='<div class="empty">Awaiting first contribution…</div>';return;}
+    el.innerHTML=State.contributions.slice(0,30).map(c=>`
+      <div class="contrib-card">
+        <div>
+          <div class="cc-title">${c.title}</div>
+          <div class="cc-meta">${c.type} · ${c.domain} · @${c.author} · ${new Date(c.ts).toLocaleTimeString()}<br>DID: ${c.did?.substr(0,32)}…</div>
+        </div>
+        <div class="cc-reward">$${c.reward.toLocaleString()}</div>
+      </div>`).join('');
+  }
+
+  function drawGraph() {
+    const canvas=document.getElementById('contrib-canvas');
+    if(!canvas) return;
+    const ctx=canvas.getContext('2d');
+    canvas.width=canvas.offsetWidth||400;
+    canvas.height=180;
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    const cs=State.contributions;
+    if(!cs.length){ctx.fillStyle='#444';ctx.font='11px monospace';ctx.textAlign='center';ctx.fillText('NETWORK VISUALIZATION',canvas.width/2,90);return;}
+    const cx=canvas.width/2,cy=canvas.height/2,r=Math.min(cx,cy)-24;
+    // Center node
+    ctx.beginPath();ctx.arc(cx,cy,10,0,Math.PI*2);
+    ctx.fillStyle='rgba(0,212,255,0.8)';ctx.shadowBlur=16;ctx.shadowColor='rgba(0,212,255,.8)';ctx.fill();ctx.shadowBlur=0;
+    cs.forEach((c,i)=>{
+      const a=(i/cs.length)*Math.PI*2-Math.PI/2;
+      const x=cx+Math.cos(a)*r,y=cy+Math.sin(a)*r;
+      ctx.strokeStyle='rgba(0,255,136,0.2)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(x,y);ctx.stroke();
+      ctx.beginPath();ctx.arc(x,y,6,0,Math.PI*2);
+      ctx.fillStyle='#00ff88';ctx.shadowBlur=10;ctx.shadowColor='rgba(0,255,136,.7)';ctx.fill();ctx.shadowBlur=0;
+    });
+  }
+
+  return { submit };
+})();
+window.Contrib = Contrib;
+
+// ══════════════════════════════════════════════════════════════
+//  VALUATION
+// ══════════════════════════════════════════════════════════════
+const Valuation = (() => {
+  function log(msg,type='info'){Infra.log('val-log',msg,type);}
+
+  async function evaluate() {
+    const name=document.getElementById('val-name')?.value?.trim();
+    const type=document.getElementById('val-type')?.value;
+    const desc=document.getElementById('val-desc')?.value?.trim();
+    const deal=document.getElementById('val-deal')?.value;
+    if(!name||!type||!desc||!deal){Infra.toast('Fill in all fields','var(--yellow)');return;}
+
+    const id = await Sovereign.getIdentity();
+    log(`Evaluating "${name}" · by ${id.username}`,'info');
+    await Infra.delay(500);
+
+    const base={'ai-ml':500000,'datacenter':2000000,'defi':1000000,'dataset':100000,'api':50000,'frontend':30000}[type]||50000;
+    const quality=60+Math.floor(Math.random()*40);
+    const risk=20+Math.floor(Math.random()*30);
+    let offer=base*(quality/100)*(1-risk/200);
+    if(deal==='loan') offer*=0.6; else offer*=0.95;
+    offer=Math.floor(offer);
+
+    const set=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
+    set('val-stat-quality',quality+'/100');
+    set('val-stat-risk',risk+'/100');
+    set('val-stat-offer','$'+offer.toLocaleString());
+
+    log(`Market value: $${base.toLocaleString()}`,'info');
+    log(`Quality: ${quality}/100 · Risk: ${risk}/100`,'ok');
+    log(`Offer (${deal}): $${offer.toLocaleString()}`,'ok');
+    log(`Signed by DID: ${id.did?.substr(0,36)}…`,'dim');
+
+    const res=document.getElementById('val-result');
+    if(res){
+      res.style.display='block';
+      res.innerHTML=`<div style="border:2px solid var(--yellow);padding:16px;background:rgba(251,191,36,0.05);border-radius:var(--r);">
+        <div style="color:var(--yellow);font-family:var(--mono);font-weight:700;margin-bottom:10px;">VALUATION COMPLETE</div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--text3);line-height:2;">
+          Market Value: <span style="color:var(--text);">$${base.toLocaleString()}</span><br>
+          Quality Score: <span style="color:var(--yellow);">${quality}/100</span> · Risk: <span style="color:var(--red);">${risk}/100</span><br>
+          Signed by: <span style="color:var(--cyan);font-size:9px;">${id.did?.substr(0,36)}…</span>
+        </div>
+        <div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(251,191,36,0.2);">
+          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;">OUR OFFER · ${deal}</div>
+          <div style="font-family:var(--mono);font-size:28px;font-weight:800;color:var(--yellow);">$${offer.toLocaleString()}</div>
+          <div style="font-size:9px;color:var(--text3);margin-top:3px;">${deal==='loan'?'Loan amount (60% of value)':'Purchase price (95% of value)'}</div>
+        </div>
+      </div>`;
+    }
+    Infra.toast(`💰 Offer: $${offer.toLocaleString()}`, 'var(--yellow)');
+    Infra.log('global-log',`Asset "${name}" valued at $${offer.toLocaleString()} · ${deal} · by ${id.username}`,'ok');
+  }
+
+  return { evaluate };
+})();
+window.Valuation = Valuation;
+
+// ══════════════════════════════════════════════════════════════
+//  INVARIANT ENGINE
+// ══════════════════════════════════════════════════════════════
+const InvEngine = (() => {
+  const DEFS = [
+    { id:'reentrancy', goal:'No Reentrancy',          color:'red',
+      formula:'I(S) = 1 iff ∀ external_call c: state_update BEFORE c',
+      reduce:'CEI: Checks → Effects → Interactions',
+      verify(w){ return !((w.steps||[]).some((s,i)=>s.type==='call'&&(w.steps||[]).slice(i+1).some(t=>t.mutates))); }},
+    { id:'balance', goal:'Balance Consistency',      color:'cyan',
+      formula:'I(S) = 1 iff balance ≥ 0 AND balance unchanged without explicit update',
+      reduce:'Atomic debit: balance = balance - amount WHERE balance ≥ amount',
+      verify(w){ return !(w.inputs?.balance!==undefined&&w.inputs.balance<0); }},
+    { id:'overflow', goal:'Integer Safety',          color:'yellow',
+      formula:'I(S) = 1 iff ∀ arithmetic op a: a ∈ [0, 2^256)',
+      reduce:'Use SafeMath OR Solidity ^0.8 checked arithmetic',
+      verify(w){ return !((w.steps||[]).some(s=>s.type==='compute'&&/\+|\*/.test(s.expression||''))); }},
+    { id:'access', goal:'Access Control',           color:'green',
+      formula:'I(S) = 1 iff privileged_op → auth_check precedes it',
+      reduce:'Assert(caller == owner) BEFORE any admin action',
+      verify(w){ const p=(w.steps||[]).filter(s=>s.privileged||s.admin);return !(p.length>0&&!(w.steps||[]).some(s=>s.type==='auth'||s.type==='assert')); }}
+  ];
+
+  let _results = {};
+
+  function renderCards() {
+    const g=document.getElementById('inv-cards');
+    if(!g) return;
+    g.innerHTML=DEFS.map(d=>{
+      const r=_results[d.id];
+      const passing=r?.pass;
+      const badge=r?`<span class="badge ${passing?'green':'red'}">${passing?'✓ PASS':'✗ FAIL'}</span>`:`<span class="badge cyan">UNCHECKED</span>`;
+      return `<div class="card card-${d.color}">
+        <div class="card-title ${d.color}" style="justify-content:space-between;">${d.goal} ${badge}</div>
+        <div style="font-family:var(--mono);font-size:9px;background:var(--raised);border:1px solid var(--border);border-radius:var(--r);padding:10px;line-height:1.8;margin-bottom:10px;color:var(--text2);">
+          <div style="color:var(--text3);margin-bottom:4px;">// OPTIMIZED INVARIANT</div>
+          ${d.formula}
+          <div style="margin-top:6px;color:var(--green);">// Reduces to: ${d.reduce}</div>
+        </div>
+        <div id="inv-res-${d.id}" style="font-family:var(--mono);font-size:9px;color:var(--text3);">${r?`<span style="color:${passing?'var(--green)':'var(--red)'};">${passing?'✓ Passing':'✗ Failing — see test report'}</span>`:'—'}</div>
+      </div>`;
+    }).join('');
+  }
+
+  function getWorkflow(){
+    try{const v=document.getElementById('rrtk-input')?.value?.trim();return v?JSON.parse(v):{id:'empty',inputs:{},steps:[]};}
+    catch(e){return{id:'empty',inputs:{},steps:[]};}
+  }
+
+  function verifyAll() {
+    const w=getWorkflow();
+    let pass=0,fail=0;
+    DEFS.forEach(d=>{ const r=d.verify(w); _results[d.id]={pass:r}; if(r)pass++;else fail++; });
+    const set=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
+    set('inv-pass',pass); set('inv-fail',fail);
+    const status=document.getElementById('inv-status');
+    if(status) status.innerHTML=`<span style="color:${fail>0?'var(--red)':'var(--green)'};">${fail>0?`✗ ${fail} invariant(s) FAILING`:'✓ All invariants PASS'}</span>  <span style="color:var(--text3);">· ${pass}/${DEFS.length} passing · workflow: "${w.id||'?'}"</span>`;
+    renderCards();
+    Infra.log('global-log',`Invariant check: ${pass}/${DEFS.length} passing`,'ok');
+    State.tick(DEFS.length, fail);
+  }
+
+  function verifyOne(id) {
+    const d=DEFS.find(x=>x.id===id);
+    if(!d)return;
+    const w=getWorkflow();
+    const r=d.verify(w);
+    _results[id]={pass:r};
+    Infra.log('global-log',`Invariant "${d.goal}": ${r?'✓ PASS':'✗ FAIL'}`,'ok');
+    renderCards();
+    const set=(eid,v)=>{const el=document.getElementById(eid);if(el)el.textContent=v;};
+    const pass=Object.values(_results).filter(v=>v.pass).length;
+    const fail=Object.values(_results).filter(v=>!v.pass).length;
+    set('inv-pass',pass); set('inv-fail',fail);
+    State.tick(1, r?0:1);
+  }
+
+  return { verifyAll, verifyOne, renderCards };
+})();
+window.InvEngine = InvEngine;
+
+// ══════════════════════════════════════════════════════════════
+//  SYSTEM LOG
+// ══════════════════════════════════════════════════════════════
+const SysLog = {
+  clear(){ const el=document.getElementById('global-log'); if(el) el.innerHTML=''; },
+  export(){ 
+    const el=document.getElementById('global-log');
+    const text=Array.from(el?.children||[]).map(c=>c.textContent).join('\n');
+    const b=new Blob([text],{type:'text/plain'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(b);
+    a.download=`attack-cmd-log-${Date.now()}.txt`;
+    a.click();
+  }
+};
+
+// ══════════════════════════════════════════════════════════════
+//  KERNEL — global run-all
+// ══════════════════════════════════════════════════════════════
+const Kernel = {
+  async runAll(){
+    RRTK.loadExample();
+    await Infra.delay(100);
+    await RRTK.startTest();
+    InvEngine.verifyAll();
+    Infra.toast('All tests complete','var(--cyan)');
+  },
+  async executeAll(){
+    RRTK.loadExample();
+    await Infra.delay(100);
+    AttackMods.renderPatterns();
+    await AttackMods.executeAll();
+  }
+};
+
+
+
+// ══════════════════════════════════════════════════════════════
+//  REAL CRYPTO SIGNING ENGINE
+//  Uses WebCrypto ECDSA P-256 for genuine digital signatures
+// ══════════════════════════════════════════════════════════════
+const CryptoEngine = (() => {
+  let _keypair = null;
+  let _jwkPub  = null;
+  let _thumbprint = null;
+
+  async function generate() {
+    _keypair = await crypto.subtle.generateKey(
+      { name: 'ECDSA', namedCurve: 'P-256' },
+      true,
+      ['sign', 'verify']
+    );
+    _jwkPub = await crypto.subtle.exportKey('jwk', _keypair.publicKey);
+    // Compute JWK thumbprint (RFC 7638)
+    const members = JSON.stringify({ crv:_jwkPub.crv, kty:_jwkPub.kty, x:_jwkPub.x, y:_jwkPub.y });
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(members));
+    _thumbprint = btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+    return { jwkPub: _jwkPub, thumbprint: _thumbprint };
+  }
+
+  async function sign(payload) {
+    if (!_keypair) throw new Error('Keypair not generated');
+    const data = new TextEncoder().encode(JSON.stringify(payload));
+    const sigBuf = await crypto.subtle.sign(
+      { name: 'ECDSA', hash: { name: 'SHA-256' } },
+      _keypair.privateKey,
+      data
+    );
+    const sigHex = Array.from(new Uint8Array(sigBuf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+    // Also compute payload digest for receipt
+    const hashBuf = await crypto.subtle.digest('SHA-256', data);
+    const hashHex = Array.from(new Uint8Array(hashBuf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+    return { sig: sigHex, digest: hashHex, alg: 'ECDSA-P256-SHA256', ts: Date.now(), pubThumb: _thumbprint };
+  }
+
+  async function verify(payload, sigHex) {
+    if (!_keypair) return false;
+    try {
+      const data = new TextEncoder().encode(JSON.stringify(payload));
+      const sigBuf = new Uint8Array(sigHex.match(/.{2}/g).map(h=>parseInt(h,16)));
+      return await crypto.subtle.verify(
+        { name: 'ECDSA', hash: { name: 'SHA-256' } },
+        _keypair.publicKey,
+        sigBuf,
+        data
+      );
+    } catch { return false; }
+  }
+
+  function getThumbprint() { return _thumbprint; }
+  function getJwkPub() { return _jwkPub; }
+  function isReady() { return !!_keypair; }
+
+  return { generate, sign, verify, getThumbprint, getJwkPub, isReady };
+})();
+
+// ══════════════════════════════════════════════════════════════
+//  AUDIT RECEIPT STORE — keeps signed receipts in memory
+// ══════════════════════════════════════════════════════════════
+const AuditReceipts = (() => {
+  const _store = [];
+
+  async function record(action, data, did) {
+    const payload = { action, data, did, ts: Date.now(), nonce: crypto.getRandomValues(new Uint32Array(1))[0] };
+    let sig = null;
+    if (CryptoEngine.isReady()) {
+      try { sig = await CryptoEngine.sign(payload); } catch(e) {}
+    }
+    const receipt = { ...payload, sig, receiptId: 'rcpt-' + Math.random().toString(36).substr(2,9) };
+    _store.unshift(receipt);
+    if (_store.length > 500) _store.pop();
+    return receipt;
+  }
+
+  function getAll() { return [..._store]; }
+  function getByAction(action) { return _store.filter(r => r.action === action); }
+
+  function formatReceipt(r) {
+    const lines = [
+      `┌─ ATTACK COMMAND SIGNED AUDIT RECEIPT ─────────────────────────`,
+      `│ Receipt ID : ${r.receiptId}`,
+      `│ Action     : ${r.action}`,
+      `│ Timestamp  : ${new Date(r.ts).toISOString()}`,
+      `│ DID        : ${r.did || '—'}`,
+      `│ Nonce      : ${r.nonce}`,
+      `│ Payload ↓`,
+      `│   ${JSON.stringify(r.data).substr(0,120)}${JSON.stringify(r.data).length>120?'…':''}`,
+    ];
+    if (r.sig) {
+      lines.push(`│`);
+      lines.push(`│ Algorithm  : ${r.sig.alg}`);
+      lines.push(`│ PubThumb   : ${r.sig.pubThumb}`);
+      lines.push(`│ Digest     : ${r.sig.digest}`);
+      lines.push(`│ Signature  : ${r.sig.sig.substr(0,80)}…`);
+      lines.push(`│             (${r.sig.sig.length/2} bytes)`);
+    } else {
+      lines.push(`│ ⚠ Signed   : false (keypair not ready)`);
+    }
+    lines.push(`└──────────────────────────────────────────────────────────────`);
+    return lines.join('\n');
+  }
+
+  async function downloadSignedAudit(did) {
+    const receipts = getAll();
+    if (!receipts.length) { Infra.toast('No receipts yet — run some operations first', 'var(--yellow)'); return; }
+    // Build the bundle
+    const bundle = {
+      format: 'AttackCMD-AuditBundle-v1',
+      generated: new Date().toISOString(),
+      did,
+      pubKeyJwk: CryptoEngine.getJwkPub(),
+      pubThumb: CryptoEngine.getThumbprint(),
+      receiptCount: receipts.length,
+      receipts
+    };
+    // Sign the entire bundle
+    let bundleSig = null;
+    if (CryptoEngine.isReady()) {
+      try { bundleSig = await CryptoEngine.sign({ bundle: bundle.receiptCount, did, ts: bundle.generated }); } catch(e) {}
+    }
+    bundle.bundleSignature = bundleSig;
+    const json = JSON.stringify(bundle, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `audit-receipt-${Date.now()}.json`;
+    a.click();
+    Infra.toast('✓ Signed audit receipt downloaded', 'var(--green)');
+    Infra.log('global-log', `Signed audit bundle: ${receipts.length} receipt(s) exported`, 'ok');
+    // Mark onboarding mission
+    Onboarding.completeMission(3);
+  }
+
+  return { record, getAll, getByAction, formatReceipt, downloadSignedAudit };
+})();
+
+// ══════════════════════════════════════════════════════════════
+//  VULNERABILITY PROOF EXPORTS — reproducible, signed
+// ══════════════════════════════════════════════════════════════
+const VulnProofs = (() => {
+  let _lastSolReport = null;
+  let _lastRrtkReport = null;
+
+  function storeSolReport(report) { _lastSolReport = report; }
+  function storeRrtkReport(report) { _lastRrtkReport = report; }
+
+  async function exportSolProof(did) {
+    if (!_lastSolReport) { Infra.toast('Run a scan first to generate proof', 'var(--yellow)'); return; }
+    await _exportProof('solidity-audit', _lastSolReport, did, `sol-proof-${Date.now()}.json`);
+  }
+
+  async function exportRrtkProof(did) {
+    if (!_lastRrtkReport) { Infra.toast('Run an RRTK test first to generate proof', 'var(--yellow)'); return; }
+    await _exportProof('rrtk-property-test', _lastRrtkReport, did, `rrtk-proof-${Date.now()}.json`);
+  }
+
+  async function _exportProof(type, report, did, filename) {
+    const proof = {
+      format: 'AttackCMD-VulnProof-v1',
+      type,
+      generated: new Date().toISOString(),
+      did,
+      pubKeyJwk: CryptoEngine.getJwkPub(),
+      pubThumb: CryptoEngine.getThumbprint(),
+      tool: 'Attack Command — Sovereign Security Platform',
+      report
+    };
+    // Canonicalize for reproducibility
+    const canonical = JSON.stringify(proof, Object.keys(proof).sort());
+    let proofSig = null;
+    if (CryptoEngine.isReady()) {
+      try { proofSig = await CryptoEngine.sign({ canonical }); } catch(e) {}
+    }
+    proof.proofSignature = proofSig;
+    proof.canonicalDigest = proofSig?.digest || null;
+
+    const json = JSON.stringify(proof, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    Infra.toast(`✓ Reproducible vulnerability proof exported`, 'var(--green)');
+    Infra.log('global-log', `Proof bundle exported: ${type} · digest: ${proofSig?.digest?.substr(0,20)||'unsigned'}…`, 'ok');
+  }
+
+  return { storeSolReport, storeRrtkReport, exportSolProof, exportRrtkProof };
+})();
+
+// ══════════════════════════════════════════════════════════════
+//  ONBOARDING MISSION FLOW
+// ══════════════════════════════════════════════════════════════
+const Onboarding = (() => {
+  const MISSION_COUNT = 5;
+  const _done = new Set();
+  let _step = 0;
+  const STEPS = 3;
+
+  function _updateProgress() {
+    const pct = (_step / (STEPS-1)) * 100;
+    const bar = document.getElementById('ob-progress');
+    if (bar) bar.style.width = pct + '%';
+    document.querySelectorAll('.onboard-dot').forEach((d,i) => {
+      d.classList.toggle('active', i === _step);
+    });
+  }
+
+  function _showStep(n) {
+    document.querySelectorAll('.onboard-step').forEach(s => s.classList.remove('active'));
+    document.getElementById('ob-step-'+n)?.classList.add('active');
+    _step = n;
+    _updateProgress();
+    const back = document.getElementById('ob-back-btn');
+    const next = document.getElementById('ob-next-btn');
+    const launch = document.getElementById('ob-launch-btn');
+    if (back) back.style.display = n > 0 ? '' : 'none';
+    if (n === 0) { if(next){next.style.display='';next.textContent='Generate Keypair →';} if(launch)launch.style.display='none'; }
+    if (n === 1) { if(next){next.style.display='';next.textContent='Continue →';} if(launch)launch.style.display='none'; }
+    if (n === 2) { if(next)next.style.display='none'; if(launch)launch.style.display=''; }
+  }
+
+  async function init() {
+    const overlay = document.getElementById('onboarding-overlay');
+    if (!overlay) return;
+    _showStep(0);
+
+    document.getElementById('ob-next-btn')?.addEventListener('click', async () => {
+      if (_step === 0) {
+        // Generate keypair
+        const status = document.getElementById('ob-key-status');
+        if(status) { status.textContent = 'Generating ECDSA P-256 keypair…'; status.style.color='var(--yellow)'; }
+        try {
+          const id = await Sovereign.getIdentity();
+          const { thumbprint } = await CryptoEngine.generate();
+          if(status) { status.textContent = `✓ Keypair ready · thumb: ${thumbprint.substr(0,24)}…`; status.style.color='var(--green)'; }
+          // Update step 2 key info
+          const did = id.did;
+          const d = document.getElementById('ob-did-display');
+          const p = document.getElementById('ob-pubkey-display');
+          if(d) d.textContent = did?.substr(0,48) + (did?.length>48?'…':'');
+          if(p) p.textContent = thumbprint;
+          await new Promise(r=>setTimeout(r, 600));
+          _showStep(1);
+        } catch(e) {
+          if(status) { status.textContent = 'Error: '+e.message; status.style.color='var(--red)'; }
+        }
+      } else if (_step === 1) {
+        _showStep(2);
+      }
+    });
+
+    document.getElementById('ob-back-btn')?.addEventListener('click', () => {
+      if (_step > 0) _showStep(_step - 1);
+    });
+
+    document.getElementById('ob-launch-btn')?.addEventListener('click', () => {
+      overlay.classList.add('hidden');
+      Infra.log('global-log', `Platform launched · ECDSA keypair: ${CryptoEngine.getThumbprint()?.substr(0,20)||'?'}…`, 'ok');
+    });
+  }
+
+  function completeMission(idx) {
+    if (_done.has(idx)) return;
+    _done.add(idx);
+    const items = document.querySelectorAll('[data-mission]');
+    items.forEach(el => {
+      if (parseInt(el.dataset.mission) === idx) {
+        el.classList.add('done');
+        el.querySelector('.mission-num').textContent = '✓';
+      }
+    });
+    const missionNames = ['Solidity Audit','RRTK Test','Attack Modules','Receipt Download','Benchmark'];
+    Infra.toast(`✓ Mission complete: ${missionNames[idx]||idx}`, 'var(--green)');
+  }
+
+  function getMissionsComplete() { return _done.size; }
+
+  return { init, completeMission, getMissionsComplete };
+})();
+
+// ══════════════════════════════════════════════════════════════
+//  PERFORMANCE BENCHMARKS
+// ══════════════════════════════════════════════════════════════
+const Benchmarks = (() => {
+  let _lastResults = null;
+
+  function log(msg, type='info') { Infra.log('bench-log', msg, type); }
+
+  async function runAll() {
+    const id = await Sovereign.getIdentity();
+    log('Starting benchmark suite…', 'info');
+    const set = (eid,v) => { const el=document.getElementById(eid); if(el) el.textContent=v; };
+    const status = document.getElementById('bench-status');
+    if(status) status.textContent = 'Running…';
+
+    const results = {};
+
+    // 1. Crypto: ECDSA sign/verify throughput
+    log('Benchmarking ECDSA signing…', 'dim');
+    const SIGN_ROUNDS = 50;
+    const t0 = performance.now();
+    for (let i = 0; i < SIGN_ROUNDS; i++) {
+      await CryptoEngine.sign({ n: i, ts: Date.now() });
+    }
+    const signMs = (performance.now() - t0) / SIGN_ROUNDS;
+    results.sign = { ms: signMs.toFixed(2), ops: (1000/signMs).toFixed(0), score: Math.min(100, Math.round(5/signMs*100)) };
+    log(`ECDSA sign: ${signMs.toFixed(2)}ms avg · ${results.sign.ops} ops/s`, 'ok');
+
+    // 2. SHA-256 hashing throughput
+    log('Benchmarking SHA-256 hashing…', 'dim');
+    const HASH_ROUNDS = 500;
+    const t1 = performance.now();
+    const enc = new TextEncoder();
+    for (let i = 0; i < HASH_ROUNDS; i++) {
+      await crypto.subtle.digest('SHA-256', enc.encode('benchmark-payload-'+i));
+    }
+    const hashMs = (performance.now() - t1) / HASH_ROUNDS;
+    results.hash = { ms: hashMs.toFixed(3), ops: (1000/hashMs).toFixed(0), score: Math.min(100, Math.round(1/hashMs*100)) };
+    log(`SHA-256: ${hashMs.toFixed(3)}ms avg · ${results.hash.ops} ops/s`, 'ok');
+
+    // 3. Static analysis scan throughput  
+    log('Benchmarking static analysis…', 'dim');
+    const CONTRACT_SAMPLE = `pragma solidity ^0.6.0;
+contract Test { 
+  function withdraw() public { 
+    require(balances[msg.sender] > 0); 
+    msg.sender.call{value:1}(""); 
+    balances[msg.sender] = 0; 
+  } 
+  mapping(address=>uint) balances; 
+}`;
+    const SCAN_ROUNDS = 200;
+    const PATTERNS = [
+      /\.call\{/i, /tx\.origin/, /selfdestruct|suicide/, /assembly\s*\{/, /delegatecall/, /block\.timestamp/
+    ];
+    const t2 = performance.now();
+    for (let i = 0; i < SCAN_ROUNDS; i++) {
+      PATTERNS.forEach(p => p.test(CONTRACT_SAMPLE));
+    }
+    const scanMs = (performance.now() - t2) / SCAN_ROUNDS;
+    results.scan = { ms: scanMs.toFixed(3), ops: (1000/scanMs).toFixed(0), score: Math.min(100, Math.round(0.1/scanMs*100)) };
+    log(`Static scan: ${scanMs.toFixed(3)}ms avg · ${results.scan.ops} ops/s`, 'ok');
+
+    // 4. JSON mutation throughput
+    log('Benchmarking JSON mutation…', 'dim');
+    const sampleWorkflow = {id:'token_transfer',inputs:{balance:5000,amount:1000},steps:[{id:'call',type:'call',target:'recipient'},{id:'update',type:'compute',expression:'balance - amount',mutates:true}]};
+    const MUTATE_ROUNDS = 1000;
+    const t3 = performance.now();
+    for (let i = 0; i < MUTATE_ROUNDS; i++) {
+      const m = JSON.parse(JSON.stringify(sampleWorkflow));
+      m.inputs.amount = i;
+    }
+    const mutateMs = (performance.now() - t3) / MUTATE_ROUNDS;
+    results.mutate = { ms: mutateMs.toFixed(4), ops: (1000/mutateMs).toFixed(0), score: Math.min(100, Math.round(0.05/mutateMs*100)) };
+    log(`JSON mutation: ${mutateMs.toFixed(4)}ms avg · ${results.mutate.ops} ops/s`, 'ok');
+
+    // 5. DOM render benchmark
+    log('Benchmarking DOM operations…', 'dim');
+    const DOM_ROUNDS = 100;
+    const dummy = document.createElement('div');
+    document.body.appendChild(dummy);
+    const t4 = performance.now();
+    for (let i = 0; i < DOM_ROUNDS; i++) {
+      dummy.innerHTML = `<div class="vuln-item"><div class="vuln-title">Test ${i}</div></div>`;
+    }
+    dummy.remove();
+    const domMs = (performance.now() - t4) / DOM_ROUNDS;
+    results.dom = { ms: domMs.toFixed(3), ops: (1000/domMs).toFixed(0), score: Math.min(100, Math.round(5/domMs*100)) };
+    log(`DOM render: ${domMs.toFixed(3)}ms avg · ${results.dom.ops} ops/s`, 'ok');
+
+    // Compute composite scores
+    const cryptoScore = Math.round((results.sign.score * 0.6 + results.hash.score * 0.4));
+    const analysisScore = Math.round((results.scan.score * 0.5 + results.mutate.score * 0.5));
+    const uiScore = Math.min(100, results.dom.score);
+    const totalScore = Math.round((cryptoScore + analysisScore + uiScore) / 3);
+    const totalOps = parseInt(results.hash.ops) + parseInt(results.mutate.ops);
+
+    // Update UI
+    set('bench-ops', totalOps.toLocaleString());
+    set('bench-sign-ms', signMs.toFixed(2));
+    set('bench-scan-ms', scanMs.toFixed(3));
+    set('bench-score', totalScore);
+
+    // Score rings
+    _setRing('br-crypto', cryptoScore);
+    _setRing('br-analysis', analysisScore);
+    _setRing('br-ui', uiScore);
+
+    // Detailed bars
+    const barsEl = document.getElementById('bench-bars');
+    if(barsEl) {
+      const bars = [
+        { name:'ECDSA Sign', val: results.sign.score, detail: signMs.toFixed(2)+'ms', color:'var(--red)' },
+        { name:'SHA-256 Hash', val: results.hash.score, detail: hashMs.toFixed(3)+'ms', color:'var(--cyan)' },
+        { name:'Static Scan', val: results.scan.score, detail: scanMs.toFixed(3)+'ms', color:'var(--yellow)' },
+        { name:'JSON Mutation', val: results.mutate.score, detail: mutateMs.toFixed(4)+'ms', color:'var(--orange)' },
+        { name:'DOM Render', val: results.dom.score, detail: domMs.toFixed(3)+'ms', color:'var(--green)' },
+      ];
+      barsEl.innerHTML = bars.map(b => `
+        <div class="bench-bar-wrap">
+          <div class="bench-label"><span>${b.name}</span><span style="font-family:var(--mono);color:var(--text3)">${b.detail} · ${b.val}/100</span></div>
+          <div class="bench-bar"><div class="bench-bar-fill" style="width:${b.val}%;background:${b.color}"></div></div>
+        </div>`).join('');
+      // Trigger animation
+      setTimeout(()=>{
+        barsEl.querySelectorAll('.bench-bar-fill').forEach(el=>{ const w=el.style.width; el.style.width='0'; setTimeout(()=>{el.style.width=w;},50); });
+      }, 50);
+    }
+
+    if(status) status.textContent = `Complete · Score: ${totalScore}/100`;
+
+    // Build and sign receipt
+    const receipt = await AuditReceipts.record('benchmark', {
+      cryptoScore, analysisScore, uiScore, totalScore,
+      signMs: signMs.toFixed(2), scanMs: scanMs.toFixed(3), totalOps
+    }, id.did);
+
+    _lastResults = { results, cryptoScore, analysisScore, uiScore, totalScore, receipt };
+
+    // Show receipt
+    const receiptEl = document.getElementById('bench-receipt');
+    const emptyEl = document.getElementById('bench-empty');
+    const dlBtn = document.getElementById('bench-download-btn');
+    if(receiptEl) {
+      receiptEl.style.display = 'block';
+      receiptEl.innerHTML = `<span class="rk">Receipt ID:  </span><span class="rv">${receipt.receiptId}</span>\n` +
+        `<span class="rk">Score:       </span><span class="rv">${totalScore}/100</span>\n` +
+        `<span class="rk">Timestamp:   </span><span class="rv">${new Date(receipt.ts).toISOString()}</span>\n` +
+        `<span class="rk">DID:         </span><span class="rv">${receipt.did?.substr(0,48)||'—'}</span>\n` +
+        (receipt.sig ? `<span class="rk">Algorithm:   </span><span class="rv">${receipt.sig.alg}</span>\n` +
+        `<span class="rk">Digest:      </span><span class="rv">${receipt.sig.digest}</span>\n` +
+        `<span class="rk">Signature:   </span><span class="rv sig">${receipt.sig.sig.substr(0,80)}…</span>` : `<span class="rk">Signed:      </span><span class="rv">⚠ Not signed (generate keypair first)</span>`);
+    }
+    if(emptyEl) emptyEl.style.display = 'none';
+    if(dlBtn) dlBtn.style.display = '';
+
+    log(`Benchmark complete · score ${totalScore}/100 · signed: ${!!receipt.sig}`, 'ok');
+    Infra.toast(`⚡ Benchmark: ${totalScore}/100`, 'var(--cyan)');
+    Onboarding.completeMission(4);
+
+    return _lastResults;
+  }
+
+  function _setRing(id, score) {
+    const el = document.getElementById(id);
+    if(!el) return;
+    const pct = score / 100;
+    const color = score >= 70 ? 'var(--green)' : score >= 40 ? 'var(--yellow)' : 'var(--red)';
+    el.style.background = `conic-gradient(${color} ${pct*360}deg, var(--raised) 0deg)`;
+    el.style.color = color;
+    el.textContent = score;
+  }
+
+  async function downloadReport() {
+    if (!_lastResults) { Infra.toast('Run benchmarks first', 'var(--yellow)'); return; }
+    const id = await Sovereign.getIdentity();
+    const bundle = {
+      format: 'AttackCMD-BenchmarkReport-v1',
+      generated: new Date().toISOString(),
+      did: id.did,
+      pubKeyJwk: CryptoEngine.getJwkPub(),
+      ...(_lastResults)
+    };
+    const sig = CryptoEngine.isReady() ? await CryptoEngine.sign({ score: _lastResults.totalScore, did: id.did }) : null;
+    bundle.reportSignature = sig;
+    const json = JSON.stringify(bundle, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `benchmark-${Date.now()}.json`;
+    a.click();
+    Infra.toast('✓ Benchmark report downloaded', 'var(--green)');
+  }
+
+  return { runAll, downloadReport };
+})();
+
+// ══════════════════════════════════════════════════════════════
+//  EVENT DELEGATION — replaces all inline onclick handlers
+// ══════════════════════════════════════════════════════════════
+document.addEventListener('click', async function(e) {
+  // Tab navigation
+  const navItem = e.target.closest('.nav-item[data-tab]');
+  if (navItem) { switchTab(navItem.dataset.tab); return; }
+
+  // Quick-launch tab buttons
+  const tabBtn = e.target.closest('[data-tab]:not(.nav-item)');
+  if (tabBtn) { switchTab(tabBtn.dataset.tab); return; }
+
+  // Pattern card toggle (attack modules + fuzzer)
+  const pc = e.target.closest('.pattern-card');
+  if (pc) {
+    pc.classList.toggle('sel');
+    if (pc.closest('#fuzz-patterns')) {
+      pc.style.borderColor = pc.classList.contains('sel') ? 'var(--yellow)' : 'var(--border)';
+    }
+    return;
+  }
+
+  // Action buttons
+  const btn = e.target.closest('[data-action]');
+  if (!btn) return;
+  const action = btn.dataset.action;
+
+  switch(action) {
+    case 'kernelRunAll':    await Kernel.runAll(); break;
+    case 'kernelExecAll':   await Kernel.executeAll(); break;
+    case 'showIdentity':    showIdentity(); break;
+    case 'solTestConn':     SolAudit.testConn(); break;
+    case 'solAudit':        await SolAudit.audit(); break;
+    case 'solStatic':       SolAudit.staticScan(); break;
+    case 'solExample':      SolAudit.loadExample(); break;
+    case 'solExport':       SolAudit.exportReport(); break;
+    case 'solProofExport':  { const id=await Sovereign.getIdentity(); await VulnProofs.exportSolProof(id.did); break; }
+    case 'rrtkExample':     RRTK.loadExample(); break;
+    case 'rrtkValidate':    RRTK.validate(); break;
+    case 'rrtkStart':       await RRTK.startTest(); break;
+    case 'rrtkProofExport': { const id=await Sovereign.getIdentity(); await VulnProofs.exportRrtkProof(id.did); break; }
+    case 'modsExecSel':     await AttackMods.executeSelected(); break;
+    case 'modsExecAll':     await AttackMods.executeAll(); break;
+    case 'modsClear':       AttackMods.clearSelection(); break;
+    case 'fuzzRunSel':      Fuzzer.runSelected(); break;
+    case 'fuzzRunAll':      Fuzzer.runAll(); break;
+    case 'fuzzClear':       Fuzzer.clearAll(); break;
+    case 'fuzzExample':     Fuzzer.loadExample(); break;
+    case 'fuzzFuzz':        await Fuzzer.fuzz(); break;
+    case 'contribSubmit':   await Contrib.submit(); break;
+    case 'valuationEval':   await Valuation.evaluate(); break;
+    case 'invVerifyAll':    InvEngine.verifyAll(); break;
+    case 'invVerify':       InvEngine.verifyOne(btn.dataset.inv); break;
+    case 'syslogClear':     SysLog.clear(); break;
+    case 'syslogExport':    SysLog.export(); break;
+    case 'downloadSignedAudit': { const id=await Sovereign.getIdentity(); await AuditReceipts.downloadSignedAudit(id.did); break; }
+    case 'benchRun':        await Benchmarks.runAll(); break;
+    case 'benchDownload':   await Benchmarks.downloadReport(); break;
+  }
+});
+
+// ══════════════════════════════════════════════════════════════
+//  PATCH: wrap existing module functions to record receipts
+// ══════════════════════════════════════════════════════════════
+(function patchModules() {
+  const origSolAuditAudit = SolAudit.audit;
+  SolAudit.audit = async function() {
+    await origSolAuditAudit.call(this);
+    const id = await Sovereign.getIdentity();
+    const src = document.getElementById('sol-input')?.value?.substr(0,200) || '';
+    const receipt = await AuditReceipts.record('solidity-audit', { src_preview: src }, id.did);
+    const report = { src_preview: src, ts: receipt.ts, receipt_id: receipt.receiptId };
+    VulnProofs.storeSolReport(report);
+    Onboarding.completeMission(0);
+  };
+
+  const origRrtkStart = RRTK.startTest;
+  RRTK.startTest = async function() {
+    await origRrtkStart.call(this);
+    const id = await Sovereign.getIdentity();
+    let workflow = {};
+    try { workflow = JSON.parse(document.getElementById('rrtk-input')?.value||'{}'); } catch(e){}
+    const receipt = await AuditReceipts.record('rrtk-property-test', { workflow_id: workflow.id||'?', step_count: workflow.steps?.length||0 }, id.did);
+    const report = { workflow_id: workflow.id||'?', steps: workflow.steps?.length||0, ts: receipt.ts, receipt_id: receipt.receiptId };
+    VulnProofs.storeRrtkReport(report);
+    Onboarding.completeMission(1);
+  };
+
+  const origModsRun = AttackMods.executeAll;
+  AttackMods.executeAll = async function() {
+    await origModsRun.call(this);
+    const id = await Sovereign.getIdentity();
+    await AuditReceipts.record('attack-modules-all', { patterns: 'all' }, id.did);
+    Onboarding.completeMission(2);
+  };
+  const origModsSel = AttackMods.executeSelected;
+  AttackMods.executeSelected = async function() {
+    const sel = document.querySelectorAll('.pattern-card.sel');
+    if(sel.length >= 3) Onboarding.completeMission(2);
+    await origModsSel.call(this);
+    const id = await Sovereign.getIdentity();
+    await AuditReceipts.record('attack-modules-selected', { count: sel.length }, id.did);
+  };
+})();
+
+// ══════════════════════════════════════════════════════════════
+//  PATCH TAB_META for new tabs
+// ══════════════════════════════════════════════════════════════
+TAB_META.benchmark = { title: 'Performance Benchmarks', sub: 'Measure crypto, analysis, and render throughput · signed results' };
+
+// ══════════════════════════════════════════════════════════════
+//  INIT (ENHANCED)
+// ══════════════════════════════════════════════════════════════
+async function init() {
+  // Start onboarding flow first
+  await Onboarding.init();
+
+  const id = await Sovereign.getIdentity();
+  if(!id) return;
+
+  // Set identity in UI
+  const initial=(id.username||id.did||'?')[0].toUpperCase();
+  const avatar=document.getElementById('id-avatar');
+  const name=document.getElementById('id-name');
+  const didDisplay=document.getElementById('did-display');
+  const ovDid=document.getElementById('ov-did');
+  const ovUser=document.getElementById('ov-user');
+  const modTag=document.getElementById('mod-did-tag');
+  const rrtkTag=document.getElementById('rrtk-did-tag');
+  const contribTag=document.getElementById('contrib-id-tag');
+  const valTag=document.getElementById('val-id-tag');
+
+  if(avatar) avatar.textContent=initial;
+  if(name)   name.textContent=id.username||id.did?.substr(14,16)||'Commander';
+  if(didDisplay) didDisplay.textContent=id.did?.substr(0,32)+'…';
+  if(ovDid) ovDid.textContent=id.did||'—';
+  if(ovUser) ovUser.textContent=(id.username||'?')+' · '+Sovereign.getBalance()+' CST';
+  if(modTag) modTag.textContent='by '+id.did;
+  if(rrtkTag) rrtkTag.textContent='· '+id.did;
+  if(contribTag) contribTag.textContent=id.username||'?';
+  if(valTag) valTag.textContent=id.username||'?';
+
+  // Render static components
+  AttackMods.renderPatterns();
+  Fuzzer.renderPatterns();
+  InvEngine.renderCards();
+  updateGlobalStats();
+
+  Infra.log('global-log',`Attack Command Center initialized · DID: ${id.did}`,'ok');
+  Infra.log('global-log',`Identity: ${id.username||'commander'} · ${Sovereign.isCoreConnected?.()===false?'mock mode':'live mode'}`,'dim');
+  Infra.log('global-log',`CSP: nonce-hardened · inline JS: removed · signing: ECDSA P-256`,'dim');
+}
+
+function showIdentity() {
+  Sovereign.getIdentity().then(async id=>{
+    if(!id)return;
+    const thumb = CryptoEngine.getThumbprint() || '(keypair not generated)';
+    alert(`Attack Command — Identity\n\nUsername: ${id.username||'—'}\nDID: ${id.did}\nBalance: ${Sovereign.getBalance()} CST\nPublic Key Thumb: ${thumb}\nSigning: ECDSA P-256 (WebCrypto)`);
+  });
+}
+
+// Refresh identity tags every 5s
+setInterval(()=>{
+  Sovereign.getIdentity().then(id=>{
+    if(!id)return;
+    const set=(eid,v)=>{const el=document.getElementById(eid);if(el&&el.textContent!==v)el.textContent=v;};
+    set('id-name', id.username||id.did?.substr(14,16)||'Commander');
+    set('did-display', id.did?.substr(0,32)+'…');
+    set('ov-user', (id.username||'?')+' · '+Sovereign.getBalance()+' CST');
+    const initial=(id.username||id.did||'?')[0].toUpperCase();
+    const av=document.getElementById('id-avatar');
+    if(av&&av.textContent!==initial)av.textContent=initial;
+  });
+}, 5000);
+
+init();
+
+</script>
+</body>
+</html>

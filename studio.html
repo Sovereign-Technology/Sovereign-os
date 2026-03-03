@@ -1,0 +1,2731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'none';
+  script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;
+  style-src 'self' 'unsafe-inline';
+  font-src 'self' https://fonts.gstatic.com https://fonts.googleapis.com;
+  connect-src 'self' http://localhost:11434 https://cdn.jsdelivr.net https://huggingface.co https://*.huggingface.co https:;
+  img-src 'self' data: blob:;
+  worker-src blob:;
+  object-src 'none';
+  base-uri 'none';
+  form-action 'none';
+">
+<title>Forge Studio</title>
+<style>
+/* ── DESIGN TOKENS ── */
+:root {
+  --ink:       #0a0a0f;
+  --surface:   #111118;
+  --raised:    #18181f;
+  --lifted:    #1e1e28;
+  --border:    rgba(255,255,255,0.07);
+  --border-hi: rgba(255,255,255,0.14);
+  --text:      #eeeef5;
+  --text2:     #9999b5;
+  --text3:     #55556a;
+  --accent:    #7c6fff;
+  --accent2:   #a78bfa;
+  --green:     #34d399;
+  --amber:     #fbbf24;
+  --red:       #f87171;
+  --mono:      'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+  --sans:      'DM Sans', 'Outfit', system-ui, sans-serif;
+  --r:         8px;
+  --r2:        12px;
+  --glow:      0 0 0 1px rgba(124,111,255,0.3), 0 0 24px rgba(124,111,255,0.15);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { height:100%; }
+
+body {
+  background: var(--ink);
+  color: var(--text);
+  font-family: var(--sans);
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ── SIDEBAR ── */
+#sidebar {
+  width: 220px;
+  flex-shrink: 0;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 0 0 16px;
+  overflow-y: auto;
+}
+
+.sidebar-brand {
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 8px;
+}
+.brand-mark {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  color: var(--text);
+}
+.brand-mark span { color: var(--accent); }
+.brand-sub {
+  font-size: 10px;
+  color: var(--text3);
+  margin-top: 2px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.sidebar-section-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text3);
+  padding: 12px 20px 6px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 20px;
+  font-size: 13px;
+  color: var(--text2);
+  cursor: pointer;
+  border-radius: 0;
+  transition: all 0.15s;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  font-family: var(--sans);
+  position: relative;
+}
+.nav-item:hover { background: var(--raised); color: var(--text); }
+.nav-item.active {
+  background: rgba(124,111,255,0.12);
+  color: var(--accent2);
+}
+.nav-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 4px; bottom: 4px;
+  width: 3px;
+  background: var(--accent);
+  border-radius: 0 3px 3px 0;
+}
+.nav-icon { font-size: 15px; opacity: 0.85; flex-shrink: 0; }
+.nav-badge {
+  margin-left: auto;
+  background: var(--accent);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 20px;
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  padding: 16px 20px 0;
+  border-top: 1px solid var(--border);
+}
+.identity-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  cursor: pointer;
+}
+.id-avatar {
+  width: 28px; height: 28px;
+  background: linear-gradient(135deg, var(--accent), #c084fc);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; color: #fff; flex-shrink: 0;
+}
+.id-info { flex: 1; overflow: hidden; }
+.id-name { font-size: 12px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.id-status { font-size: 10px; color: var(--text3); }
+.id-dot {
+  width: 6px; height: 6px;
+  background: var(--green);
+  border-radius: 50%;
+  box-shadow: 0 0 6px var(--green);
+  animation: pulse 2s infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.4} }
+
+/* ── MAIN ── */
+#main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+#topbar {
+  height: 52px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  gap: 12px;
+}
+.topbar-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+.topbar-sub {
+  font-size: 12px;
+  color: var(--text3);
+}
+.topbar-actions { margin-left: auto; display: flex; gap: 8px; }
+
+/* Buttons */
+.btn {
+  padding: 7px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid var(--border-hi);
+  border-radius: var(--r);
+  background: var(--raised);
+  color: var(--text2);
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: var(--sans);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.btn:hover { background: var(--lifted); color: var(--text); }
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.btn-primary:hover { background: var(--accent2); border-color: var(--accent2); filter: brightness(1.1); }
+.btn-success {
+  background: rgba(52,211,153,0.15);
+  border-color: rgba(52,211,153,0.3);
+  color: var(--green);
+}
+.btn-success:hover { background: rgba(52,211,153,0.25); }
+.btn-sm { padding: 5px 10px; font-size: 11px; }
+
+/* ── CONTENT AREA ── */
+#content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 28px 28px 60px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--lifted) transparent;
+}
+.tab-pane { display: none; }
+.tab-pane.active { display: block; }
+
+/* ── CARDS / PANELS ── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r2);
+  padding: 20px;
+}
+.card-accent { border-color: rgba(124,111,255,0.3); }
+.card-green  { border-color: rgba(52,211,153,0.25); }
+.card-amber  { border-color: rgba(251,191,36,0.25); }
+
+.section-header {
+  margin-bottom: 20px;
+}
+.section-title { font-size: 20px; font-weight: 800; letter-spacing: -0.4px; }
+.section-sub   { font-size: 13px; color: var(--text3); margin-top: 4px; }
+
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+
+/* ── FORM ELEMENTS ── */
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label { font-size: 11px; font-weight: 600; color: var(--text2); letter-spacing: 0.3px; }
+.field input, .field textarea, .field select {
+  background: var(--raised);
+  border: 1px solid var(--border-hi);
+  border-radius: var(--r);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 13px;
+  padding: 9px 12px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  outline: none;
+}
+.field input:focus, .field textarea:focus, .field select:focus {
+  border-color: var(--accent);
+  box-shadow: var(--glow);
+}
+.field textarea { resize: vertical; line-height: 1.6; }
+.field select { cursor: pointer; }
+.field-row { display: flex; gap: 12px; }
+.field-row .field { flex: 1; }
+
+/* ── STAT TILES ── */
+.stat-tile {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r2);
+  padding: 18px 20px;
+}
+.stat-val { font-size: 28px; font-weight: 800; letter-spacing: -1px; }
+.stat-lbl { font-size: 11px; color: var(--text3); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+.stat-delta { font-size: 11px; font-weight: 600; color: var(--green); margin-top: 2px; }
+
+/* ── APP CARDS ── */
+.app-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r2);
+  padding: 16px;
+  transition: border-color 0.2s, transform 0.2s;
+  cursor: pointer;
+}
+.app-card:hover { border-color: var(--border-hi); transform: translateY(-1px); }
+.app-card-header { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.app-icon {
+  width: 38px; height: 38px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  background: var(--raised);
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.app-name { font-size: 14px; font-weight: 700; }
+.app-version { font-size: 10px; color: var(--text3); font-family: var(--mono); }
+.app-desc { font-size: 12px; color: var(--text2); line-height: 1.5; }
+.app-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.status-pill {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 20px;
+  letter-spacing: 0.3px;
+}
+.pill-draft    { background: rgba(255,255,255,0.06); color: var(--text3); }
+.pill-signed   { background: rgba(52,211,153,0.12); color: var(--green); }
+.pill-live     { background: rgba(124,111,255,0.15); color: var(--accent2); }
+
+/* ── LOG / TERMINAL ── */
+.terminal {
+  background: #09090e;
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 12px 14px;
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.8;
+  color: var(--text3);
+  min-height: 80px;
+  max-height: 200px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.log-ok   { color: var(--green); }
+.log-err  { color: var(--red); }
+.log-info { color: var(--accent2); }
+.log-warn { color: var(--amber); }
+
+/* ── MANIFEST PREVIEW ── */
+.manifest-pre {
+  background: #09090e;
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 16px;
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.8;
+  color: #c4b5fd;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 380px;
+  overflow-y: auto;
+}
+
+/* ── PRICING TIERS ── */
+.tier-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-top: 16px; }
+.tier-card {
+  border: 2px solid var(--border);
+  border-radius: var(--r2);
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.tier-card:hover, .tier-card.selected {
+  border-color: var(--accent);
+  background: rgba(124,111,255,0.06);
+}
+.tier-name { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text3); }
+.tier-price { font-size: 24px; font-weight: 800; letter-spacing: -0.5px; margin: 6px 0; }
+.tier-desc  { font-size: 11px; color: var(--text3); line-height: 1.5; }
+
+/* ── TEMPLATE GALLERY ── */
+.template-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; }
+.template-card {
+  border: 1px solid var(--border);
+  border-radius: var(--r2);
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.15s;
+  background: var(--raised);
+}
+.template-card:hover { border-color: var(--accent); background: rgba(124,111,255,0.05); }
+.template-emoji { font-size: 24px; margin-bottom: 8px; }
+.template-name { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+.template-tag  { font-size: 10px; color: var(--text3); }
+
+/* ── DIVIDER ── */
+.divider { height: 1px; background: var(--border); margin: 20px 0; }
+
+/* ── TOGGLE ── */
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.toggle-row:last-child { border-bottom: none; }
+.toggle-label { font-size: 13px; }
+.toggle-sub   { font-size: 11px; color: var(--text3); margin-top: 1px; }
+.toggle {
+  position: relative;
+  width: 36px; height: 20px;
+  cursor: pointer;
+}
+.toggle input { opacity: 0; width: 0; height: 0; }
+.toggle-track {
+  position: absolute; inset: 0;
+  background: var(--raised);
+  border: 1px solid var(--border-hi);
+  border-radius: 20px;
+  transition: 0.2s;
+}
+.toggle input:checked + .toggle-track { background: var(--accent); border-color: var(--accent); }
+.toggle-thumb {
+  position: absolute;
+  top: 3px; left: 3px;
+  width: 12px; height: 12px;
+  background: var(--text3);
+  border-radius: 50%;
+  transition: 0.2s;
+}
+.toggle input:checked ~ .toggle-thumb { transform: translateX(16px); background: #fff; }
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--lifted); border-radius: 3px; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 900px) {
+  #sidebar { width: 64px; }
+  .sidebar-brand .brand-mark, .brand-sub, .sidebar-section-label,
+  .nav-item span.nav-label, .nav-badge, .sidebar-footer .id-info, .sidebar-footer .id-dot { display: none; }
+  .nav-item { justify-content: center; padding: 12px; }
+  .identity-chip { justify-content: center; padding: 8px; }
+  .id-avatar { margin: 0; }
+  .grid-2, .grid-3, .tier-grid, .template-grid { grid-template-columns: 1fr; }
+}
+
+/* ── FADE IN ── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.tab-pane.active { animation: fadeUp 0.25s ease; }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════
+     SIDEBAR
+══════════════════════════════════════ -->
+<nav id="sidebar">
+  <div class="sidebar-brand">
+    <div class="brand-mark"><span>⬡</span> Forge Studio</div>
+    <div class="brand-sub">Creative Platform</div>
+  </div>
+
+  <div class="sidebar-section-label">Workspace</div>
+
+  <button class="nav-item active" onclick="switchTab('studio')" id="nav-studio">
+    <span class="nav-icon">✦</span>
+    <span class="nav-label">Studio</span>
+  </button>
+  <button class="nav-item" onclick="switchTab('apps')" id="nav-apps">
+    <span class="nav-icon">⬜</span>
+    <span class="nav-label">My Apps</span>
+    <span class="nav-badge" id="apps-count" style="display:none;"></span>
+  </button>
+  <button class="nav-item" onclick="switchTab('publish')" id="nav-publish">
+    <span class="nav-icon">↑</span>
+    <span class="nav-label">Publish</span>
+  </button>
+  <button class="nav-item" onclick="switchTab('monetize')" id="nav-monetize">
+    <span class="nav-icon">◈</span>
+    <span class="nav-label">Monetize</span>
+  </button>
+
+  <div class="sidebar-section-label" style="margin-top:8px;">System</div>
+  <button class="nav-item" onclick="switchTab('settings')" id="nav-settings">
+    <span class="nav-icon">⚙</span>
+    <span class="nav-label">Settings</span>
+  </button>
+
+  <div class="sidebar-footer">
+    <div class="identity-chip" onclick="showIdentityInfo()">
+      <div class="id-avatar" id="id-avatar">?</div>
+      <div class="id-info">
+        <div class="id-name" id="id-name">Loading…</div>
+        <div class="id-status">Sovereign Identity</div>
+      </div>
+      <div class="id-dot"></div>
+    </div>
+  </div>
+</nav>
+
+<!-- ══════════════════════════════════════
+     MAIN
+══════════════════════════════════════ -->
+<div id="main">
+  <div id="topbar">
+    <div>
+      <div class="topbar-title" id="topbar-title">Studio</div>
+      <div class="topbar-sub" id="topbar-sub">Describe → Build → Publish</div>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn btn-sm" onclick="switchTab('publish')">↑ Publish</button>
+      <button class="btn btn-primary btn-sm" onclick="StudioEngine.build()">✦ Build</button>
+    </div>
+  </div>
+
+  <div id="content">
+
+    <!-- ══════════════ TAB: STUDIO ══════════════ -->
+    <div class="tab-pane active" id="tab-studio">
+      <div class="section-header">
+        <div class="section-title">Studio</div>
+        <div class="section-sub">Describe your idea — local AI turns it into a working app blueprint</div>
+      </div>
+
+      <!-- AI Engine Config -->
+      <div class="card card-accent" style="margin-bottom:16px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+          <div style="font-size:13px;font-weight:700;">AI Engine <span id="active-engine-label" style="color:var(--text3);font-weight:400;font-size:12px;">— detecting…</span></div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span id="engine-status" style="font-size:11px;color:var(--text3);">Checking…</span>
+            <button class="btn btn-sm" onclick="AIEngine.detect(true)">↺ Detect</button>
+          </div>
+        </div>
+
+        <!-- Tier indicators -->
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+          <div id="tier-ollama" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;border:1px solid var(--border);font-size:11px;color:var(--text3);">
+            <span id="tier-ollama-dot" style="width:6px;height:6px;border-radius:50%;background:var(--text3);flex-shrink:0;"></span>
+            Ollama (local)
+          </div>
+          <div id="tier-transformers" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;border:1px solid var(--border);font-size:11px;color:var(--text3);">
+            <span id="tier-transformers-dot" style="width:6px;height:6px;border-radius:50%;background:var(--text3);flex-shrink:0;"></span>
+            Transformers.js (browser)
+          </div>
+          <div id="tier-mock" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;border:1px solid var(--border);font-size:11px;color:var(--text3);">
+            <span id="tier-mock-dot" style="width:6px;height:6px;border-radius:50%;background:var(--text3);flex-shrink:0;"></span>
+            Smart Builder (offline)
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label>Ollama URL</label>
+            <input id="ollama-url" value="http://localhost:11434" placeholder="http://localhost:11434">
+          </div>
+          <div class="field" style="max-width:200px;">
+            <label>Ollama Model</label>
+            <select id="ollama-model">
+              <option value="llama3.2">llama3.2</option>
+              <option value="llama3.1">llama3.1</option>
+              <option value="codellama">codellama</option>
+              <option value="deepseek-coder">deepseek-coder</option>
+              <option value="mistral">mistral</option>
+            </select>
+          </div>
+          <div class="field" style="max-width:220px;">
+            <label>Transformers Model</label>
+            <select id="transformers-model">
+              <option value="Xenova/LaMini-Flan-T5-783M">LaMini-Flan-T5 (783M)</option>
+              <option value="Xenova/flan-t5-base">Flan-T5 Base (250M)</option>
+              <option value="Xenova/flan-t5-small">Flan-T5 Small (80M)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-2" style="align-items:start;">
+
+        <!-- Left: Input -->
+        <div>
+          <div class="card" style="margin-bottom:16px;">
+            <div style="font-size:13px;font-weight:700;margin-bottom:14px;">Describe your app</div>
+            <div class="field" style="margin-bottom:12px;">
+              <label>What do you want to build?</label>
+              <textarea id="app-description" rows="9" placeholder="e.g. A local note-taking app that stores encrypted notes, lets users tag and search entries, and syncs across devices using the sovereign identity layer…"></textarea>
+            </div>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-primary" onclick="StudioEngine.build()" style="flex:1;">✦ Build Blueprint</button>
+              <button class="btn" onclick="StudioEngine.loadTemplate()">Templates</button>
+            </div>
+            <div class="terminal" id="studio-log" style="margin-top:12px;"></div>
+          </div>
+
+          <!-- Templates -->
+          <div class="card" id="template-panel" style="display:none;">
+            <div style="font-size:13px;font-weight:700;margin-bottom:14px;">Quick Start Templates</div>
+            <div class="template-grid">
+              <div class="template-card" onclick="StudioEngine.useTemplate('note')">
+                <div class="template-emoji">📝</div>
+                <div class="template-name">Notes App</div>
+                <div class="template-tag">Encrypted local storage</div>
+              </div>
+              <div class="template-card" onclick="StudioEngine.useTemplate('portfolio')">
+                <div class="template-emoji">🎨</div>
+                <div class="template-name">Portfolio</div>
+                <div class="template-tag">Showcase your work</div>
+              </div>
+              <div class="template-card" onclick="StudioEngine.useTemplate('marketplace')">
+                <div class="template-emoji">🛒</div>
+                <div class="template-name">Micro-Store</div>
+                <div class="template-tag">Sell digital goods</div>
+              </div>
+              <div class="template-card" onclick="StudioEngine.useTemplate('forum')">
+                <div class="template-emoji">💬</div>
+                <div class="template-name">Community</div>
+                <div class="template-tag">Federated discussion</div>
+              </div>
+              <div class="template-card" onclick="StudioEngine.useTemplate('dashboard')">
+                <div class="template-emoji">📊</div>
+                <div class="template-name">Dashboard</div>
+                <div class="template-tag">Data visualization</div>
+              </div>
+              <div class="template-card" onclick="StudioEngine.useTemplate('api')">
+                <div class="template-emoji">⚡</div>
+                <div class="template-name">API Wrapper</div>
+                <div class="template-tag">Expose any endpoint</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Blueprint + Code + Preview -->
+        <div class="card" style="height:100%;display:flex;flex-direction:column;">
+
+          <!-- Stage tabs -->
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-shrink:0;">
+            <div style="display:flex;gap:0;border:1px solid rgba(255,255,255,0.07);border-radius:6px;overflow:hidden;">
+              <button id="stage-blueprint-btn" onclick="StudioEngine.showStage('blueprint')"
+                style="padding:5px 14px;font-size:11px;font-weight:700;background:var(--accent);color:#fff;border:none;cursor:pointer;">
+                1 · Blueprint
+              </button>
+              <button id="stage-code-btn" onclick="StudioEngine.showStage('code')"
+                style="padding:5px 14px;font-size:11px;font-weight:600;background:transparent;color:#9999b5;border:none;cursor:pointer;">
+                2 · Code
+              </button>
+              <button id="stage-preview-btn" onclick="StudioEngine.showStage('preview')"
+                style="padding:5px 14px;font-size:11px;font-weight:600;background:transparent;color:#9999b5;border:none;cursor:pointer;">
+                3 · Preview
+              </button>
+            </div>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-sm" onclick="StudioEngine.saveApp()" id="save-btn" disabled>Save</button>
+              <button class="btn btn-sm" onclick="StudioEngine.generateCode()" id="gencode-btn" style="display:none;background:rgba(124,111,255,0.15);border-color:var(--accent);color:var(--accent);">⚡ Generate Code</button>
+              <button class="btn btn-sm btn-success" onclick="StudioEngine.sendToPublish()" id="publish-btn" style="display:none;">↑ Publish</button>
+            </div>
+          </div>
+
+          <!-- Stage 1: Blueprint JSON -->
+          <div id="stage-blueprint" style="flex:1;display:flex;flex-direction:column;min-height:0;">
+            <pre class="manifest-pre" id="blueprint-output" style="flex:1;min-height:0;overflow-y:auto;">Describe your app above and click Build…</pre>
+            <div style="margin-top:8px;font-size:10px;color:#55556a;flex-shrink:0;">
+              ↑ Architecture spec. Click <strong style="color:var(--accent);">⚡ Generate Code</strong> to produce a real app.
+            </div>
+          </div>
+
+          <!-- Stage 2: Generated Code -->
+          <div id="stage-code" style="flex:1;display:none;flex-direction:column;min-height:0;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-shrink:0;">
+              <span style="font-size:11px;color:#9999b5;">Generated HTML App — ready to open &amp; share</span>
+              <div style="display:flex;gap:6px;">
+                <button class="btn btn-sm" onclick="StudioEngine.copyCode()">Copy</button>
+                <button class="btn btn-sm btn-success" onclick="StudioEngine.downloadApp()">⬇ Download .html</button>
+              </div>
+            </div>
+            <pre class="manifest-pre" id="code-output" style="flex:1;min-height:0;overflow-y:auto;font-size:10px;line-height:1.5;">// Code will appear here</pre>
+            <div id="code-gen-status" style="margin-top:6px;font-size:10px;color:var(--green);flex-shrink:0;min-height:14px;"></div>
+          </div>
+
+          <!-- Stage 3: Preview -->
+          <div id="stage-preview" style="flex:1;display:none;flex-direction:column;min-height:0;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-shrink:0;">
+              <span style="font-size:11px;color:#9999b5;">Live Preview</span>
+              <button class="btn btn-sm" onclick="StudioEngine.refreshPreview()">↺ Refresh</button>
+            </div>
+            <iframe id="app-preview-frame"
+              style="flex:1;border:1px solid rgba(255,255,255,0.07);border-radius:6px;background:#fff;min-height:0;"
+              sandbox="allow-scripts"></iframe>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ══════════════ TAB: MY APPS ══════════════ -->
+    <div class="tab-pane" id="tab-apps">
+      <div class="section-header">
+        <div class="section-title">My Apps</div>
+        <div class="section-sub">All your created apps and their publish status</div>
+      </div>
+
+      <div class="grid-3" style="margin-bottom:24px;">
+        <div class="stat-tile">
+          <div class="stat-val" id="stat-total">0</div>
+          <div class="stat-lbl">Total Apps</div>
+        </div>
+        <div class="stat-tile">
+          <div class="stat-val" id="stat-live" style="color:var(--accent2);">0</div>
+          <div class="stat-lbl">Published</div>
+        </div>
+        <div class="stat-tile">
+          <div class="stat-val" id="stat-revenue" style="color:var(--green);">0</div>
+          <div class="stat-lbl">Credits Earned</div>
+        </div>
+      </div>
+
+      <div id="apps-grid" class="grid-2">
+        <div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text3);font-size:13px;">
+          No apps yet. Head to Studio to build your first one.
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════ TAB: PUBLISH ══════════════ -->
+    <div class="tab-pane" id="tab-publish">
+      <div class="section-header">
+        <div class="section-title">Publish</div>
+        <div class="section-sub">Sign your app with your sovereign identity and release it</div>
+      </div>
+
+      <div class="grid-2" style="align-items:start;">
+        <!-- Left: Metadata -->
+        <div>
+          <div class="card" style="margin-bottom:16px;">
+            <div style="font-size:13px;font-weight:700;margin-bottom:14px;">App Metadata</div>
+            <div style="display:flex;flex-direction:column;gap:12px;">
+              <div class="field"><label>App Name</label><input id="pub-name" placeholder="My Awesome App"></div>
+              <div class="field"><label>Short Description</label><input id="pub-desc" placeholder="One sentence about what this does"></div>
+              <div class="field-row">
+                <div class="field"><label>Version</label><input id="pub-version" value="1.0.0" placeholder="1.0.0"></div>
+                <div class="field"><label>Category</label>
+                  <select id="pub-category">
+                    <option>Productivity</option>
+                    <option>Finance</option>
+                    <option>Social</option>
+                    <option>Developer Tools</option>
+                    <option>Media</option>
+                    <option>Games</option>
+                    <option>Other</option>
+                  </select>
+                </div>
+              </div>
+              <div class="field"><label>Tags (comma-separated)</label><input id="pub-tags" placeholder="notes, encrypted, p2p"></div>
+            </div>
+          </div>
+
+          <div class="card card-green">
+            <div style="font-size:13px;font-weight:700;margin-bottom:14px;">Permissions</div>
+            <div class="toggle-row">
+              <div>
+                <div class="toggle-label">Identity Access</div>
+                <div class="toggle-sub">Read user DID and public key</div>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="perm-identity" checked>
+                <div class="toggle-track"></div>
+                <div class="toggle-thumb"></div>
+              </label>
+            </div>
+            <div class="toggle-row">
+              <div>
+                <div class="toggle-label">Local Storage</div>
+                <div class="toggle-sub">Store data in user's vault</div>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="perm-storage" checked>
+                <div class="toggle-track"></div>
+                <div class="toggle-thumb"></div>
+              </label>
+            </div>
+            <div class="toggle-row">
+              <div>
+                <div class="toggle-label">Network Access</div>
+                <div class="toggle-sub">Connect to peers or APIs</div>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="perm-network">
+                <div class="toggle-track"></div>
+                <div class="toggle-thumb"></div>
+              </label>
+            </div>
+            <div class="toggle-row">
+              <div>
+                <div class="toggle-label">Credit Transactions</div>
+                <div class="toggle-sub">Initiate credit transfers</div>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="perm-credits">
+                <div class="toggle-track"></div>
+                <div class="toggle-thumb"></div>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Manifest + Sign -->
+        <div>
+          <div class="card card-accent" style="margin-bottom:16px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+              <div style="font-size:13px;font-weight:700;">Signed Manifest</div>
+              <button class="btn btn-sm" onclick="PublishEngine.generateManifest()">Preview</button>
+            </div>
+            <pre class="manifest-pre" id="manifest-output" style="min-height:220px;">{
+  "waiting": "fill in metadata and click Preview…"
+}</pre>
+          </div>
+
+          <div class="card" style="margin-bottom:16px;">
+            <div style="font-size:13px;font-weight:700;margin-bottom:14px;">Sign & Release</div>
+            <div style="font-size:12px;color:var(--text3);margin-bottom:14px;line-height:1.6;">
+              Your app will be cryptographically signed with your sovereign identity. This proves authorship and ensures the manifest hasn't been tampered with.
+            </div>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-primary" onclick="PublishEngine.signAndPublish()" style="flex:1;">⬡ Sign & Publish</button>
+              <button class="btn btn-sm" onclick="PublishEngine.exportPackage()">Export .pkg</button>
+            </div>
+            <div class="terminal" id="publish-log" style="margin-top:12px;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════ TAB: MONETIZE ══════════════ -->
+    <div class="tab-pane" id="tab-monetize">
+      <div class="section-header">
+        <div class="section-title">Monetize</div>
+        <div class="section-sub">Choose how your app earns — no middlemen, credits go direct</div>
+      </div>
+
+      <div class="grid-3" style="margin-bottom:24px;">
+        <div class="stat-tile">
+          <div class="stat-val" style="color:var(--green);">0</div>
+          <div class="stat-lbl">Credits Earned</div>
+          <div class="stat-delta">All time</div>
+        </div>
+        <div class="stat-tile">
+          <div class="stat-val">0</div>
+          <div class="stat-lbl">Installs</div>
+          <div class="stat-delta">This month</div>
+        </div>
+        <div class="stat-tile">
+          <div class="stat-val" style="color:var(--accent2);">0%</div>
+          <div class="stat-lbl">Platform Fee</div>
+          <div class="stat-delta">You keep everything</div>
+        </div>
+      </div>
+
+      <div class="card card-accent" style="margin-bottom:16px;">
+        <div style="font-size:13px;font-weight:700;margin-bottom:6px;">Pricing Model</div>
+        <div style="font-size:12px;color:var(--text3);margin-bottom:16px;">Select how you want to monetize this app. You can change this before publishing.</div>
+
+        <div class="tier-grid">
+          <div class="tier-card selected" onclick="selectTier(this,'free')">
+            <div class="tier-name">Free</div>
+            <div class="tier-price">0</div>
+            <div class="tier-desc">Open access. Build audience, no barrier to entry.</div>
+          </div>
+          <div class="tier-card" onclick="selectTier(this,'paid')">
+            <div class="tier-name">One-time</div>
+            <div class="tier-price" id="paid-price">50 <span style="font-size:14px;color:var(--text3);">CST</span></div>
+            <div class="tier-desc">Pay once, own forever. Best for utility tools.</div>
+          </div>
+          <div class="tier-card" onclick="selectTier(this,'sub')">
+            <div class="tier-name">Subscription</div>
+            <div class="tier-price" id="sub-price">10 <span style="font-size:14px;color:var(--text3);">CST/mo</span></div>
+            <div class="tier-desc">Recurring access. Good for maintained apps.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-2" style="align-items:start;">
+        <div class="card">
+          <div style="font-size:13px;font-weight:700;margin-bottom:14px;">Price Settings</div>
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            <div class="field"><label>One-time Price (CST)</label><input id="price-onetime" type="number" value="50" min="0"></div>
+            <div class="field"><label>Monthly Price (CST)</label><input id="price-monthly" type="number" value="10" min="0"></div>
+            <div class="field"><label>Free Trial (days)</label><input id="price-trial" type="number" value="0" min="0"></div>
+            <div class="field"><label>License Type</label>
+              <select id="price-license">
+                <option value="personal">Personal Use</option>
+                <option value="commercial">Commercial Use</option>
+                <option value="open">Open Source</option>
+                <option value="custom">Custom Terms</option>
+              </select>
+            </div>
+            <button class="btn btn-primary" onclick="MonetizeEngine.savePricing()">Save Pricing</button>
+          </div>
+        </div>
+
+        <div class="card card-green">
+          <div style="font-size:13px;font-weight:700;margin-bottom:14px;">Capsule Policy</div>
+          <div style="font-size:12px;color:var(--text3);margin-bottom:14px;line-height:1.6;">
+            Capsules are policy-locked credit transfers. Define rules for when and how credits flow.
+          </div>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <div class="field">
+              <label>Policy Type</label>
+              <select id="capsule-policy">
+                <option value="none">None (instant transfer)</option>
+                <option value="timelock">Timelock (release after date)</option>
+                <option value="revocable">Revocable (refund window)</option>
+                <option value="escrow">Escrow (both must confirm)</option>
+              </select>
+            </div>
+            <div class="field"><label>Policy Rule / Notes</label><input id="capsule-rule" placeholder="e.g. Refundable within 7 days"></div>
+            <button class="btn btn-sm btn-success" onclick="MonetizeEngine.createCapsule()">Create Capsule Policy</button>
+            <div id="capsule-result" style="font-size:10px;font-family:var(--mono);color:var(--text3);word-break:break-all;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════ TAB: SETTINGS ══════════════ -->
+    <div class="tab-pane" id="tab-settings">
+      <div class="section-header">
+        <div class="section-title">Settings</div>
+        <div class="section-sub">Studio preferences and sovereign core connection</div>
+      </div>
+
+      <div class="grid-2" style="align-items:start;">
+        <div class="card">
+          <div style="font-size:13px;font-weight:700;margin-bottom:14px;">AI Engine Tiers</div>
+          <div style="font-size:12px;color:var(--text3);margin-bottom:16px;line-height:1.6;">
+            Studio auto-detects the best available engine at startup. Fallback order: <strong style="color:var(--accent2);">Ollama → Transformers.js → Smart Builder</strong>.
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;font-size:11px;color:var(--text3);">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span>🖥 Ollama (local LLM)</span>
+              <span id="settings-ollama-status" style="font-family:var(--mono);">—</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span>🌐 Transformers.js (browser WASM)</span>
+              <span id="settings-transformers-status" style="font-family:var(--mono);">—</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span>⚙ Smart Builder (offline fallback)</span>
+              <span style="color:var(--green);font-family:var(--mono);">always available</span>
+            </div>
+          </div>
+          <div class="divider"></div>
+          <button class="btn btn-sm" onclick="AIEngine.detect(true)">↺ Re-detect Engines</button>
+        </div>
+
+        <div class="card">
+          <div style="font-size:13px;font-weight:700;margin-bottom:14px;">Studio Preferences</div>
+          <div class="toggle-row">
+            <div>
+              <div class="toggle-label">Auto-save blueprints</div>
+              <div class="toggle-sub">Automatically save after generating</div>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" id="pref-autosave" checked>
+              <div class="toggle-track"></div>
+              <div class="toggle-thumb"></div>
+            </label>
+          </div>
+          <div class="toggle-row">
+            <div>
+              <div class="toggle-label">Show template gallery</div>
+              <div class="toggle-sub">Quick-start templates on build</div>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" id="pref-templates" checked>
+              <div class="toggle-track"></div>
+              <div class="toggle-thumb"></div>
+            </label>
+          </div>
+          <div class="toggle-row">
+            <div>
+              <div class="toggle-label">Manifest signing prompt</div>
+              <div class="toggle-sub">Confirm before every publish</div>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" id="pref-signprompt" checked>
+              <div class="toggle-track"></div>
+              <div class="toggle-thumb"></div>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:16px;">
+        <div style="font-size:13px;font-weight:700;margin-bottom:14px;">Sovereign Core</div>
+        <div style="font-size:12px;color:var(--text3);margin-bottom:16px;line-height:1.6;">
+          Studio connects to <code style="font-family:var(--mono);color:var(--accent2);">window.sovereign</code> for identity and signing. Standalone mode uses a local mock.
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;font-family:var(--mono);font-size:11px;color:var(--text3);">
+          <div style="display:flex;justify-content:space-between;"><span>Core API</span><span id="core-api-status" style="color:var(--amber);">Checking…</span></div>
+          <div style="display:flex;justify-content:space-between;"><span>Identity</span><span id="core-id-status">—</span></div>
+          <div style="display:flex;justify-content:space-between;"><span>Signing</span><span id="core-sign-status">—</span></div>
+          <div style="display:flex;justify-content:space-between;"><span>Storage</span><span id="core-store-status">—</span></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+
+<script>
+'use strict';
+
+// ══════════════════════════════════════════════════════════════
+//  SOVEREIGN BRIDGE — calls window.sovereign if present,
+//  falls back to local mock so Studio works standalone.
+// ══════════════════════════════════════════════════════════════
+const Sovereign = (() => {
+  const _mock = {
+    did: 'did:sovereign:' + Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b=>b.toString(16).padStart(2,'0')).join(''),
+    username: 'creator',
+    pubKeyHex: '0x' + Array.from(crypto.getRandomValues(new Uint8Array(4))).map(b=>b.toString(16).padStart(2,'0')).join('')
+  };
+
+  async function getIdentity() {
+    if (window.sovereign?.getIdentity) return window.sovereign.getIdentity();
+    const stored = _loadLocal('sovereign_mock_id');
+    if (stored) return stored;
+    _saveLocal('sovereign_mock_id', _mock);
+    return _mock;
+  }
+
+  async function sign(payload) {
+    if (window.sovereign?.sign) return window.sovereign.sign(payload);
+    // Mock deterministic signature
+    const data = JSON.stringify(payload);
+    const buf  = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(data));
+    return {
+      sig: Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join(''),
+      ts:  Date.now(),
+      mock: true
+    };
+  }
+
+  function store(key, val) {
+    if (window.sovereign?.store) return window.sovereign.store(key, val);
+    _saveLocal(key, val);
+  }
+
+  function load(key) {
+    if (window.sovereign?.load) return window.sovereign.load(key);
+    return _loadLocal(key);
+  }
+
+  function _saveLocal(k, v) { try { localStorage.setItem('forge_studio_' + k, JSON.stringify(v)); } catch(e){} }
+  function _loadLocal(k)   { try { return JSON.parse(localStorage.getItem('forge_studio_' + k)); } catch(e){ return null; } }
+
+  function isCoreConnected() { return !!(window.sovereign?.getIdentity); }
+
+  return { getIdentity, sign, store, load, isCoreConnected };
+})();
+
+// ══════════════════════════════════════════════════════════════
+//  APP STATE
+// ══════════════════════════════════════════════════════════════
+const State = {
+  apps: [],
+  current: null,   // app being edited/published
+  pricing: { model: 'free', onetime: 50, monthly: 10, trial: 0, license: 'personal' },
+
+  save() { Sovereign.store('apps', this.apps); },
+  load() {
+    const saved = Sovereign.load('apps');
+    if (saved) this.apps = saved;
+  }
+};
+
+// ══════════════════════════════════════════════════════════════
+//  NAV
+// ══════════════════════════════════════════════════════════════
+const TAB_META = {
+  studio:   { title: 'Studio',   sub: 'Describe → Build → Publish' },
+  apps:     { title: 'My Apps',  sub: 'All your created apps' },
+  publish:  { title: 'Publish',  sub: 'Sign and release your app' },
+  monetize: { title: 'Monetize', sub: 'Set pricing and capsule policies' },
+  settings: { title: 'Settings', sub: 'Studio preferences and core connection' },
+};
+
+function switchTab(name) {
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name)?.classList.add('active');
+  document.getElementById('nav-' + name)?.classList.add('active');
+  const meta = TAB_META[name] || {};
+  document.getElementById('topbar-title').textContent = meta.title || name;
+  document.getElementById('topbar-sub').textContent   = meta.sub   || '';
+  if (name === 'apps')    refreshAppsTab();
+  if (name === 'settings') checkCoreStatus();
+}
+
+// ══════════════════════════════════════════════════════════════
+//  IDENTITY INIT
+// ══════════════════════════════════════════════════════════════
+async function initIdentity() {
+  const id = await Sovereign.getIdentity();
+  if (!id) return;
+  const initial = (id.username || id.did || '?')[0].toUpperCase();
+  document.getElementById('id-avatar').textContent = initial;
+  document.getElementById('id-name').textContent   = id.username || id.did?.substr(14, 16) || 'Unknown';
+}
+
+function showIdentityInfo() {
+  Sovereign.getIdentity().then(id => {
+    if (!id) return;
+    alert(`Identity\n\nUsername: ${id.username || '—'}\nDID: ${id.did}\n\nCore connected: ${Sovereign.isCoreConnected() ? 'Yes' : 'No (mock mode)'}`);
+  });
+}
+
+function checkCoreStatus() {
+  const connected = Sovereign.isCoreConnected();
+  const safe = (id, val, col) => { const el = document.getElementById(id); if (el) { el.textContent = val; if (col) el.style.color = col; } };
+  safe('core-api-status', connected ? 'Connected ✓' : 'Mock (standalone)', connected ? 'var(--green)' : 'var(--amber)');
+  safe('core-id-status',   connected ? '✓' : 'mock');
+  safe('core-sign-status', connected ? '✓' : 'mock');
+  safe('core-store-status', connected ? '✓' : 'localStorage');
+  Sovereign.getIdentity().then(id => {
+    if (id) safe('core-id-status', (connected ? '✓ ' : 'mock ') + (id.did?.substr(14, 12) || ''));
+  });
+  // Also refresh AI engine status display in settings
+  const so = document.getElementById('settings-ollama-status');
+  const st = document.getElementById('settings-transformers-status');
+  const tier = AIEngine.activeTier();
+  if (so) { const ok = tier === 'ollama'; so.textContent = ok ? '✓ active' : '✗ not found'; so.style.color = ok ? 'var(--green)' : 'var(--red)'; }
+  if (st) { const ok = tier === 'transformers'; st.textContent = ok ? '✓ active' : (tier === 'ollama' ? 'skipped (Ollama used)' : '✗ unavailable'); st.style.color = ok ? 'var(--green)' : 'var(--text3)'; }
+}
+
+// ══════════════════════════════════════════════════════════════
+//  AI ENGINE — tiered: Ollama → Transformers.js → Smart Mock
+// ══════════════════════════════════════════════════════════════
+const AIEngine = (() => {
+  // Tier state
+  let _tier = 'mock';   // 'ollama' | 'transformers' | 'mock'
+  let _ollamaOk = false;
+  let _transformersOk = false;
+  let _txPipeline = null;
+
+  // ── Tier UI helpers ─────────────────────────────────────────
+  function _setTierDot(id, state) {
+    const dot = document.getElementById('tier-' + id + '-dot');
+    const wrap = document.getElementById('tier-' + id);
+    if (!dot || !wrap) return;
+    const colors = { ok: 'var(--green)', active: 'var(--accent)', err: 'var(--red)', idle: 'var(--text3)' };
+    dot.style.background = colors[state] || colors.idle;
+    dot.style.boxShadow  = (state === 'ok' || state === 'active') ? `0 0 6px ${colors[state]}` : 'none';
+    wrap.style.color      = (state === 'ok' || state === 'active') ? 'var(--text)' : 'var(--text3)';
+    wrap.style.borderColor = (state === 'ok' || state === 'active') ? colors[state] : 'var(--border)';
+  }
+
+  function _setActive(tierName) {
+    _tier = tierName;
+    const labels = { ollama: 'ollama (local LLM)', transformers: 'transformers.js (browser)', mock: 'smart builder (offline)' };
+    const el = document.getElementById('active-engine-label');
+    if (el) el.textContent = '— ' + (labels[tierName] || tierName);
+    const statusEl = document.getElementById('engine-status');
+    if (!statusEl) return;
+    if (tierName === 'ollama') { statusEl.textContent = '● Ollama ready'; statusEl.style.color = 'var(--green)'; }
+    else if (tierName === 'transformers') { statusEl.textContent = '● Transformers.js ready'; statusEl.style.color = 'var(--green)'; }
+    else { statusEl.textContent = '◌ Smart builder'; statusEl.style.color = 'var(--amber)'; }
+    // sync settings page
+    const so = document.getElementById('settings-ollama-status');
+    const st = document.getElementById('settings-transformers-status');
+    if (so) { so.textContent = _ollamaOk ? '✓ connected' : '✗ not found'; so.style.color = _ollamaOk ? 'var(--green)' : 'var(--red)'; }
+    if (st) { st.textContent = _transformersOk ? '✓ loaded' : (_ollamaOk ? 'skipped' : '✗ unavailable'); st.style.color = _transformersOk ? 'var(--green)' : 'var(--text3)'; }
+  }
+
+  // ── Tier 1: Ollama ──────────────────────────────────────────
+  async function _checkOllama() {
+    const base = (document.getElementById('ollama-url')?.value || 'http://localhost:11434').replace(/\/$/, '');
+    try {
+      const r = await fetch(base + '/api/tags', { signal: AbortSignal.timeout(2500) });
+      if (!r.ok) return false;
+      const d = await r.json();
+      const models = d.models?.map(m => m.name) || [];
+      if (models.length) {
+        const sel = document.getElementById('ollama-model');
+        if (sel) {
+          sel.innerHTML = '';
+          models.forEach(m => { const o = document.createElement('option'); o.value = m; o.textContent = m; sel.appendChild(o); });
+        }
+      }
+      return true;
+    } catch { return false; }
+  }
+
+  async function _ollamaGenerate(prompt) {
+    const base  = (document.getElementById('ollama-url')?.value || 'http://localhost:11434').replace(/\/$/, '');
+    const model = document.getElementById('ollama-model')?.value || 'llama3.2';
+    const r = await fetch(base + '/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model, prompt, stream: true })
+    });
+    if (!r.ok) throw new Error('Ollama ' + r.status);
+    // stream
+    const reader = r.body.getReader();
+    const dec = new TextDecoder();
+    let full = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const lines = dec.decode(value).split('\n').filter(Boolean);
+      for (const line of lines) {
+        try { const j = JSON.parse(line); full += j.response || ''; } catch {}
+      }
+    }
+    return full;
+  }
+
+  // ── Tier 2: Transformers.js ─────────────────────────────────
+  async function _loadTransformers() {
+    if (_txPipeline) return true;
+    try {
+      // lazy-load from CDN
+      if (!window.transformersPipeline) {
+        await new Promise((res, rej) => {
+          const s = document.createElement('script');
+          s.type = 'module';
+          s.textContent = `
+            import { pipeline } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3/dist/transformers.min.js';
+            window.transformersPipeline = pipeline;
+            window.dispatchEvent(new Event('transformers-ready'));
+          `;
+          window.addEventListener('transformers-ready', res, { once: true });
+          s.onerror = rej;
+          document.head.appendChild(s);
+          setTimeout(rej, 15000);
+        });
+      }
+      const modelId = document.getElementById('transformers-model')?.value || 'Xenova/flan-t5-base';
+      _txPipeline = await window.transformersPipeline('text2text-generation', modelId, {
+        progress_callback: (p) => {
+          const s = document.getElementById('engine-status');
+          if (s && p.status === 'progress') {
+            s.textContent = `⬇ Loading model ${Math.round(p.progress||0)}%`;
+            s.style.color = 'var(--amber)';
+          }
+        }
+      });
+      return true;
+    } catch { return false; }
+  }
+
+  async function _transformersGenerate(prompt) {
+    const out = await _txPipeline(prompt, { max_new_tokens: 512, do_sample: false });
+    return out[0]?.generated_text || out[0]?.text || '';
+  }
+
+  // ── Auto-detect best tier ───────────────────────────────────
+  async function detect(force = false) {
+    if (!force && _tier !== 'mock') return;  // already resolved
+    const statusEl = document.getElementById('engine-status');
+    if (statusEl) { statusEl.textContent = 'Detecting…'; statusEl.style.color = 'var(--text3)'; }
+
+    _setTierDot('ollama', 'idle');
+    _setTierDot('transformers', 'idle');
+    _setTierDot('mock', 'idle');
+
+    // Try Ollama first (fast timeout)
+    _ollamaOk = await _checkOllama();
+    _setTierDot('ollama', _ollamaOk ? 'ok' : 'err');
+
+    if (_ollamaOk) {
+      _setTierDot('mock', 'idle');
+      _setActive('ollama');
+      return;
+    }
+
+    // Try Transformers.js
+    _setTierDot('transformers', 'active');
+    if (statusEl) { statusEl.textContent = '⬇ Loading Transformers.js…'; statusEl.style.color = 'var(--amber)'; }
+    _transformersOk = await _loadTransformers();
+    _setTierDot('transformers', _transformersOk ? 'ok' : 'err');
+
+    if (_transformersOk) {
+      _setTierDot('mock', 'idle');
+      _setActive('transformers');
+      return;
+    }
+
+    // Fallback: Smart builder
+    _setTierDot('mock', 'ok');
+    _setActive('mock');
+  }
+
+  // ── Unified generate ────────────────────────────────────────
+  async function generate(prompt) {
+    if (_tier === 'ollama')       return _ollamaGenerate(prompt);
+    if (_tier === 'transformers') return _transformersGenerate(prompt);
+    return null;  // mock — caller handles
+  }
+
+  function activeTier() { return _tier; }
+
+  return { detect, generate, activeTier };
+})();
+
+// ══════════════════════════════════════════════════════════════
+//  STUDIO ENGINE
+// ══════════════════════════════════════════════════════════════
+const StudioEngine = (() => {
+  function _log(msg, cls = 'info') {
+    const el = document.getElementById('studio-log');
+    const line = document.createElement('div');
+    line.className = 'log-' + cls;
+    line.textContent = `[${new Date().toLocaleTimeString('en',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'})}] ${msg}`;
+    el.appendChild(line);
+    el.scrollTop = el.scrollHeight;
+  }
+
+  async function testConn() {
+    _log('Re-detecting AI engines…', 'info');
+    await AIEngine.detect(true);
+    const tier = AIEngine.activeTier();
+    if (tier === 'ollama')       _log('Ollama connected ✓', 'ok');
+    else if (tier === 'transformers') _log('Transformers.js loaded ✓', 'ok');
+    else _log('No AI engine found — smart builder will be used', 'warn');
+  }
+
+  async function build() {
+    const desc = document.getElementById('app-description').value.trim();
+    if (!desc) { _log('Enter a description first', 'warn'); return; }
+
+    document.getElementById('blueprint-output').textContent = 'Generating…';
+    document.getElementById('save-btn').disabled = true;
+    document.getElementById('publish-btn').style.display = 'none';
+
+    const id = await Sovereign.getIdentity();
+    const prompt = `You are an expert app architect for the Sovereign platform. Generate a structured JSON app blueprint for the following description.
+
+Description: ${desc}
+
+Return ONLY valid JSON with this structure:
+{
+  "name": "App Name",
+  "version": "1.0.0",
+  "description": "One-line description",
+  "category": "Productivity|Finance|Social|Developer Tools|Media|Games|Other",
+  "author": "${id?.username || 'creator'}",
+  "did": "${id?.did || 'did:sovereign:unknown'}",
+  "architecture": {
+    "frontend": "What the UI looks like",
+    "storage": "How data is stored",
+    "identity": "How sovereign identity is used",
+    "network": "Network requirements if any"
+  },
+  "components": ["List", "of", "main", "components"],
+  "permissions": {
+    "identity": true,
+    "storage": true,
+    "network": false,
+    "credits": false
+  },
+  "tech_stack": ["HTML", "CSS", "JS"],
+  "estimated_complexity": "Low|Medium|High",
+  "build_notes": "Key implementation notes"
+}`;
+
+    const tier = AIEngine.activeTier();
+    _log(`Building with ${tier}…`, 'info');
+
+    // ── Try AI tiers, fall back to smart builder ─────────────
+    let blueprint = null;
+
+    try {
+      const raw = await AIEngine.generate(prompt);
+      if (raw) {
+        const jsonMatch = raw.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          try {
+            const parsed = JSON.parse(jsonMatch[0]);
+            if (parsed.name && parsed.name !== 'App Name') blueprint = parsed;
+          } catch(_) {}
+        }
+        if (!blueprint) _log('AI response was not valid JSON — using smart builder', 'warn');
+      }
+    } catch(e) {
+      _log((e.message || 'AI error') + ' — using smart builder', 'warn');
+    }
+
+    // ── Smart fallback: reads description and builds a real blueprint ──
+    if (!blueprint) {
+      blueprint = _smartBlueprint(desc, id);
+    }
+
+    document.getElementById('blueprint-output').textContent = JSON.stringify(blueprint, null, 2);
+    document.getElementById('save-btn').disabled = false;
+    document.getElementById('gencode-btn').style.display = 'flex';
+    document.getElementById('publish-btn').style.display = 'flex';
+    StudioEngine.showStage('blueprint');
+    State.current = { blueprint, source: desc, status: 'draft', createdAt: Date.now() };
+    _log('Blueprint ready — click ⚡ Generate Code', 'ok');
+    if (document.getElementById('pref-autosave')?.checked) saveApp(true);
+  }
+
+  function saveApp(silent = false) {
+    if (!State.current) return;
+    const app = {
+      ...State.current,
+      id: State.current.id || ('app_' + Date.now()),
+    };
+    const idx = State.apps.findIndex(a => a.id === app.id);
+    if (idx >= 0) State.apps[idx] = app;
+    else State.apps.unshift(app);
+    State.current = app;
+    State.save();
+    if (!silent) _log('App saved to My Apps', 'ok');
+    // Update badge
+    document.getElementById('apps-count').textContent = State.apps.length;
+    document.getElementById('apps-count').style.display = 'inline';
+  }
+
+  function sendToPublish() {
+    if (!State.current) return;
+    const bp = State.current.blueprint;
+    if (bp?.name)        document.getElementById('pub-name').value    = bp.name;
+    if (bp?.description) document.getElementById('pub-desc').value    = bp.description;
+    if (bp?.version)     document.getElementById('pub-version').value = bp.version;
+    if (bp?.category)    document.getElementById('pub-category').value = bp.category;
+    switchTab('publish');
+  }
+
+  function loadTemplate() {
+    const panel = document.getElementById('template-panel');
+    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+  }
+
+  const TEMPLATES = {
+    note:        'A local-first encrypted note-taking app. Notes are stored in the user\'s sovereign vault, tagged and searchable. Markdown support. No cloud required.',
+    portfolio:   'A personal portfolio app that showcases projects, skills, and contact info. Pulls creator identity from sovereign DID. Shareable as a signed app package.',
+    marketplace: 'A micro-store app for selling digital goods (files, templates, code). Buyers pay with CST credits. Seller identity verified via sovereign signature.',
+    forum:       'A federated discussion board. Posts are signed by author DID. Threads indexed locally. Compatible with the sovereign peer network for P2P sync.',
+    dashboard:   'A data dashboard app with configurable charts and metrics. Reads data from sovereign storage. Supports CSV import and live API feeds.',
+    api:         'A wrapper app for any REST API. Configurable endpoints, auth headers, request builder, and response viewer. Signed manifests define allowed domains.',
+  };
+
+  function useTemplate(type) {
+    document.getElementById('app-description').value = TEMPLATES[type] || '';
+    document.getElementById('template-panel').style.display = 'none';
+    _log(`Template loaded: ${type}`, 'info');
+  }
+
+
+  // ── Stage switcher ─────────────────────────────────────────────
+  function showStage(name) {
+    ['blueprint','code','preview'].forEach(s => {
+      const el = document.getElementById('stage-'+s);
+      const btn = document.getElementById('stage-'+s+'-btn');
+      if(el) el.style.display = s===name ? 'flex' : 'none';
+      if(btn) {
+        btn.style.background = s===name ? 'var(--accent)' : 'transparent';
+        btn.style.color = s===name ? '#fff' : '#9999b5';
+      }
+    });
+  }
+
+  async function generateCode() {
+    if (!State.current?.blueprint) { alert('Build a blueprint first'); return; }
+    const bp = State.current.blueprint;
+    const statusEl = document.getElementById('code-gen-status');
+    const codeEl   = document.getElementById('code-output');
+    if (statusEl) statusEl.textContent = '⟳ Generating app code…';
+    codeEl.textContent = '// Generating…';
+    showStage('code');
+
+    const id = await Sovereign.getIdentity();
+    let code = null;
+    const tier = AIEngine.activeTier();
+    _log(`Generating code with ${tier}…`, 'info');
+
+    try {
+      const raw = await AIEngine.generate(_buildAIPrompt(bp, id));
+      if (raw) {
+        // Accept if it has the sovereign design system markers OR any reasonable HTML
+        const hm = raw.match(/<!DOCTYPE html[\s\S]*/i) || raw.match(/<html[\s\S]*/i);
+        if (hm) code = hm[0];
+        if (!code) _log('AI output was not valid HTML — using built-in generator', 'warn');
+      }
+    } catch(e) { _log((e.message || 'AI error') + ' — using built-in generator', 'warn'); }
+
+    if (!code) code = _generateFallbackApp(bp, id);
+
+    _storeGeneratedCode(bp, code);
+    codeEl.textContent = code;
+    if (statusEl) statusEl.textContent = '✓ ' + (code.length/1024).toFixed(1) + ' KB · download & share';
+    document.getElementById('publish-btn').style.display = 'flex';
+  }
+
+
+
+  // ── Sovereign design system — single source of truth ─────────────
+  var SOV_CSS = ':root{--bg:#060608;--s:#0d0d12;--s2:#12121a;--b:#1a1a28;--b2:#242438;--g:#00ff88;--c:#00d4ff;--p:#a855f7;--y:#fbbf24;--r:#ff3366;--t:#f1f5f9;--t2:#cbd5e1;--t3:#94a3b8;--mono:"Courier New",Courier,monospace;--ui:system-ui,sans-serif;}*{margin:0;padding:0;box-sizing:border-box;}html{height:100%;}body{background:var(--bg);color:var(--t);font-family:var(--ui);min-height:100vh;background-image:radial-gradient(ellipse 80% 50% at 20% 20%,rgba(0,212,255,.03),transparent),radial-gradient(ellipse 60% 80% at 80% 80%,rgba(168,85,247,.03),transparent),repeating-linear-gradient(0deg,transparent,transparent 40px,rgba(255,255,255,.005) 40px,rgba(255,255,255,.005) 41px),repeating-linear-gradient(90deg,transparent,transparent 40px,rgba(255,255,255,.005) 40px,rgba(255,255,255,.005) 41px);}#topnav{position:fixed;top:0;left:0;right:0;height:52px;z-index:200;background:rgba(6,6,8,.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--b2);display:flex;align-items:center;padding:0 20px;}.nav-back{font-family:var(--mono);font-size:10px;color:var(--t3);text-decoration:none;padding:6px 10px;border:1px solid var(--b2);border-radius:3px;transition:.2s;margin-right:12px;}.nav-back:hover{color:var(--c);border-color:var(--c);}.nav-logo{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--c);letter-spacing:2px;}.nav-logo em{color:var(--g);font-style:normal;}.nav-id{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--t3);display:flex;align-items:center;gap:8px;}.dot{width:6px;height:6px;border-radius:50%;background:var(--g);box-shadow:0 0 8px rgba(0,255,136,.6);animation:pulse 2s infinite;}@keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.5;transform:scale(.8);}}.wrap{padding-top:52px;}.page{padding:24px 20px 60px;max-width:1100px;margin:0 auto;}.panel{background:var(--s);border:1px solid var(--b);border-radius:10px;padding:20px;margin-bottom:16px;position:relative;overflow:hidden;}.panel::before{content:"";position:absolute;top:0;left:0;width:3px;height:100%;background:linear-gradient(180deg,var(--pc,var(--b2)),transparent);}.c{--pc:var(--c);}.g{--pc:var(--g);}.p{--pc:var(--p);}.y{--pc:var(--y);}.r{--pc:var(--r);}.pt{font-size:12px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--pc,var(--t2));margin-bottom:14px;}.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;}.ga{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;}@media(max-width:768px){.g2,.g3{grid-template-columns:1fr;}}.metric{background:var(--s2);border:1px solid var(--b2);border-radius:8px;padding:16px;text-align:center;}.mv{font-size:28px;font-weight:800;font-family:var(--mono);margin-bottom:4px;}.ml{font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:1px;}.metric.c{border-color:rgba(0,212,255,.3);}.metric.c .mv{color:var(--c);}.metric.g{border-color:rgba(0,255,136,.3);}.metric.g .mv{color:var(--g);}.metric.y{border-color:rgba(251,191,36,.3);}.metric.y .mv{color:var(--y);}input,textarea,select{background:var(--bg);border:1px solid var(--b2);color:var(--t);font-family:var(--mono);font-size:11px;padding:8px 12px;border-radius:4px;width:100%;outline:none;transition:.2s;}input:focus,textarea:focus{border-color:var(--c);box-shadow:0 0 0 2px rgba(0,212,255,.1);}label{font-size:9px;color:var(--t2);display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.8px;}.f{margin-bottom:12px;}.btn{font-family:var(--ui);font-size:11px;font-weight:600;padding:8px 16px;border-radius:4px;border:1px solid var(--b2);background:transparent;color:var(--t);cursor:pointer;transition:.2s;letter-spacing:.5px;text-transform:uppercase;}.btn:hover{background:rgba(255,255,255,.04);}.btn.c{border-color:var(--c);color:var(--c);}.btn.c:hover{background:rgba(0,212,255,.08);}.btn.g{border-color:var(--g);color:var(--g);}.btn.g:hover{background:rgba(0,255,136,.08);}.btn.p{border-color:var(--p);color:var(--p);}.btn.y{border-color:var(--y);color:var(--y);}.btn.r{border-color:var(--r);color:var(--r);}.br{display:flex;gap:8px;flex-wrap:wrap;}.card{background:var(--s2);border:1px solid var(--b2);border-radius:6px;padding:12px;margin-bottom:8px;cursor:pointer;transition:border-color .2s;}.card:hover{border-color:var(--c);}.hash{font-family:var(--mono);font-size:9px;color:var(--t3);word-break:break-all;}.badge{display:inline-block;padding:2px 8px;border-radius:3px;font-size:9px;font-weight:700;letter-spacing:.5px;font-family:var(--mono);margin-right:4px;}.badge.g{background:rgba(0,255,136,.1);color:var(--g);}.badge.c{background:rgba(0,212,255,.1);color:var(--c);}.badge.p{background:rgba(168,85,247,.1);color:var(--p);}.badge.y{background:rgba(251,191,36,.1);color:var(--y);}.empty{text-align:center;padding:40px;color:var(--t3);font-size:12px;font-family:var(--mono);}.log{background:var(--bg);border:1px solid var(--b2);border-radius:4px;padding:10px;font-family:var(--mono);font-size:10px;overflow-y:auto;max-height:200px;}.ll{padding:1px 0;}.ok{color:var(--g);}.err{color:var(--r);}.warn{color:var(--y);}.info{color:var(--c);}.toast{position:fixed;bottom:24px;right:24px;background:var(--s);border:1px solid var(--g);color:var(--g);font-family:var(--mono);font-size:11px;padding:10px 16px;z-index:9999;animation:fi .3s ease;pointer-events:none;}@keyframes fi{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}';
+
+  var SOV_JS = [
+    'function _id(){try{return JSON.parse(localStorage.getItem("sovereign_identity"));}catch(e){return null;}}',
+    'function _did(){var x=_id();return x&&x.did||"did:sovereign:anon";}',
+    'function _user(){var x=_id();return x&&x.username||"anon";}',
+    'function _setuid(){var x=_id();var el=document.getElementById("nav-user");if(el)el.textContent="@"+_user();}',
+    'function toast(msg,col){var t=document.createElement("div");t.className="toast";if(col)t.style.borderColor=col;t.textContent=msg;document.body.appendChild(t);setTimeout(function(){t.remove();},3000);}',
+    'function _sha256(str){return crypto.subtle.digest("SHA-256",new TextEncoder().encode(str)).then(function(b){return Array.from(new Uint8Array(b)).map(function(x){return x.toString(16).padStart(2,"0");}).join("");});}',
+    'function _bc(msg){try{var ch=new BroadcastChannel("sovereign-os-mesh");ch.postMessage(JSON.stringify(msg));ch.close();}catch(e){}}',
+    '_setuid();'
+  ].join('\n');
+
+  function _sovNav(name, cat) {
+    return '<div id="topnav">'
+      + '<a class="nav-back" href="genesis_node.html">&#x2190; GENESIS</a>'
+      + '<div class="nav-logo">' + String(name).toUpperCase() + ' <em>// ' + String(cat || 'APP') + '</em></div>'
+      + '<div class="nav-id"><span class="dot"></span><span id="nav-user">not signed in</span></div>'
+      + '</div>';
+  }
+
+  function _sovShell(appName, cat, bodyHTML, scriptCode) {
+    return '<!DOCTYPE html>\n<html lang="en"><head>\n'
+      + '<meta charset="UTF-8">\n'
+      + '<meta name="viewport" content="width=device-width,initial-scale=1.0">\n'
+      + '<title>' + String(appName) + '</title>\n'
+      + '<style>' + SOV_CSS + '</style>\n'
+      + '</head><body>\n'
+      + _sovNav(appName, cat) + '\n'
+      + '<div class="wrap"><div class="page">\n'
+      + bodyHTML + '\n'
+      + '</div></div>\n'
+      + '<script>\n' + SOV_JS + '\n' + scriptCode + '\n' + '<' + '/script>\n'
+      + '</body></html>';
+  }
+
+  function _generateFallbackApp(bp, id) {
+    var type = bp.appType || 'generic';
+    if (type === 'coin')        return _genCoinApp(bp, id);
+    if (type === 'social')      return _genSocialApp(bp, id);
+    if (type === 'game')        return _genGameApp(bp, id);
+    if (type === 'marketplace') return _genMarketApp(bp, id);
+    return _genGenericApp(bp, id);
+  }
+
+  function _genCoin(bp) {
+    var coin = bp.coinName || (bp.name || 'Sovereign').replace(/ Coin$/, '');
+    var sym  = bp.coinSymbol || coin.substring(0, 3).toUpperCase();
+    var sk   = coin.toLowerCase().replace(/\W/g, '') + '_wallet';
+    var desc = String(bp.description || '');
+
+    var body = '<div class="panel c" style="background:linear-gradient(135deg,rgba(0,212,255,.06),rgba(0,255,136,.04));border-color:rgba(0,212,255,.3);margin-bottom:16px;">'
+      + '<div style="font-size:24px;font-weight:800;font-family:var(--mono);margin-bottom:6px;">&#x2B21; ' + coin + ' <span style="color:var(--g);">' + sym + '</span></div>'
+      + '<div style="font-size:12px;color:var(--t2);margin-bottom:12px;">' + desc + '</div>'
+      + '<div><span class="badge g">Proof-of-Stake</span><span class="badge c">No Mining</span><span class="badge p">Sovereign Mesh</span></div>'
+      + '</div>'
+      + '<div class="g3" style="margin-bottom:16px;">'
+      + '<div class="metric g"><div class="mv" id="m-bal">0</div><div class="ml">Balance (' + sym + ')</div></div>'
+      + '<div class="metric c"><div class="mv" id="m-stk" style="color:var(--p);">0</div><div class="ml">Staked</div></div>'
+      + '<div class="metric y"><div class="mv" id="m-txn" style="color:var(--y);">0</div><div class="ml">Transactions</div></div>'
+      + '</div>'
+      + '<div class="g2">'
+      + '<div>'
+      + '<div class="panel g"><div class="pt">&#x2B21; Wallet</div>'
+      + '<button class="btn g" style="width:100%;margin-bottom:10px;" onclick="W.init()">Initialize Wallet (1,000 ' + sym + ')</button>'
+      + '<div id="w-ranges" class="hash" style="min-height:16px;"></div></div>'
+      + '<div class="panel c"><div class="pt">&#x27A4; Send ' + sym + '</div>'
+      + '<div id="w-peers" style="margin-bottom:10px;min-height:20px;font-size:10px;font-family:var(--mono);color:var(--t3);">scanning peers...</div>'
+      + '<div class="f"><label>To (@username or DID)</label><input id="w-to" placeholder="@username or did:sovereign:..."></div>'
+      + '<div class="f"><label>Amount</label><input id="w-amt" type="number" min="1" value="10"></div>'
+      + '<div class="f"><label>Memo</label><input id="w-memo" placeholder="optional..."></div>'
+      + '<div class="br"><button class="btn c" style="flex:1;" onclick="W.send()">Send ' + sym + '</button>'
+      + '<button class="btn p" onclick="W.doStake()">+ Stake</button></div>'
+      + '<div id="w-status" style="margin-top:8px;font-size:10px;color:var(--g);font-family:var(--mono);min-height:14px;"></div></div>'
+      + '<div class="panel y"><div class="pt">&#x26A1; Staking 5% APY</div>'
+      + '<div class="f"><label>Stake Amount</label><input id="w-stkamt" type="number" min="1" value="100"></div>'
+      + '<div class="br"><button class="btn y" style="flex:1;" onclick="W.doStake()">Stake ' + sym + '</button>'
+      + '<button class="btn g" onclick="W.claim()">Claim Rewards</button></div>'
+      + '<div id="w-stkinfo" style="margin-top:8px;font-size:10px;color:var(--t3);font-family:var(--mono);"></div></div>'
+      + '</div>'
+      + '<div class="panel" style="--pc:var(--p);">'
+      + '<div class="pt">&#x26D3; Ledger <span id="w-ledlen" style="color:var(--t3);font-size:10px;font-weight:400;"></span></div>'
+      + '<div id="w-led" class="log" style="max-height:500px;"></div></div>'
+      + '</div>';
+
+    var script = 'var SK="' + sk + '",COIN="' + coin + '",SYM="' + sym + '";'
+      + 'var WD={ranges:[],ledger:[],staked:0,lastHash:"0000000000000000000000000000000000000000000000000000000000000000"};'
+      + 'function wLoad(){try{var d=JSON.parse(localStorage.getItem(SK)||"{}");'
+      + 'WD.ranges=(d.ranges||[]).map(function(r){return{from:BigInt(r.from),to:BigInt(r.to),own:r.own};});'
+      + 'WD.ledger=d.ledger||[];WD.staked=d.staked||0;WD.lastHash=d.lastHash||WD.lastHash;}catch(e){}}'
+      + 'function wSave(){localStorage.setItem(SK,JSON.stringify({'
+      + 'ranges:WD.ranges.map(function(r){return{from:r.from.toString(),to:r.to.toString(),own:r.own};}),ledger:WD.ledger,staked:WD.staked,lastHash:WD.lastHash}));}'
+      + 'function wBal(){var d=_did();var b=0n;WD.ranges.filter(function(r){return r.own===d;}).forEach(function(r){b+=r.to-r.from+1n;});return b;}'
+      + 'function wMax(){return WD.ranges.reduce(function(m,r){var n=Number(r.to);return n>m?n:m;},999);}'
+      + 'function wRefresh(){'
+      + 'var b=wBal();'
+      + 'var eb=document.getElementById("m-bal");if(eb)eb.textContent=b.toLocaleString();'
+      + 'var es=document.getElementById("m-stk");if(es)es.textContent=Number(WD.staked).toLocaleString();'
+      + 'var et=document.getElementById("m-txn");if(et)et.textContent=WD.ledger.length;'
+      + 'var er=document.getElementById("w-ranges");if(er)er.textContent=WD.ranges.filter(function(r){return r.own===_did();}).length+" range(s) - "+b.toLocaleString()+" "+SYM;}'
+      + 'function wEntry(type,actor,data,cb){'
+      + 'var ts=Date.now();'
+      + '_sha256(JSON.stringify({type:type,actor:actor,data:data,ts:ts,prev:WD.lastHash})).then(function(h){'
+      + 'var e={i:WD.ledger.length+1,type:type,actor:actor,data:data,ts:ts,hash:h,prev:WD.lastHash};'
+      + 'WD.ledger.push(e);WD.lastHash=h;wRender();wSave();if(cb)cb(e);});}'
+      + 'function wDeduct(amt,newOwner){'
+      + 'var rem=BigInt(amt);var d=_did();'
+      + 'for(var i=0;i<WD.ranges.length&&rem>0n;i++){'
+      + 'var rng=WD.ranges[i];if(rng.own!==d)continue;'
+      + 'var av=rng.to-rng.from+1n;'
+      + 'if(av<=rem){rng.own=newOwner;rem-=av;}'
+      + 'else{WD.ranges.push({from:rng.from,to:rng.from+rem-1n,own:newOwner});rng.from=rng.from+rem;rem=0n;}}}'
+      + 'function wRender(){'
+      + 'var el=document.getElementById("w-led");var ll=document.getElementById("w-ledlen");'
+      + 'if(ll)ll.textContent="("+WD.ledger.length+")";if(!el)return;'
+      + 'el.innerHTML=WD.ledger.slice().reverse().slice(0,50).map(function(e){'
+      + 'var col=e.type==="SEND"?"var(--r)":e.type==="RECEIVE"?"var(--g)":e.type==="STAKE"?"var(--p)":"var(--y)";'
+      + 'return "<div class=\\"ll\\"><span style=\\"color:"+col+";font-weight:700;\\">"+e.type+"</span> "'
+      + '+"<span style=\\"color:var(--y);\\">"+(e.data&&e.data.amount||"")+" "+SYM+"</span> "'
+      + '+"<span class=\\"hash\\">"+(e.hash||"").substring(0,16)+"...</span>"'
+      + '+(e.data&&e.data.memo?"<span style=\\"color:var(--t2);\\"> &quot;"+e.data.memo+"&quot;</span>":"")'
+      + '+"</div>";}).join("");}'
+      + 'var W={'
+      + 'init:function(){'
+      + 'if(WD.ranges.find(function(r){return r.own===_did();})){toast("Wallet already initialized");wRefresh();return;}'
+      + 'WD.ranges.push({from:BigInt(wMax()+1),to:BigInt(wMax()+1000),own:_did()});'
+      + 'wEntry("GENESIS",_did(),{amount:1000,note:"Initial allocation"},function(){wRefresh();toast("Wallet ready - 1,000 ' + sym + ' allocated!");});'
+      + '},'
+      + 'send:function(){'
+      + 'var to=document.getElementById("w-to").value.trim();'
+      + 'var amt=parseInt(document.getElementById("w-amt").value)||0;'
+      + 'var memo=document.getElementById("w-memo").value.trim();'
+      + 'if(!to||amt<=0){toast("Enter recipient and amount");return;}'
+      + 'if(wBal()<BigInt(amt)){toast("Insufficient balance");return;}'
+      + 'wDeduct(amt,to);'
+      + '_bc({type:"TOKEN_SEND",from:"coin-node",did:_did(),username:_user(),ts:Date.now(),payload:{txId:"tx"+Date.now(),amount:amt,from:_did(),fromUsername:_user(),to:to,msg:memo,coin:SYM}});'
+      + 'wEntry("SEND",_did(),{amount:amt,to:to,memo:memo},function(){wRefresh();var ss=document.getElementById("w-status");if(ss)ss.textContent="Sent "+amt+" ' + sym + ' to "+to.substring(0,24)+"...";toast("Sent "+amt+" ' + sym + '!");});'
+      + '},'
+      + 'doStake:function(){'
+      + 'var amt=parseInt(document.getElementById("w-stkamt").value)||0;'
+      + 'if(amt<=0||wBal()<BigInt(amt)){toast("Invalid stake amount");return;}'
+      + 'wDeduct(amt,"staked:"+_did());WD.staked+=amt;'
+      + 'wEntry("STAKE",_did(),{amount:amt},function(){wRefresh();var si=document.getElementById("w-stkinfo");if(si)si.textContent="Staking: "+WD.staked.toLocaleString()+" ' + sym + ' - ~5% APY";toast("Staked "+amt+" ' + sym + '!");});'
+      + '},'
+      + 'claim:function(){'
+      + 'if(!WD.staked){toast("Nothing staked");return;}'
+      + 'var reward=Math.ceil(WD.staked*0.05)+1;'
+      + 'WD.ranges.push({from:BigInt(wMax()+1),to:BigInt(wMax()+reward),own:_did()});'
+      + 'wEntry("REWARD",_did(),{amount:reward,note:"5% staking reward"},function(){wRefresh();toast("Claimed "+reward+" ' + sym + ' rewards!");});'
+      + '}'
+      + '};'
+      + 'try{var bcIn=new BroadcastChannel("sovereign-os-mesh");'
+      + 'bcIn.onmessage=function(ev){try{'
+      + 'var env=JSON.parse(ev.data);if(!env||env.type!=="TOKEN_SEND")return;'
+      + 'var p=env.payload;if(!p)return;'
+      + 'if(p.to===_did()||p.to===_user()||p.to==="@"+_user()){'
+      + 'WD.ranges.push({from:BigInt(wMax()+1),to:BigInt(wMax()+Number(p.amount)),own:_did()});'
+      + 'wEntry("RECEIVE",p.from,{amount:p.amount,from:p.fromUsername||p.from,memo:p.msg||""},function(){wRefresh();toast("+"+p.amount+" ' + sym + ' from @"+(p.fromUsername||"peer")+"!");});'
+      + '}}catch(ex){}};'
+      + '}catch(ex){}'
+      + 'try{var bcScan=new BroadcastChannel("sovereign-os-mesh");var foundPeers=[];'
+      + 'bcScan.postMessage(JSON.stringify({type:"HELLO",did:_did(),username:_user(),ts:Date.now()}));'
+      + 'bcScan.onmessage=function(ev){try{'
+      + 'var d=JSON.parse(ev.data);'
+      + 'if((d.type==="HELLO"||d.type==="HELLO_ACK")&&d.username&&d.username!==_user()){'
+      + 'if(foundPeers.indexOf(d.username)<0)foundPeers.push(d.username);'
+      + 'var pl=document.getElementById("w-peers");'
+      + 'if(pl)pl.innerHTML=foundPeers.map(function(u){'
+      + 'return "<span style=\\"color:var(--g);cursor:pointer;margin-right:12px;\\" "'
+      + '+"onclick=\\"document.getElementById(\'w-to\').value=\'@"+u+"\'\\">&#x25CF; @"+u+"</span>";'
+      + '}).join("");}}'
+      + 'catch(ex){}};'
+      + '}catch(ex){}'
+      + 'wLoad();wRefresh();wRender();';
+
+    return _sovShell(coin + ' (' + sym + ')', 'Finance / PoS', body, script);
+  }
+
+  function _genSocial(bp) {
+    var name = bp.name || 'Social';
+    var sk = name.replace(/\W/g, '_').toLowerCase() + '_posts';
+    var body = '<div class="panel c"><div class="pt">Compose</div>'
+      + '<div class="f"><textarea id="pt" rows="3" placeholder="What\'s on your mind?"></textarea></div>'
+      + '<div class="br"><button class="btn c" onclick="Feed.post()">Publish to Mesh</button>'
+      + '<span id="ps" style="font-size:10px;color:var(--g);font-family:var(--mono);margin-left:10px;"></span></div>'
+      + '</div>'
+      + '<div class="panel"><div class="pt">Feed <span id="fc" style="color:var(--t3);font-size:10px;font-weight:400;"></span></div>'
+      + '<div id="feed"></div></div>';
+    var script = 'var posts=[];try{posts=JSON.parse(localStorage.getItem("' + sk + '")||"[]");}catch(e){}'
+      + 'function fRender(){var el=document.getElementById("feed");var cnt=document.getElementById("fc");'
+      + 'if(cnt)cnt.textContent="("+posts.length+")";if(!el)return;'
+      + 'if(!posts.length){el.innerHTML="<div class=\\"empty\\">// no posts yet</div>";return;}'
+      + 'el.innerHTML=posts.slice().reverse().map(function(p){'
+      + 'return "<div class=\\"card\\"><div style=\\"display:flex;justify-content:space-between;margin-bottom:8px;\\">"'
+      + '+"<span style=\\"color:var(--c);font-family:var(--mono);font-weight:700;\\">@"+p.author+"</span>"'
+      + '+"<span style=\\"font-size:9px;color:var(--t3);\\">"+(new Date(p.ts).toLocaleString())+"</span></div>"'
+      + '+"<div style=\\"font-size:13px;line-height:1.6;\\">"+(p.text||"").replace(/</g,"&lt;")+"</div></div>";'
+      + '}).join("");}'
+      + 'var Feed={post:function(){var t=document.getElementById("pt").value.trim();if(!t){toast("Write something");return;}'
+      + 'var p={id:"p"+Date.now(),text:t,author:_user(),did:_did(),ts:Date.now()};'
+      + 'posts.unshift(p);localStorage.setItem("' + sk + '",JSON.stringify(posts));'
+      + 'document.getElementById("pt").value="";'
+      + '_bc({type:"SOCIAL_POST",from:"social-node",did:_did(),username:_user(),ts:Date.now(),payload:p});'
+      + 'fRender();toast("Published!");}};'
+      + 'try{var bcS=new BroadcastChannel("sovereign-os-mesh");'
+      + 'bcS.onmessage=function(ev){try{var d=JSON.parse(ev.data);'
+      + 'if(d.type==="SOCIAL_POST"&&d.payload&&d.payload.author!==_user()){posts.unshift(d.payload);localStorage.setItem("' + sk + '",JSON.stringify(posts));fRender();}}'
+      + 'catch(ex){}};'
+      + '}catch(ex){}'
+      + 'fRender();';
+    return _sovShell(name, 'Social', body, script);
+  }
+
+  function _genGame(bp) {
+    var name = bp.name || 'Game';
+    var sk = name.replace(/\W/g, '_').toLowerCase() + '_scores';
+    var body = '<div class="panel c" style="text-align:center;">'
+      + '<div class="pt" style="justify-content:center;">' + name + '</div>'
+      + '<div id="sc-disp" style="font-size:56px;font-weight:800;color:var(--y);font-family:var(--mono);margin:12px 0;text-shadow:0 0 30px rgba(251,191,36,.5);">0</div>'
+      + '<div style="font-size:11px;color:var(--t3);font-family:var(--mono);margin-bottom:16px;">// press SPACE or tap to jump</div>'
+      + '<canvas id="gc" width="640" height="240" style="background:var(--s2);border:1px solid var(--b2);border-radius:4px;max-width:100%;cursor:pointer;display:block;margin:0 auto;"></canvas>'
+      + '<div class="br" style="justify-content:center;margin-top:12px;">'
+      + '<button class="btn g" onclick="G.start()">&#x25B6; Start</button>'
+      + '<button class="btn c" onclick="G.pause()">&#x23F8; Pause</button></div>'
+      + '</div>'
+      + '<div class="panel y"><div class="pt">&#x1F3C6; Leaderboard</div><div id="board"></div></div>';
+    var script = 'var scores=[];try{scores=JSON.parse(localStorage.getItem("' + sk + '")||"[]");}catch(e){}'
+      + 'var G={sc:0,run:false,raf:null,px:60,py:120,pvy:0,obs:[],fr:0,'
+      + 'start:function(){G.sc=0;G.run=true;G.px=60;G.py=120;G.pvy=0;G.obs=[];G.fr=0;if(G.raf)cancelAnimationFrame(G.raf);G.loop();},'
+      + 'pause:function(){G.run=!G.run;if(G.run)G.loop();},'
+      + 'loop:function(){if(!G.run)return;G.fr++;G.sc++;G.pvy+=0.6;G.py+=G.pvy;'
+      + 'if(G.py>180){G.py=180;G.pvy=0;}if(G.py<0){G.py=0;G.pvy=0;}'
+      + 'if(G.fr%80===0)G.obs.push({x:650});'
+      + 'G.obs=G.obs.map(function(o){return{x:o.x-5};}).filter(function(o){return o.x>-30;});'
+      + 'var hit=G.obs.some(function(o){return G.px<o.x+20&&G.px+24>o.x&&G.py+24>196;});'
+      + 'if(hit){G.over();return;}G.draw();'
+      + 'var sd=document.getElementById("sc-disp");if(sd)sd.textContent=G.sc;'
+      + 'G.raf=requestAnimationFrame(function(){G.loop();});},'
+      + 'draw:function(){var cv=document.getElementById("gc");if(!cv)return;var cx=cv.getContext("2d");'
+      + 'cx.clearRect(0,0,640,240);cx.fillStyle="#1a1a28";cx.fillRect(0,200,640,40);'
+      + 'cx.fillStyle="#00d4ff";cx.fillRect(G.px,G.py,24,24);'
+      + 'cx.fillStyle="#ff3366";G.obs.forEach(function(o){cx.fillRect(o.x,180,20,20);});},'
+      + 'over:function(){G.run=false;scores.push({name:_user(),score:G.sc,ts:Date.now()});'
+      + 'scores.sort(function(a,b){return b.score-a.score;});scores=scores.slice(0,10);'
+      + 'localStorage.setItem("' + sk + '",JSON.stringify(scores));G.showBoard();toast("Game over! Score: "+G.sc);},'
+      + 'showBoard:function(){var el=document.getElementById("board");if(!el)return;'
+      + 'if(!scores.length){el.innerHTML="<div class=\\"empty\\">// no scores yet</div>";return;}'
+      + 'el.innerHTML=scores.map(function(s,i){'
+      + 'return "<div class=\\"card\\" style=\\"display:flex;justify-content:space-between;cursor:default;\\">"'
+      + '+"<span style=\\"color:"+(i===0?"var(--y)":"var(--t2)")+";font-family:var(--mono);\\">"+(i+1)+". @"+s.name+"</span>"'
+      + '+"<span style=\\"color:var(--g);font-weight:800;font-family:var(--mono);\\">"+(s.score)+"</span></div>";'
+      + '}).join("");}};'
+      + 'document.addEventListener("keydown",function(e){if(e.code==="Space"){e.preventDefault();if(!G.run)G.start();else G.pvy=-9;}});'
+      + 'document.getElementById("gc").addEventListener("click",function(){if(!G.run)G.start();else G.pvy=-9;});'
+      + 'G.draw();G.showBoard();';
+    return _sovShell(name, 'Game', body, script);
+  }
+
+  function _genMarket(bp) {
+    var name = bp.name || 'Market';
+    var sk = name.replace(/\W/g, '_').toLowerCase() + '_listings';
+    var body = '<div class="g2" style="margin-bottom:16px;">'
+      + '<div class="panel g"><div class="pt">+ Create Listing</div>'
+      + '<div class="f"><label>Title</label><input id="lt" placeholder="What are you selling?"></div>'
+      + '<div class="f"><label>Description</label><textarea id="ld" rows="3" placeholder="Details..."></textarea></div>'
+      + '<div class="f"><label>Price (CST)</label><input id="lp" type="number" min="1" value="10"></div>'
+      + '<button class="btn g" style="width:100%;" onclick="M.create()">List Item</button></div>'
+      + '<div class="panel y"><div class="pt">&#x1F6D2; Cart <span id="cc" style="color:var(--y);font-size:10px;font-weight:400;"></span></div>'
+      + '<div id="cart" style="margin-bottom:12px;font-size:11px;color:var(--t3);">empty</div>'
+      + '<button class="btn y" style="width:100%;" onclick="M.checkout()">Checkout with CST</button></div>'
+      + '</div>'
+      + '<div class="panel"><div class="pt">Listings <span id="mc" style="color:var(--t3);font-size:10px;font-weight:400;"></span></div>'
+      + '<div class="f"><input id="ms" placeholder="Search..." oninput="M.search(this.value)"></div>'
+      + '<div id="listings" class="ga"></div></div>';
+    var script = 'var listings=[],cart=[];try{listings=JSON.parse(localStorage.getItem("' + sk + '")||"[]");}catch(e){}'
+      + 'function mRender(list){list=list||listings;var el=document.getElementById("listings");var cnt=document.getElementById("mc");'
+      + 'if(cnt)cnt.textContent="("+list.length+")";'
+      + 'if(!list.length){el.innerHTML="<div class=\\"empty\\">// no listings</div>";return;}'
+      + 'el.innerHTML=list.map(function(l){'
+      + 'return "<div class=\\"card\\"><div style=\\"font-weight:700;margin-bottom:4px;\\">"+l.title.replace(/</g,"&lt;")+"</div>"'
+      + '+"<div style=\\"font-size:11px;color:var(--t2);margin-bottom:10px;\\">"+(l.desc||"").substring(0,80)+"</div>"'
+      + '+"<div style=\\"display:flex;justify-content:space-between;align-items:center;\\">"'
+      + '+"<span style=\\"color:var(--y);font-weight:700;font-family:var(--mono);\\"">&#x2B21; "+l.price+" CST</span>"'
+      + '+"<span style=\\"font-size:9px;color:var(--t3);\\">@"+l.seller+"</span>"'
+      + '+"<button class=\\"btn g\\" style=\\"font-size:10px;padding:4px 10px;\\" onclick=\\"M.addCart(\'"+l.id+"\')\\" >Add</button>"'
+      + '+"</div></div>";'
+      + '}).join("");}'
+      + 'function cRender(){var el=document.getElementById("cart");var cnt=document.getElementById("cc");'
+      + 'if(cnt)cnt.textContent=cart.length?"("+cart.length+")":"";'
+      + 'if(!cart.length){el.textContent="empty";return;}'
+      + 'var tot=cart.reduce(function(s,i){return s+i.price;},0);'
+      + 'el.innerHTML=cart.map(function(i){return "<div style=\\"padding:4px 0;border-bottom:1px solid var(--b);font-size:11px;\\">"+i.title+" - "+i.price+" CST</div>";}).join("")'
+      + '+"<div style=\\"font-weight:800;color:var(--y);font-family:var(--mono);margin-top:8px;\\">Total: "+tot+" CST</div>";}'
+      + 'var M={'
+      + 'create:function(){var t=document.getElementById("lt").value.trim();if(!t){toast("Enter a title");return;}'
+      + 'var l={id:"l"+Date.now(),title:t,desc:document.getElementById("ld").value.trim(),price:parseInt(document.getElementById("lp").value)||1,seller:_user(),did:_did(),ts:Date.now()};'
+      + 'listings.unshift(l);localStorage.setItem("' + sk + '",JSON.stringify(listings));'
+      + 'document.getElementById("lt").value="";document.getElementById("ld").value="";mRender();toast("Listed!");},'
+      + 'search:function(q){var lq=q.toLowerCase();mRender(q?listings.filter(function(l){return l.title.toLowerCase().indexOf(lq)>=0;}):null);},'
+      + 'addCart:function(id){var l=listings.find(function(x){return x.id===id;});if(l){cart.push(l);cRender();toast("Added!");}},'
+      + 'checkout:function(){if(!cart.length){toast("Cart empty");return;}'
+      + 'var tot=cart.reduce(function(s,i){return s+i.price;},0);'
+      + 'toast("Checkout: "+tot+" CST - connect Forge Credits to complete");cart=[];cRender();}'
+      + '};'
+      + 'mRender();cRender();';
+    return _sovShell(name, 'Marketplace', body, script);
+  }
+
+  function _genGeneric(bp) {
+    var name = bp.name || 'App';
+    var desc = String(bp.description || '');
+    var sk = name.replace(/\W/g, '_').toLowerCase() + '_data';
+    var body = '<div class="panel c" style="background:linear-gradient(135deg,rgba(0,212,255,.05),rgba(168,85,247,.04));border-color:rgba(0,212,255,.2);margin-bottom:16px;">'
+      + '<div style="font-size:22px;font-weight:800;font-family:var(--mono);letter-spacing:-.5px;margin-bottom:6px;">' + name + '</div>'
+      + '<div style="font-size:12px;color:var(--t2);">' + desc + '</div></div>'
+      + '<div class="g2">'
+      + '<div class="panel g"><div class="pt">Create Entry</div>'
+      + '<div class="f"><label>Title</label><input id="et" placeholder="Title..."></div>'
+      + '<div class="f"><label>Content</label><textarea id="ec" rows="4" placeholder="Content..."></textarea></div>'
+      + '<div class="br"><button class="btn g" onclick="A.create()">+ Save</button><button class="btn" onclick="A.clear()">Clear</button></div></div>'
+      + '<div class="panel">'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">'
+      + '<div class="pt" style="margin-bottom:0;">Entries <span id="ac" style="color:var(--t3);font-size:10px;font-weight:400;"></span></div>'
+      + '<div class="br"><input id="aq" style="width:140px;" placeholder="Search..." oninput="A.search(this.value)">'
+      + '<button class="btn" style="font-size:10px;" onclick="A.exp()">Export</button></div></div>'
+      + '<div id="entries" class="ga"></div></div></div>';
+    var script = 'var DATA=[],SQ="";try{DATA=JSON.parse(localStorage.getItem("' + sk + '")||"[]");}catch(e){}'
+      + 'function aRender(){var list=SQ?DATA.filter(function(e){return(e.t+e.c).toLowerCase().indexOf(SQ)>=0;}):DATA;'
+      + 'var el=document.getElementById("entries");var cnt=document.getElementById("ac");'
+      + 'if(cnt)cnt.textContent="("+list.length+")";'
+      + 'if(!list.length){el.innerHTML="<div class=\\"empty\\">// no entries yet</div>";return;}'
+      + 'el.innerHTML=list.map(function(e){'
+      + 'return "<div class=\\"card\\" onclick=\\"A.open(\'"+e.id+"\')\\">"'
+      + '+"<div style=\\"font-weight:700;margin-bottom:6px;font-size:13px;\\">"+e.t.replace(/</g,"&lt;")+"</div>"'
+      + '+"<div style=\\"font-size:11px;color:var(--t2);overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;\\">"'
+      + '+(e.c||"(empty)").substring(0,120)+"</div>"'
+      + '+"<div style=\\"display:flex;justify-content:space-between;margin-top:10px;font-size:9px;color:var(--t3);font-family:var(--mono);\\">"'
+      + '+"<span>@"+e.a+"</span><span>"+(new Date(e.ts).toLocaleDateString())+"</span></div></div>";'
+      + '}).join("");}'
+      + 'var A={'
+      + 'create:function(){var t=document.getElementById("et").value.trim();if(!t){toast("Enter a title");return;}'
+      + 'DATA.unshift({id:"e"+Date.now(),t:t,c:document.getElementById("ec").value.trim(),a:_user(),did:_did(),ts:Date.now()});'
+      + 'localStorage.setItem("' + sk + '",JSON.stringify(DATA));A.clear();aRender();toast("Saved!");},'
+      + 'clear:function(){document.getElementById("et").value="";document.getElementById("ec").value="";},'
+      + 'search:function(q){SQ=q.toLowerCase();aRender();},'
+      + 'open:function(id){var e=DATA.find(function(x){return x.id===id;});if(!e)return;'
+      + 'if(confirm(e.t+"\n\n"+(e.c||"(empty)")+"\n\n[OK to delete]")){DATA=DATA.filter(function(x){return x.id!==id;});localStorage.setItem("' + sk + '",JSON.stringify(DATA));aRender();toast("Deleted");}},'
+      + 'exp:function(){var b=new Blob([JSON.stringify(DATA,null,2)],{type:"application/json"});var a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="' + name.replace(/\W/g,'_').toLowerCase() + '_"+Date.now()+".json";a.click();}'
+      + '};'
+      + 'aRender();';
+    return _sovShell(name, String(bp.category || 'App'), body, script);
+  }
+
+  function _buildAIPrompt(bp, id) {
+    var authorDid  = (id && id.did)      ? id.did      : 'did:sovereign:unknown';
+    var authorUser = (id && id.username) ? id.username : 'creator';
+    return 'Build a Sovereign platform app from this blueprint:\n\n'
+      + JSON.stringify(bp, null, 2) + '\n\n'
+      + 'Output ONE complete HTML file. Requirements:\n'
+      + '1. CSS must use these exact vars: --bg:#060608 --s:#0d0d12 --g:#00ff88 --c:#00d4ff --p:#a855f7 --y:#fbbf24\n'
+      + '2. topnav: id="topnav", back link class="nav-back" href="genesis_node.html"\n'
+      + '3. Content in: <div class="wrap"><div class="page">\n'
+      + '4. Classes: .panel .g2 .g3 .metric .btn .card .badge .log .br .f\n'
+      + '5. JS: localStorage only, BroadcastChannel("sovereign-os-mesh") for mesh\n'
+      + '6. Identity: JSON.parse(localStorage.getItem("sovereign_identity"))\n'
+      + '7. Creator: ' + authorUser + ' (' + authorDid + ')\n'
+      + 'Return ONLY the HTML file. No markdown.';
+  }
+
+  function _storeGeneratedCode(bp, code) {
+    if (State.current) {
+      State.current.generatedCode = code;
+      State.current.status = 'built';
+      saveApp(true);
+    }
+  }
+
+
+
+  // ── Smart blueprint builder — understands what you want to build ──
+  function _smartBlueprint(desc, id) {
+    const d = desc.toLowerCase();
+
+    // Detect app type from description keywords
+    const isCoin    = /coin|token|crypto|bitcoin|wallet|mint|blockchain|currency|cst|ledger|stake|mining|transfer/.test(d);
+    const isSocial  = /social|feed|post|forum|chat|message|community|timeline/.test(d);
+    const isGame    = /game|play|score|level|player|puzzle|quiz|challenge/.test(d);
+    const isMarket  = /market|store|shop|sell|buy|price|product|listing|commerce/.test(d);
+    const isDash    = /dashboard|analytics|chart|metric|monitor|stats|data|graph/.test(d);
+    const isNote    = /note|journal|diary|write|document|memo|log/.test(d);
+    const isVault   = /vault|file|storage|upload|encrypt|secure|private/.test(d);
+
+    // Extract a good name from the description
+    const words = desc.trim().split(/\s+/);
+    // Skip stop words and pick meaningful ones
+    const stops = new Set(['a','an','the','this','that','is','for','on','in','with','and','or','but','no','not','so','to','of','at','by','from','up','it','its','be','was','are','were']);
+    const keyWords = words.filter(w => w.length > 2 && !stops.has(w.toLowerCase())).slice(0, 3);
+    const rawName = keyWords.map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') || 'Sovereign App';
+
+    if (isCoin) {
+      const coinName = keyWords.find(w => /coin|token|btc|bit|cst|sov/.test(w.toLowerCase())) || keyWords[0] || 'Sovereign';
+      const cn = coinName.charAt(0).toUpperCase() + coinName.slice(1);
+      return {
+        name: cn + ' Coin',
+        version: '1.0.0',
+        description: desc,
+        category: 'Finance',
+        author: id?.username || 'creator',
+        did: id?.did || 'did:sovereign:unknown',
+        appType: 'coin',
+        coinName: cn,
+        coinSymbol: cn.substring(0,3).toUpperCase(),
+        architecture: {
+          frontend: 'Wallet UI with balance, send/receive, transaction history, and mining/staking panel',
+          storage: 'localStorage for wallet state, ledger chain, and peer balances',
+          identity: 'Sovereign identity as wallet address — DID is the public key',
+          network: 'BroadcastChannel for same-device peer transfers; no expensive mining'
+        },
+        components: ['Wallet Dashboard', 'Send / Receive', 'Transaction Ledger', 'Staking / Earn', 'Peer Balances', 'Chain Explorer'],
+        permissions: { identity: true, storage: true, network: true, credits: true },
+        tech_stack: ['HTML', 'CSS', 'JavaScript', 'Web Crypto API'],
+        estimated_complexity: 'High',
+        consensus: 'Proof-of-Stake (no mining, energy-efficient)',
+        initialSupply: '1000000',
+        blockTime: '10s',
+        build_notes: 'Uses BroadcastChannel sovereign-os-mesh for P2P transfers. Wallet state in localStorage. Hash-chained ledger using SHA-256 via Web Crypto.'
+      };
+    }
+
+    if (isSocial) {
+      return {
+        name: rawName + ' Social',
+        version: '1.0.0', description: desc, category: 'Social',
+        author: id?.username || 'creator', did: id?.did || 'did:sovereign:unknown',
+        appType: 'social',
+        architecture: { frontend: 'Feed with post composer, reactions, and profiles', storage: 'localStorage for posts and follows', identity: 'DID-signed posts', network: 'BroadcastChannel mesh for live feed' },
+        components: ['Post Feed', 'Compose', 'Profile', 'Notifications', 'Reactions'],
+        permissions: { identity: true, storage: true, network: true, credits: false },
+        tech_stack: ['HTML', 'CSS', 'JavaScript'], estimated_complexity: 'Medium',
+        build_notes: 'Posts signed by author DID. BroadcastChannel for live updates.'
+      };
+    }
+
+    if (isGame) {
+      return {
+        name: rawName + ' Game',
+        version: '1.0.0', description: desc, category: 'Games',
+        author: id?.username || 'creator', did: id?.did || 'did:sovereign:unknown',
+        appType: 'game',
+        architecture: { frontend: 'Game canvas with score, levels, and leaderboard', storage: 'localStorage for high scores and progress', identity: 'Sovereign identity for leaderboard', network: 'BroadcastChannel for multiplayer scores' },
+        components: ['Game Board', 'Score Tracker', 'Leaderboard', 'Level System', 'Power-ups'],
+        permissions: { identity: true, storage: true, network: true, credits: false },
+        tech_stack: ['HTML', 'CSS', 'JavaScript', 'Canvas API'], estimated_complexity: 'Medium',
+        build_notes: 'Canvas-based game with keyboard/touch controls. Scores linked to DID.'
+      };
+    }
+
+    if (isMarket) {
+      return {
+        name: rawName + ' Market',
+        version: '1.0.0', description: desc, category: 'Finance',
+        author: id?.username || 'creator', did: id?.did || 'did:sovereign:unknown',
+        appType: 'marketplace',
+        architecture: { frontend: 'Listing grid with search, filters, and cart', storage: 'localStorage for listings and orders', identity: 'Seller/buyer DID verification', network: 'BroadcastChannel for live listings' },
+        components: ['Listing Grid', 'Create Listing', 'Cart / Checkout', 'Order History', 'Seller Profile'],
+        permissions: { identity: true, storage: true, network: true, credits: true },
+        tech_stack: ['HTML', 'CSS', 'JavaScript'], estimated_complexity: 'High',
+        build_notes: 'CST credits used for payments. Listings signed by seller DID.'
+      };
+    }
+
+    if (isDash) {
+      return {
+        name: rawName + ' Dashboard',
+        version: '1.0.0', description: desc, category: 'Developer Tools',
+        author: id?.username || 'creator', did: id?.did || 'did:sovereign:unknown',
+        appType: 'dashboard',
+        architecture: { frontend: 'Grid of metric cards, charts, and data tables', storage: 'localStorage for data and preferences', identity: 'Sovereign identity for access control', network: 'Optional live data feeds' },
+        components: ['Metric Cards', 'Charts', 'Data Table', 'Filters', 'Export'],
+        permissions: { identity: true, storage: true, network: false, credits: false },
+        tech_stack: ['HTML', 'CSS', 'JavaScript'], estimated_complexity: 'Medium',
+        build_notes: 'Configurable metrics. CSV import supported.'
+      };
+    }
+
+    // Generic smart fallback
+    return {
+      name: rawName,
+      version: '1.0.0', description: desc,
+      category: isVault ? 'Productivity' : isNote ? 'Productivity' : 'Other',
+      author: id?.username || 'creator', did: id?.did || 'did:sovereign:unknown',
+      appType: isNote ? 'notes' : isVault ? 'vault' : 'generic',
+      architecture: { frontend: 'Clean UI with create, read, search, delete', storage: 'localStorage with hash-chain audit log', identity: 'Sovereign DID for authorship', network: 'None required' },
+      components: ['Main View', 'Create Form', 'Search', 'Detail View', 'Export'],
+      permissions: { identity: true, storage: true, network: false, credits: false },
+      tech_stack: ['HTML', 'CSS', 'JavaScript'], estimated_complexity: 'Low',
+      build_notes: 'Self-contained. All data in localStorage.'
+    };
+  }
+
+  // ── helpers ──────────────────────────────────────────────────────
+  // All generated apps use SOV_CSS/SOV_JS/_sovNav for a consistent look across the whole network
+  function _appShell(name, cat, body, scriptBody) {
+    return '<!DOCTYPE html>\n<html lang="en"><head>\n'
+      + '<meta charset="UTF-8">\n'
+      + '<meta name="viewport" content="width=device-width,initial-scale=1.0">\n'
+      + '<title>' + String(name) + '</title>\n'
+      + '<style>' + SOV_CSS + '</style>\n'
+      + '</head><body>\n'
+      + _sovNav(name, cat) + '\n'
+      + '<div class="wrap"><div class="page">\n'
+      + body + '\n'
+      + '</div></div>\n'
+      + '<script>\n' + SOV_JS + '\n' + scriptBody + '\n' + '<' + '/script>\n'
+      + '</body></html>';
+  }
+
+  // ── COIN APP ─────────────────────────────────────────────────────
+  function _genCoinApp(bp, id) {
+    const coin = bp.coinName || bp.name.replace(' Coin','') || 'Sovereign';
+    const sym  = bp.coinSymbol || coin.substring(0,3).toUpperCase();
+    const supply = bp.initialSupply || '1000000';
+    const authorDid = id && id.did ? id.did : 'did:sovereign:unknown';
+    const authorName = id && id.username ? id.username : 'creator';
+
+    const body = [
+      '<div class="card" style="background:linear-gradient(135deg,rgba(251,191,36,.08),rgba(124,111,255,.06));border-color:rgba(251,191,36,.3);">',
+      '  <div style="font-size:24px;font-weight:800;margin-bottom:4px;">&#x2B21; ' + coin + ' <span style="color:var(--y);">' + sym + '</span></div>',
+      '  <div style="font-size:12px;color:var(--t2);margin-bottom:14px;">' + (bp.description||'') + '</div>',
+      '  <div class="row"><span class="badge by">Proof-of-Stake</span><span class="badge bg">No Mining</span><span class="badge bp">Sovereign Network</span></div>',
+      '</div>',
+      '<div class="g3">',
+      '  <div class="metric" style="border-color:rgba(251,191,36,.3);">',
+      '    <div class="mv" id="bal" style="color:var(--y);">0</div><div class="ml">Your Balance (' + sym + ')</div>',
+      '  </div>',
+      '  <div class="metric">',
+      '    <div class="mv" id="staked" style="color:var(--a);">0</div><div class="ml">Staked (' + sym + ')</div>',
+      '  </div>',
+      '  <div class="metric">',
+      '    <div class="mv" id="txcount" style="color:var(--g);">0</div><div class="ml">Transactions</div>',
+      '  </div>',
+      '</div>',
+      '',
+      '<div class="g2">',
+      '<div>',
+      '<div class="card">',
+      '  <div class="ct">&#x2B21; Wallet</div>',
+      '  <button class="btn p" style="width:100%;margin-bottom:8px;" onclick="Wallet.init()">Initialize Wallet (1000 ' + sym + ')</button>',
+      '  <div id="wallet-ranges" style="font-size:10px;color:var(--t3);font-family:monospace;min-height:20px;"></div>',
+      '</div>',
+      '<div class="card">',
+      '  <div class="ct">&#x27A4; Send ' + sym + '</div>',
+      '  <div id="peer-list" style="margin-bottom:10px;min-height:24px;font-size:10px;color:var(--t3);">Open in another tab to see online peers</div>',
+      '  <div class="f"><label>Recipient (@username or DID)</label><input id="to-addr" placeholder="@username or did:sovereign:..."></div>',
+      '  <div class="f"><label>Amount (' + sym + ')</label><input id="send-amt" type="number" min="1" value="10"></div>',
+      '  <div class="f"><label>Memo (optional)</label><input id="send-memo" placeholder="e.g. payment for..."></div>',
+      '  <div class="row">',
+      '    <button class="btn p" style="flex:1;" onclick="Wallet.send()">Send</button>',
+      '    <button class="btn g" onclick="Wallet.stake()">+ Stake</button>',
+      '  </div>',
+      '  <div id="send-status" style="margin-top:8px;font-size:10px;color:var(--g);min-height:14px;"></div>',
+      '</div>',
+      '</div>',
+      '<div>',
+      '<div class="card">',
+      '  <div class="ct">&#x26D3; Transaction Ledger <span id="ledger-len" style="font-size:10px;color:var(--t3);"></span></div>',
+      '  <div id="ledger" style="max-height:300px;overflow-y:auto;"></div>',
+      '</div>',
+      '<div class="card">',
+      '  <div class="ct">&#x26A1; Staking Rewards</div>',
+      '  <div style="font-size:12px;color:var(--t2);margin-bottom:12px;">Stake your ' + sym + ' to earn passive rewards. No energy cost — pure Proof-of-Stake.</div>',
+      '  <div class="f"><label>Stake Amount</label><input id="stake-amt" type="number" min="1" value="100"></div>',
+      '  <div class="row">',
+      '    <button class="btn y" style="flex:1;" onclick="Wallet.doStake()">Stake ' + sym + '</button>',
+      '    <button class="btn" onclick="Wallet.claimRewards()">Claim Rewards</button>',
+      '  </div>',
+      '  <div id="stake-info" style="margin-top:8px;font-size:10px;color:var(--t3);font-family:monospace;"></div>',
+      '</div>',
+      '</div>',
+      '</div>'
+    ].join('\n');
+
+    const script = [
+      'var COIN="' + coin + '",SYM="' + sym + '",STORE="' + coin.toLowerCase() + '_wallet";',
+      'var wallet={balance:0n,staked:0n,ranges:[],ledger:[],lastHash:"0".repeat(64)};',
+      'function _save(){var w={balance:wallet.balance.toString(),staked:wallet.staked.toString(),',
+      '  ranges:wallet.ranges.map(function(r){return{from:r.from.toString(),to:r.to.toString(),owner:r.owner};}),',
+      '  ledger:wallet.ledger,lastHash:wallet.lastHash};',
+      '  localStorage.setItem(STORE,JSON.stringify(w));}',
+      'function _load(){try{var raw=localStorage.getItem(STORE);if(!raw)return;var w=JSON.parse(raw);',
+      '  wallet.balance=BigInt(w.balance||0);wallet.staked=BigInt(w.staked||0);',
+      '  wallet.ranges=(w.ranges||[]).map(function(r){return{from:BigInt(r.from),to:BigInt(r.to),owner:r.owner};});',
+      '  wallet.ledger=w.ledger||[];wallet.lastHash=w.lastHash||"0".repeat(64);}catch(e){}}',
+      'async function _sha256(s){var b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s));',
+      '  return Array.from(new Uint8Array(b)).map(function(x){return x.toString(16).padStart(2,"0");}).join("");}',
+      'async function _entry(type,actor,data){var ts=Date.now();',
+      '  var content=JSON.stringify({type:type,actor:actor,data:data,ts:ts,prev:wallet.lastHash});',
+      '  var hash=await _sha256(content);',
+      '  var e={i:wallet.ledger.length+1,type:type,actor:actor,data:data,ts:ts,hash:hash,prev:wallet.lastHash};',
+      '  wallet.ledger.push(e);wallet.lastHash=hash;return e;}',
+      'function _refresh(){',
+      '  var id=_id();var bal=0n;',
+      '  wallet.ranges.filter(function(r){return r.owner===(id&&id.did||"me");}).forEach(function(r){bal+=r.to-r.from+1n;});',
+      '  wallet.balance=bal;',
+      '  var be=document.getElementById("bal");if(be)be.textContent=bal.toLocaleString();',
+      '  var se=document.getElementById("staked");if(se)se.textContent=wallet.staked.toLocaleString();',
+      '  var tc=document.getElementById("txcount");if(tc)tc.textContent=wallet.ledger.length;',
+      '  var wr=document.getElementById("wallet-ranges");',
+      '  if(wr)wr.textContent=wallet.ranges.filter(function(r){return r.owner===(id&&id.did||"me");}).length+" range(s) · total: "+bal.toLocaleString()+" "+SYM;}',
+      'function _renderLedger(){',
+      '  var el=document.getElementById("ledger");var ll=document.getElementById("ledger-len");',
+      '  if(ll)ll.textContent="("+wallet.ledger.length+")";',
+      '  if(!el)return;',
+      '  if(!wallet.ledger.length){el.innerHTML=\'<div class="empty">No transactions yet</div>\';return;}',
+      '  el.innerHTML=wallet.ledger.slice().reverse().slice(0,30).map(function(e){',
+      '    var col=e.type==="SEND"?"var(--red)":e.type==="RECEIVE"?"var(--g)":e.type==="STAKE"?"var(--a)":"var(--y)";',
+      '    return \'<div style="padding:8px;border-bottom:1px solid var(--b);font-size:10px;">\'+',
+      '      \'<div class="row"><span style="color:\'+col+\';font-weight:700;">\'+e.type+\'</span>\'+',
+      '      \'<span style="color:var(--y);font-weight:600;">\'+((e.data&&e.data.amount)||"")+\' \'+SYM+\'</span>\'+',
+      '      \'<span style="color:var(--t3);">\'+new Date(e.ts).toLocaleTimeString()+\'</span></div>\'+',
+      '      \'<div class="hash" style="margin-top:3px;">\'+e.hash.substring(0,24)+"...</div>"+',
+      '      ((e.data&&e.data.memo)?\'<div style="color:var(--t2);font-size:9px;">&quot;\'+e.data.memo+\'&quot;</div>\':"")+',
+      '      \'</div>\';',
+      '  }).join("");}',
+      '',
+      'var Wallet={',
+      '  init:async function(){',
+      '    var id=_id();if(!id){toast("Generate identity in Sovereign OS first");return;}',
+      '    var existing=wallet.ranges.find(function(r){return r.owner===id.did;});',
+      '    if(existing){toast("Wallet already initialized — "+wallet.balance.toLocaleString()+" "+SYM);_refresh();_renderLedger();return;}',
+      '    var base=wallet.ranges.reduce(function(m,r){var n=Number(r.to);return n>m?n:m;},999)+1;',
+      '    wallet.ranges.push({from:BigInt(base),to:BigInt(base+999),owner:id.did});',
+      '    await _entry("GENESIS",id.did,{amount:1000,to:id.did,note:"Initial allocation"});',
+      '    _refresh();_renderLedger();_save();toast("Wallet initialized — 1000 '+sym+' allocated");',
+      '  },',
+      '  send:async function(){',
+      '    var id=_id();if(!id){toast("No identity");return;}',
+      '    var to=document.getElementById("to-addr").value.trim();',
+      '    var amt=parseInt(document.getElementById("send-amt").value)||0;',
+      '    var memo=document.getElementById("send-memo").value.trim();',
+      '    if(!to||amt<=0){toast("Enter recipient and amount");return;}',
+      '    if(wallet.balance<BigInt(amt)){toast("Insufficient balance");return;}',
+      '    // Deduct from ranges',
+      '    var rem=BigInt(amt);',
+      '    for(var i=0;i<wallet.ranges.length&&rem>0n;i++){',
+      '      var r=wallet.ranges[i];if(r.owner!==id.did)continue;',
+      '      var avail=r.to-r.from+1n;',
+      '      if(avail<=rem){r.owner=to;rem-=avail;}',
+      '      else{wallet.ranges.push({from:r.from,to:r.from+rem-1n,owner:to});r.from=r.from+rem;rem=0n;}',
+      '    }',
+      '    await _entry("SEND",id.did,{amount:amt,to:to,memo:memo,from:id.did});',
+      '    // Broadcast over sovereign mesh',
+      '    try{var bc=new BroadcastChannel("sovereign-os-mesh");',
+      '      bc.postMessage(JSON.stringify({type:"TOKEN_SEND",from:"'+coin.toLowerCase()+'-node",did:id.did,username:id.username||"anon",ts:Date.now(),',
+      '        payload:{txId:"tx"+Date.now(),amount:amt,from:id.did,fromUsername:id.username||"anon",to:to,msg:memo,coin:SYM}}));',
+      '      bc.close();}catch(e){}',
+      '    _refresh();_renderLedger();_save();',
+      '    var ss=document.getElementById("send-status");if(ss)ss.textContent="✓ Sent "+amt+" '+sym+' to "+to.substring(0,20)+"...";',
+      '    toast("Sent "+amt+" '+sym+'","#34d399");',
+      '  },',
+      '  stake:function(){document.getElementById("stake-amt").value=document.getElementById("send-amt").value;Wallet.doStake();},',
+      '  doStake:async function(){',
+      '    var id=_id();if(!id){toast("No identity");return;}',
+      '    var amt=parseInt(document.getElementById("stake-amt").value)||0;',
+      '    if(amt<=0||wallet.balance<BigInt(amt)){toast("Invalid stake amount");return;}',
+      '    wallet.staked+=BigInt(amt);',
+      '    // Deduct from balance',
+      '    var rem=BigInt(amt);',
+      '    for(var i=0;i<wallet.ranges.length&&rem>0n;i++){',
+      '      var r=wallet.ranges[i];if(r.owner!==id.did)continue;',
+      '      var avail=r.to-r.from+1n;',
+      '      if(avail<=rem){r.owner="staked:"+id.did;rem-=avail;}',
+      '      else{wallet.ranges.push({from:r.from,to:r.from+rem-1n,owner:"staked:"+id.did});r.from=r.from+rem;rem=0n;}',
+      '    }',
+      '    await _entry("STAKE",id.did,{amount:amt,note:"Proof-of-Stake"});',
+      '    _refresh();_renderLedger();_save();',
+      '    var si=document.getElementById("stake-info");',
+      '    if(si)si.textContent="Staking: "+wallet.staked.toLocaleString()+" '+sym+' — earning ~5% APY";',
+      '    toast("Staked "+amt+" '+sym+'","var(--a)");',
+      '  },',
+      '  claimRewards:async function(){',
+      '    var id=_id();if(!id||wallet.staked===0n){toast("Nothing staked");return;}',
+      '    var reward=wallet.staked/20n+1n; // ~5% of staked',
+      '    var base=wallet.ranges.reduce(function(m,r){var n=Number(r.to);return n>m?n:m;},999)+1;',
+      '    wallet.ranges.push({from:BigInt(base),to:BigInt(base)+reward-1n,owner:id.did});',
+      '    await _entry("REWARD",id.did,{amount:Number(reward),note:"Staking reward"});',
+      '    _refresh();_renderLedger();_save();',
+      '    toast("Claimed "+reward.toLocaleString()+" '+sym+' staking rewards","var(--y)");',
+      '  }',
+      '};',
+      '',
+      '// Listen for incoming transfers',
+      'try{var _bc=new BroadcastChannel("sovereign-os-mesh");',
+      '_bc.onmessage=async function(e){',
+      '  try{var env=JSON.parse(e.data);',
+      '    if(env.type!=="TOKEN_SEND")return;',
+      '    var p=env.payload;if(!p)return;',
+      '    var id=_id();if(!id)return;',
+      '    if(p.to===id.did||p.to===id.username||p.to==="@"+id.username){',
+      '      var base=wallet.ranges.reduce(function(m,r){var n=Number(r.to);return n>m?n:m;},999)+1;',
+      '      wallet.ranges.push({from:BigInt(base),to:BigInt(base)+BigInt(p.amount)-1n,owner:id.did});',
+      '      await _entry("RECEIVE",p.from,{amount:p.amount,from:p.fromUsername||p.from,memo:p.msg||""});',
+      '      _refresh();_renderLedger();_save();',
+      '      toast("+"+p.amount+" '+sym+' received from @"+(p.fromUsername||"peer"),"#34d399");',
+      '    }',
+      '  }catch(ex){}',
+      '};}catch(ex){}',
+      '',
+      '// Scan for online peers via BroadcastChannel',
+      'function _scanPeers(){',
+      '  try{var bc2=new BroadcastChannel("sovereign-os-mesh");',
+      '  var peers=[];',
+      '  bc2.postMessage(JSON.stringify({type:"PING_WALLET",coin:SYM,ts:Date.now()}));',
+      '  setTimeout(function(){bc2.close();',
+      '    var pl=document.getElementById("peer-list");',
+      '    if(pl)pl.textContent=peers.length?peers.join(" · "):"Open Sovereign OS or another tab to connect peers";',
+      '  },500);',
+      '  bc2.onmessage=function(e){try{var d=JSON.parse(e.data);if(d.username)peers.push("@"+d.username);}catch(ex){}};}catch(ex){}}',
+      '',
+      '_load();_refresh();_renderLedger();_scanPeers();'
+    ].join('\n');
+
+    return _appShell(coin + ' Coin (' + sym + ')', 'Finance · PoS', body, script);
+  }
+
+  // ── SOCIAL APP ────────────────────────────────────────────────────
+  function _genSocialApp(bp, id) {
+    const name = bp.name || 'Social';
+    const body = [
+      '<div class="card">',
+      '  <div class="ct">Compose</div>',
+      '  <div class="f"><textarea id="post-text" rows="3" placeholder="What\'s on your mind?"></textarea></div>',
+      '  <div class="row"><button class="btn p" onclick="Feed.post()">Publish</button><span id="post-status" style="font-size:11px;color:var(--g);"></span></div>',
+      '</div>',
+      '<div class="card">',
+      '  <div class="ct">Feed <span id="feed-count" style="font-size:10px;color:var(--t3);"></span></div>',
+      '  <div id="feed"></div>',
+      '</div>'
+    ].join('\n');
+    const script = [
+      'var posts=[];try{posts=JSON.parse(localStorage.getItem("'+name.replace(/\s+/g,'_').toLowerCase()+'_posts")||"[]");}catch(e){}',
+      'function save(){localStorage.setItem("'+name.replace(/\s+/g,'_').toLowerCase()+'_posts",JSON.stringify(posts));}',
+      'function render(){var el=document.getElementById("feed");var cnt=document.getElementById("feed-count");',
+      '  if(cnt)cnt.textContent="("+posts.length+")";',
+      '  if(!posts.length){el.innerHTML=\'<div class="empty">No posts yet.</div>\';return;}',
+      '  el.innerHTML=posts.slice().reverse().map(function(p){',
+      '    return \'<div style="padding:12px;border-bottom:1px solid var(--b);">\'+',
+      '      \'<div class="row" style="margin-bottom:6px;"><span style="color:var(--a);font-weight:600;">@\'+p.author+\'</span>\'+',
+      '      \'<span style="font-size:9px;color:var(--t3);">\'+new Date(p.ts).toLocaleString()+\'</span></div>\'+',
+      '      \'<div style="font-size:13px;line-height:1.6;">\'+p.text.replace(/</g,"&lt;")+\'</div></div>\';',
+      '  }).join("");}',
+      'var Feed={post:function(){var id=_id();var t=document.getElementById("post-text").value.trim();',
+      '  if(!t){toast("Write something first");return;}',
+      '  var p={id:"p"+Date.now(),text:t,author:id&&id.username||"anon",did:id&&id.did||"",ts:Date.now()};',
+      '  posts.unshift(p);save();document.getElementById("post-text").value="";',
+      '  var bc=new BroadcastChannel("sovereign-os-mesh");',
+      '  bc.postMessage(JSON.stringify({type:"SOCIAL_POST",payload:p}));bc.close();',
+      '  render();toast("Posted!");}};',
+      'try{var _bc2=new BroadcastChannel("sovereign-os-mesh");',
+      '_bc2.onmessage=function(e){try{var d=JSON.parse(e.data);if(d.type==="SOCIAL_POST"&&d.payload){posts.unshift(d.payload);save();render();}}catch(ex){}};}catch(ex){}',
+      'render();'
+    ].join('\n');
+    return _appShell(name, 'Social', body, script);
+  }
+
+  // ── GAME APP ──────────────────────────────────────────────────────
+  function _genGameApp(bp, id) {
+    const name = bp.name || 'Game';
+    const body = [
+      '<div class="card" style="text-align:center;">',
+      '  <div class="ct" style="text-align:center;">'+name+'</div>',
+      '  <div id="score-display" style="font-size:48px;font-weight:800;color:var(--y);margin:12px 0;">0</div>',
+      '  <div style="font-size:12px;color:var(--t3);margin-bottom:16px;">Press Space or tap to play</div>',
+      '  <canvas id="gc" width="600" height="300" style="background:var(--r);border-radius:8px;max-width:100%;cursor:pointer;"></canvas>',
+      '  <div class="row" style="justify-content:center;margin-top:12px;gap:12px;">',
+      '    <button class="btn p" onclick="Game.start()">&#x25B6; Start</button>',
+      '    <button class="btn" onclick="Game.pause()">&#x23F8; Pause</button>',
+      '    <button class="btn g" onclick="Game.showBoard()">&#x1F3C6; Leaderboard</button>',
+      '  </div>',
+      '</div>',
+      '<div class="card"><div class="ct">&#x1F3C6; High Scores</div><div id="board"></div></div>'
+    ].join('\n');
+    const script = [
+      'var scores=[];try{scores=JSON.parse(localStorage.getItem("'+name.replace(/\s+/g,'_').toLowerCase()+'_scores")||"[]");}catch(e){}',
+      'var game={score:0,running:false,raf:null,player:{x:60,y:150,vy:0},obstacles:[],frame:0};',
+      'var canvas=document.getElementById("gc"),ctx=canvas.getContext("2d");',
+      'function jump(){if(!game.running){Game.start();return;}game.player.vy=-8;}',
+      'document.addEventListener("keydown",function(e){if(e.code==="Space"){e.preventDefault();jump();}});',
+      'canvas.addEventListener("click",jump);',
+      'function _draw(){',
+      '  ctx.clearRect(0,0,600,300);',
+      '  // ground',
+      '  ctx.fillStyle="#1e1e28";ctx.fillRect(0,260,600,40);',
+      '  // player',
+      '  ctx.fillStyle="#7c6fff";ctx.fillRect(game.player.x,game.player.y,30,30);',
+      '  // obstacles',
+      '  game.obstacles.forEach(function(o){ctx.fillStyle="#f87171";ctx.fillRect(o.x,220,25,40);});',
+      '  // score',
+      '  ctx.fillStyle="#eeeef5";ctx.font="bold 16px system-ui";ctx.fillText("Score: "+game.score,10,25);',
+      '}',
+      'function _loop(){',
+      '  if(!game.running)return;',
+      '  game.frame++;game.score++;',
+      '  // gravity',
+      '  game.player.vy+=0.5;game.player.y+=game.player.vy;',
+      '  if(game.player.y>220){game.player.y=220;game.player.vy=0;}',
+      '  if(game.player.y<0){game.player.y=0;game.player.vy=0;}',
+      '  // obstacles',
+      '  if(game.frame%90===0)game.obstacles.push({x:620});',
+      '  game.obstacles=game.obstacles.map(function(o){return{x:o.x-4};}).filter(function(o){return o.x>-30;});',
+      '  // collision',
+      '  var hit=game.obstacles.some(function(o){',
+      '    return game.player.x<o.x+25&&game.player.x+30>o.x&&game.player.y<260&&game.player.y+30>220;});',
+      '  if(hit){Game.over();return;}',
+      '  document.getElementById("score-display").textContent=game.score;',
+      '  _draw();game.raf=requestAnimationFrame(_loop);',
+      '}',
+      'var Game={',
+      '  start:function(){game.score=0;game.running=true;game.player={x:60,y:150,vy:0};game.obstacles=[];game.frame=0;',
+      '    if(game.raf)cancelAnimationFrame(game.raf);_loop();},',
+      '  pause:function(){game.running=!game.running;if(game.running)_loop();},',
+      '  over:function(){game.running=false;',
+      '    var id=_id();var entry={name:id&&id.username||"anon",score:game.score,ts:Date.now()};',
+      '    scores.push(entry);scores.sort(function(a,b){return b.score-a.score;});scores=scores.slice(0,10);',
+      '    localStorage.setItem("'+name.replace(/\s+/g,'_').toLowerCase()+'_scores",JSON.stringify(scores));',
+      '    toast("Game over! Score: "+game.score);Game.showBoard();},',
+      '  showBoard:function(){var el=document.getElementById("board");',
+      '    if(!scores.length){el.innerHTML=\'<div class="empty">No scores yet.</div>\';return;}',
+      '    el.innerHTML=scores.map(function(s,i){',
+      '      return \'<div style="display:flex;justify-content:space-between;padding:8px;border-bottom:1px solid var(--b);">\'+',
+      '        \'<span style="color:\'+(i===0?"var(--y)":"var(--t)\'")+">"+(i+1)+". @"+s.name+"</span>"+',
+      '        \'<span style="color:var(--g);font-weight:700;">\'+s.score+\'</span></div>\';',
+      '    }).join("");}',
+      '};',
+      '_draw();Game.showBoard();'
+    ].join('\n');
+    return _appShell(name, 'Game', body, script);
+  }
+
+  // ── MARKETPLACE APP ────────────────────────────────────────────────
+  function _genMarketApp(bp, id) {
+    const name = bp.name || 'Market';
+    const storeKey = name.replace(/\s+/g,'_').toLowerCase() + '_listings';
+    const body = [
+      '<div class="g2">',
+      '<div class="card"><div class="ct">+ Create Listing</div>',
+      '  <div class="f"><label>Title</label><input id="lt" placeholder="What are you selling?"></div>',
+      '  <div class="f"><label>Description</label><textarea id="ld" rows="3" placeholder="Details..."></textarea></div>',
+      '  <div class="f"><label>Price (CST)</label><input id="lp" type="number" min="1" value="10"></div>',
+      '  <button class="btn p" style="width:100%;" onclick="Market.create()">List Item</button>',
+      '</div>',
+      '<div class="card"><div class="ct">&#x1F6D2; My Cart <span id="cart-count" style="color:var(--y);"></span></div>',
+      '  <div id="cart"></div>',
+      '  <button class="btn g" style="width:100%;margin-top:8px;" onclick="Market.checkout()">Checkout with CST</button>',
+      '</div></div>',
+      '<div class="card"><div class="ct">Listings <span id="mkt-count" style="font-size:10px;color:var(--t3);"></span></div>',
+      '  <input id="mkt-search" style="margin-bottom:12px;" placeholder="Search listings..." oninput="Market.search(this.value)">',
+      '  <div id="listings" class="grid"></div>',
+      '</div>'
+    ].join('\n');
+    const script = [
+      'var listings=[],cart=[];try{listings=JSON.parse(localStorage.getItem("'+storeKey+'")||"[]");}catch(e){}',
+      'function saveMkt(){localStorage.setItem("'+storeKey+'",JSON.stringify(listings));}',
+      'function renderMkt(filter){var list=filter||listings;',
+      '  var el=document.getElementById("listings");var cnt=document.getElementById("mkt-count");',
+      '  if(cnt)cnt.textContent="("+list.length+")";',
+      '  if(!list.length){el.innerHTML=\'<div class="empty">No listings yet.</div>\';return;}',
+      '  el.innerHTML=list.map(function(l){',
+      '    return \'<div style="background:var(--r);border:1px solid var(--b);border-radius:8px;padding:14px;">\'+',
+      '      \'<div style="font-weight:700;margin-bottom:4px;">\'+l.title.replace(/</g,"&lt;")+\'</div>\'+',
+      '      \'<div style="font-size:11px;color:var(--t2);margin-bottom:8px;">\'+((l.desc||"").substring(0,80))+\'</div>\'+',
+      '      \'<div class="row"><span style="color:var(--y);font-weight:700;">&#x2B21; \'+l.price+\' CST</span>\'+',
+      '      \'<span style="font-size:9px;color:var(--t3);">@\'+l.seller+\'</span>\'+',
+      '      \'<button class="btn g" style="font-size:10px;padding:4px 10px;" onclick="Market.addCart(\\\'"+l.id+\'\\\')\">Add to Cart</button></div>\'+',
+      '      \'</div>\';',
+      '  }).join("");}',
+      'function renderCart(){var el=document.getElementById("cart");var cnt=document.getElementById("cart-count");',
+      '  if(cnt)cnt.textContent=cart.length?"("+cart.length+")":"";',
+      '  if(!cart.length){el.innerHTML=\'<div style="font-size:11px;color:var(--t3);">Cart is empty</div>\';return;}',
+      '  var total=cart.reduce(function(s,i){return s+i.price;},0);',
+      '  el.innerHTML=cart.map(function(i){return \'<div style="font-size:11px;padding:4px 0;border-bottom:1px solid var(--b);">\'+i.title+\' — \'+i.price+\' CST</div>\';}).join("")+',
+      '    \'<div style="font-weight:700;margin-top:8px;color:var(--y);">Total: \'+total+\' CST</div>\';}',
+      'var Market={',
+      '  create:function(){var id=_id();if(!id){toast("Generate identity first");return;}',
+      '    var t=document.getElementById("lt").value.trim();var d=document.getElementById("ld").value.trim();',
+      '    var p=parseInt(document.getElementById("lp").value)||1;',
+      '    if(!t){toast("Enter a title");return;}',
+      '    listings.unshift({id:"l"+Date.now(),title:t,desc:d,price:p,seller:id.username||"anon",did:id.did,ts:Date.now()});',
+      '    saveMkt();document.getElementById("lt").value="";document.getElementById("ld").value="";',
+      '    renderMkt();toast("Listed!");},',
+      '  search:function(q){var lq=q.toLowerCase();',
+      '    renderMkt(q?listings.filter(function(l){return l.title.toLowerCase().indexOf(lq)>=0;}):listings);},',
+      '  addCart:function(id){var l=listings.find(function(x){return x.id===id;});if(l){cart.push(l);renderCart();toast("Added to cart");}},',
+      '  checkout:function(){if(!cart.length){toast("Cart is empty");return;}',
+      '    var total=cart.reduce(function(s,i){return s+i.price;},0);',
+      '    toast("Checkout: "+total+" CST — connect to Forge Credits to complete");cart=[];renderCart();}',
+      '};',
+      'renderMkt();renderCart();'
+    ].join('\n');
+    return _appShell(name, 'Marketplace', body, script);
+  }
+
+  // ── GENERIC APP ────────────────────────────────────────────────────
+  function _genGenericApp(bp, id) {
+    const name = bp.name || 'My App';
+    const desc = bp.description || '';
+    const storeKey = name.replace(/\s+/g,'_').toLowerCase() + '_data';
+    const body = [
+      '<div class="card" style="background:linear-gradient(135deg,rgba(124,111,255,.1),rgba(52,211,153,.05));border-color:rgba(124,111,255,.2);">',
+      '  <div style="font-size:22px;font-weight:800;margin-bottom:6px;">' + name + '</div>',
+      '  <div style="font-size:13px;color:var(--t2);">' + desc + '</div>',
+      '</div>',
+      '<div class="card">',
+      '  <div class="ct">Create Entry</div>',
+      '  <div class="f"><label>Title</label><input id="et" placeholder="Title..."></div>',
+      '  <div class="f"><label>Content</label><textarea id="ec" rows="4" placeholder="Content..."></textarea></div>',
+      '  <div class="row"><button class="btn p" onclick="App.create()">+ Save</button><button class="btn" onclick="App.clear()">Clear</button></div>',
+      '</div>',
+      '<div class="card">',
+      '  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">',
+      '    <div class="ct" style="margin-bottom:0;">Entries <span id="ec2" style="font-size:10px;color:var(--t3);"></span></div>',
+      '    <div class="row"><input id="sq" style="width:150px;font-size:11px;" placeholder="Search..." oninput="App.search(this.value)">',
+      '    <button class="btn" style="font-size:11px;" onclick="App.exp()">Export</button></div>',
+      '  </div>',
+      '  <div id="entries" class="grid"></div>',
+      '</div>'
+    ].join('\n');
+    const script = [
+      'var DATA=[],SQ="",CID=null;',
+      'try{DATA=JSON.parse(localStorage.getItem("'+storeKey+'")||"[]");}catch(e){}',
+      'function _sv(){localStorage.setItem("'+storeKey+'",JSON.stringify(DATA));}',
+      'function _rnd(){var list=SQ?DATA.filter(function(e){return(e.t+e.c).toLowerCase().indexOf(SQ)>=0;}):DATA;',
+      '  var el=document.getElementById("entries");var cnt=document.getElementById("ec2");',
+      '  if(cnt)cnt.textContent="("+list.length+")";',
+      '  if(!list.length){el.innerHTML=\'<div class="empty">\'+(SQ?"No results.":"No entries yet.")+\'</div>\';return;}',
+      '  el.innerHTML=list.map(function(e){',
+      '    return \'<div style="background:var(--r);border:1px solid var(--b);border-radius:8px;padding:14px;cursor:pointer;" onclick="App.open(\\\'"+e.id+\'\\\')">\'+',
+      '      \'<div style="font-weight:700;margin-bottom:6px;">\'+e.t.replace(/</g,"&lt;")+\'</div>\'+',
+      '      \'<div style="font-size:11px;color:var(--t2);overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;">\'+',
+      '      (e.c||"(empty)").substring(0,120)+\'</div>\'+',
+      '      \'<div style="font-size:9px;color:var(--t3);margin-top:8px;">@\'+e.a+" · "+new Date(e.ts).toLocaleDateString()+\'</div></div>\';',
+      '  }).join("");}',
+      'var App={',
+      '  create:function(){var id=_id();var t=document.getElementById("et").value.trim();var c=document.getElementById("ec").value.trim();',
+      '    if(!t){toast("Enter a title");return;}',
+      '    DATA.unshift({id:"e"+Date.now(),t:t,c:c,a:id&&id.username||"anon",did:id&&id.did||"",ts:Date.now()});',
+      '    _sv();App.clear();_rnd();toast("Saved ✓");},',
+      '  clear:function(){document.getElementById("et").value="";document.getElementById("ec").value="";},',
+      '  search:function(q){SQ=q.toLowerCase();_rnd();},',
+      '  open:function(id){var e=DATA.find(function(x){return x.id===id;});if(!e)return;',
+      '    CID=id;var msg=e.t+"\\n\\n"+e.c+"\\n\\nby @"+e.a+" · "+new Date(e.ts).toLocaleString();',
+      '    if(confirm(msg+"\\n\\n[OK to delete, Cancel to close]")){',
+      '      DATA=DATA.filter(function(x){return x.id!==id;});_sv();_rnd();toast("Deleted");}},',
+      '  exp:function(){var b=new Blob([JSON.stringify(DATA,null,2)],{type:"application/json"});',
+      '    var a=document.createElement("a");a.href=URL.createObjectURL(b);',
+      '    a.download="'+name.replace(/\s+/g,'_').toLowerCase()+'_"+Date.now()+".json";a.click();}',
+      '};',
+      '_rnd();'
+    ].join('\n');
+    return _appShell(name, bp.category || 'App', body, script);
+  }
+
+  // ── Code management ───────────────────────────────────────────
+  function copyCode() {
+    const code = document.getElementById('code-output').textContent;
+    navigator.clipboard.writeText(code).then(()=>{
+      const s = document.getElementById('code-gen-status');
+      if(s){const prev=s.textContent; s.textContent='✓ Copied to clipboard'; setTimeout(()=>s.textContent=prev,2000);}
+    });
+  }
+
+  function downloadApp() {
+    const bp = State.current?.blueprint;
+    const code = State.current?.generatedCode || document.getElementById('code-output').textContent;
+    if(!code || code.startsWith('//')) { alert('Generate the app code first'); return; }
+    const name = (bp?.name || 'my_app').replace(/\s+/g,'_').toLowerCase();
+    const blob = new Blob([code], {type:'text/html'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name + '_v' + (bp?.version||'1.0') + '.html';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  function refreshPreview() {
+    const code = State.current?.generatedCode || document.getElementById('code-output').textContent;
+    if(!code || code.startsWith('//')) { alert('Generate code first'); return; }
+    const frame = document.getElementById('app-preview-frame');
+    const blob = new Blob([code], {type:'text/html'});
+    frame.src = URL.createObjectURL(blob);
+  }
+
+  return { testConn, build, saveApp, sendToPublish, loadTemplate, useTemplate, showStage, generateCode, copyCode, downloadApp, refreshPreview };
+})();
+
+// ══════════════════════════════════════════════════════════════
+//  PUBLISH ENGINE
+// ══════════════════════════════════════════════════════════════
+const PublishEngine = (() => {
+  function _log(msg, cls = 'info') {
+    const el = document.getElementById('publish-log');
+    const line = document.createElement('div');
+    line.className = 'log-' + cls;
+    line.textContent = `[${new Date().toLocaleTimeString('en',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'})}] ${msg}`;
+    el.appendChild(line);
+    el.scrollTop = el.scrollHeight;
+  }
+
+  async function generateManifest() {
+    const id = await Sovereign.getIdentity();
+    const name     = document.getElementById('pub-name')?.value     || 'Untitled App';
+    const desc     = document.getElementById('pub-desc')?.value     || '';
+    const version  = document.getElementById('pub-version')?.value  || '1.0.0';
+    const category = document.getElementById('pub-category')?.value || 'Other';
+    const tags     = (document.getElementById('pub-tags')?.value || '').split(',').map(t=>t.trim()).filter(Boolean);
+
+    const manifest = {
+      schema:    'sovereign-app/1.0',
+      name, version, description: desc, category, tags,
+      author:    id?.username || 'unknown',
+      did:       id?.did      || 'did:sovereign:unknown',
+      pubKeyHex: id?.pubKeyHex || '',
+      permissions: {
+        identity: document.getElementById('perm-identity')?.checked || false,
+        storage:  document.getElementById('perm-storage')?.checked  || false,
+        network:  document.getElementById('perm-network')?.checked  || false,
+        credits:  document.getElementById('perm-credits')?.checked  || false,
+      },
+      pricing:   State.pricing,
+      blueprint: State.current?.blueprint || null,
+      builtAt:   new Date().toISOString(),
+      sig:       null  // filled on sign
+    };
+
+    document.getElementById('manifest-output').textContent = JSON.stringify(manifest, null, 2);
+    _log('Manifest generated — review and sign', 'info');
+    return manifest;
+  }
+
+  async function signAndPublish() {
+    _log('Generating manifest…', 'info');
+    const manifest = await generateManifest();
+
+    _log('Signing with sovereign identity…', 'info');
+    try {
+      const { sig, ts, mock } = await Sovereign.sign(manifest);
+      manifest.sig = sig;
+      manifest.signedAt = new Date(ts || Date.now()).toISOString();
+      manifest.mockSig = mock || false;
+
+      document.getElementById('manifest-output').textContent = JSON.stringify(manifest, null, 2);
+
+      if (mock) {
+        _log('Signed with mock key (core not connected)', 'warn');
+      } else {
+        _log('Signed with sovereign identity ✓', 'ok');
+      }
+
+      // Update app status
+      if (State.current) {
+        State.current.status = 'signed';
+        State.current.manifest = manifest;
+        StudioEngine.saveApp(true);
+      }
+
+      _log(`Published: ${manifest.name} v${manifest.version}`, 'ok');
+
+    } catch(e) {
+      _log('Signing failed: ' + e.message, 'err');
+    }
+  }
+
+  async function exportPackage() {
+    const manifest = await generateManifest();
+    const { sig, ts, mock } = await Sovereign.sign(manifest);
+    manifest.sig = sig;
+    manifest.signedAt = new Date(ts || Date.now()).toISOString();
+
+    const blob = new Blob([JSON.stringify(manifest, null, 2)], { type: 'application/json' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url;
+    a.download = (manifest.name || 'app').replace(/\s+/g, '_').toLowerCase() + '_v' + manifest.version + '.sovereign.pkg';
+    a.click();
+    URL.revokeObjectURL(url);
+    _log('Package exported ✓', 'ok');
+  }
+
+  return { generateManifest, signAndPublish, exportPackage };
+})();
+
+// ══════════════════════════════════════════════════════════════
+//  MONETIZE ENGINE
+// ══════════════════════════════════════════════════════════════
+const MonetizeEngine = {
+  savePricing() {
+    State.pricing = {
+      model:    document.querySelector('.tier-card.selected')?.dataset.tier || 'free',
+      onetime:  parseInt(document.getElementById('price-onetime')?.value) || 50,
+      monthly:  parseInt(document.getElementById('price-monthly')?.value) || 10,
+      trial:    parseInt(document.getElementById('price-trial')?.value)   || 0,
+      license:  document.getElementById('price-license')?.value || 'personal'
+    };
+    Sovereign.store('pricing', State.pricing);
+    alert('Pricing saved ✓');
+  },
+
+  async createCapsule() {
+    const policy = document.getElementById('capsule-policy')?.value || 'none';
+    const rule   = document.getElementById('capsule-rule')?.value   || '';
+    const id     = await Sovereign.getIdentity();
+    const capsule = {
+      type: 'credit-capsule',
+      policy, rule,
+      creator: id?.did || 'unknown',
+      createdAt: new Date().toISOString()
+    };
+    const { sig } = await Sovereign.sign(capsule);
+    capsule.sig = sig;
+    const hash = sig.substring(0, 16) + '…';
+    document.getElementById('capsule-result').textContent = `Capsule created: ${hash}`;
+    Sovereign.store('capsule_' + Date.now(), capsule);
+  }
+};
+
+// ══════════════════════════════════════════════════════════════
+//  APPS TAB
+// ══════════════════════════════════════════════════════════════
+function refreshAppsTab() {
+  const grid = document.getElementById('apps-grid');
+  document.getElementById('stat-total').textContent = State.apps.length;
+  document.getElementById('stat-live').textContent  = State.apps.filter(a => a.status === 'signed').length;
+
+  if (!State.apps.length) {
+    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text3);font-size:13px;">
+      No apps yet. Head to Studio to build your first one.
+    </div>`;
+    return;
+  }
+
+  grid.innerHTML = '';
+  State.apps.forEach((app, i) => {
+    const bp = app.blueprint || {};
+    const icons = ['📝','🎨','⚡','🛒','📊','💬','🔧','🌐'];
+    const icon  = icons[i % icons.length];
+    const statusCls  = app.status === 'signed' ? 'pill-signed' : 'pill-draft';
+    const statusText = app.status === 'signed' ? '⬡ Signed' : '◌ Draft';
+
+    const card = document.createElement('div');
+    card.className = 'app-card';
+    card.innerHTML = `
+      <div class="app-card-header">
+        <div class="app-icon">${icon}</div>
+        <div>
+          <div class="app-name">${bp.name || 'Untitled App'}</div>
+          <div class="app-version">${bp.version || '1.0.0'}</div>
+        </div>
+      </div>
+      <div class="app-desc">${bp.description || app.source?.substring(0, 100) || '—'}</div>
+      <div class="app-footer">
+        <span class="status-pill ${statusCls}">${statusText}</span>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-sm" onclick="loadApp(${i})">Edit</button>
+          <button class="btn btn-sm" onclick="deleteApp(${i})">Delete</button>
+        </div>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+function loadApp(i) {
+  State.current = State.apps[i];
+  const bp = State.current?.blueprint;
+  document.getElementById('blueprint-output').textContent = bp ? JSON.stringify(bp, null, 2) : 'No blueprint';
+  document.getElementById('app-description').value = State.current?.source || '';
+  document.getElementById('save-btn').disabled = false;
+  document.getElementById('publish-btn').style.display = 'flex';
+  switchTab('studio');
+}
+
+function deleteApp(i) {
+  if (!confirm('Delete this app?')) return;
+  State.apps.splice(i, 1);
+  State.save();
+  refreshAppsTab();
+}
+
+// ══════════════════════════════════════════════════════════════
+//  TIER SELECTOR
+// ══════════════════════════════════════════════════════════════
+function selectTier(el, tier) {
+  document.querySelectorAll('.tier-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  el.dataset.tier = tier;
+  State.pricing.model = tier;
+}
+
+// ══════════════════════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════════════════════
+(async () => {
+  State.load();
+  await initIdentity();
+  checkCoreStatus();
+
+  if (State.apps.length) {
+    document.getElementById('apps-count').textContent = State.apps.length;
+    document.getElementById('apps-count').style.display = 'inline';
+  }
+
+  // Auto-detect best AI engine (non-blocking)
+  AIEngine.detect().catch(() => {});
+})();
+</script>
+</body>
+</html>

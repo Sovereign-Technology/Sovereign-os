@@ -1,0 +1,1957 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sovereign — Your Space Online</title>
+<style>
+/* ── TOKENS ── */
+:root {
+  --bg:      #07070c;
+  --s1:      #0d0d14;
+  --s2:      #13131c;
+  --s3:      #1a1a25;
+  --s4:      #21212e;
+  --border:  rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.12);
+  --text:    #e8e8f0;
+  --text2:   #9898b0;
+  --text3:   #555570;
+  --accent:  #7c6fff;
+  --green:   #00e87a;
+  --cyan:    #00cfff;
+  --red:     #ff3366;
+  --yellow:  #ffc533;
+  --mono:    'Courier New', monospace;
+  --ui:      system-ui, -apple-system, sans-serif;
+  --radius:  10px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--ui);}
+
+/* ── ONBOARDING OVERLAY ── */
+#onboarding{
+  position:fixed;inset:0;z-index:1000;
+  background:var(--bg);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:24px;
+}
+#onboarding.hidden{display:none;}
+
+.ob-logo{
+  font-size:13px;letter-spacing:4px;color:var(--text3);text-transform:uppercase;
+  margin-bottom:48px;
+}
+.ob-logo span{color:var(--accent);}
+
+.ob-card{
+  width:100%;max-width:480px;
+  background:var(--s1);border:1px solid var(--border2);
+  border-radius:16px;padding:36px;
+}
+.ob-step{display:none;}
+.ob-step.active{display:block;}
+
+.ob-step-num{
+  font-size:11px;letter-spacing:2px;color:var(--text3);
+  text-transform:uppercase;margin-bottom:12px;
+}
+.ob-title{font-size:26px;font-weight:700;margin-bottom:8px;line-height:1.2;}
+.ob-sub{font-size:14px;color:var(--text2);margin-bottom:28px;line-height:1.6;}
+
+.ob-input{
+  width:100%;padding:14px 16px;
+  background:var(--s2);border:1px solid var(--border2);
+  border-radius:8px;color:var(--text);font-size:16px;font-family:var(--ui);
+  outline:none;transition:border .2s;
+}
+.ob-input:focus{border-color:var(--accent);}
+.ob-input::placeholder{color:var(--text3);}
+
+.ob-btn{
+  width:100%;margin-top:16px;padding:15px;
+  background:var(--accent);border:none;border-radius:8px;
+  color:#fff;font-size:15px;font-weight:600;cursor:pointer;
+  transition:opacity .2s,transform .1s;
+}
+.ob-btn:hover{opacity:.9;}
+.ob-btn:active{transform:scale(.98);}
+.ob-btn:disabled{opacity:.4;cursor:not-allowed;}
+.ob-btn.secondary{background:var(--s3);color:var(--text);}
+
+.ob-hint{font-size:12px;color:var(--text3);margin-top:12px;text-align:center;line-height:1.5;}
+.ob-hint a{color:var(--accent);cursor:pointer;text-decoration:none;}
+
+.progress-dots{display:flex;gap:8px;justify-content:center;margin-bottom:32px;}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--s4);transition:.3s;}
+.dot.active{background:var(--accent);width:24px;border-radius:4px;}
+.dot.done{background:var(--green);}
+
+.ob-spinner{
+  width:48px;height:48px;margin:16px auto;
+  border:3px solid var(--s3);border-top-color:var(--accent);
+  border-radius:50%;animation:spin 1s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+.ob-success-icon{
+  font-size:48px;text-align:center;margin:12px 0;
+}
+.ob-username-preview{
+  background:var(--s2);border:1px solid var(--border);
+  border-radius:8px;padding:10px 14px;margin:12px 0;
+  font-family:var(--mono);font-size:13px;color:var(--cyan);
+}
+
+/* backup card */
+.backup-card{
+  background:rgba(0,232,122,0.06);border:1px solid rgba(0,232,122,0.2);
+  border-radius:8px;padding:16px;margin:12px 0;
+}
+.backup-card h4{color:var(--green);font-size:13px;margin-bottom:6px;}
+.backup-card p{font-size:12px;color:var(--text2);line-height:1.5;}
+
+/* ── MAIN SHELL ── */
+#shell{display:none;flex-direction:column;height:100%;}
+#shell.active{display:flex;}
+
+/* top bar */
+.topbar{
+  height:52px;
+  background:var(--s1);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;padding:0 16px;gap:12px;flex-shrink:0;
+}
+.topbar-logo{font-size:13px;font-weight:700;letter-spacing:2px;color:var(--accent);}
+.topbar-sep{width:1px;height:20px;background:var(--border);margin:0 4px;}
+.topbar-id{
+  font-size:12px;color:var(--text2);font-family:var(--mono);
+  background:var(--s2);border:1px solid var(--border);
+  padding:4px 10px;border-radius:6px;cursor:default;
+}
+.topbar-id .dot-live{
+  display:inline-block;width:6px;height:6px;border-radius:50%;
+  background:var(--green);margin-right:6px;
+  box-shadow:0 0 6px var(--green);
+}
+.topbar-net{
+  margin-left:auto;font-size:11px;color:var(--text3);
+  display:flex;align-items:center;gap:6px;
+}
+.net-dot{
+  width:7px;height:7px;border-radius:50%;background:var(--s4);
+  transition:.3s;
+}
+.net-dot.online{background:var(--green);box-shadow:0 0 8px var(--green);}
+
+/* nav */
+.nav{
+  height:48px;
+  background:var(--s1);border-bottom:1px solid var(--border);
+  display:flex;align-items:stretch;flex-shrink:0;
+  overflow-x:auto;scrollbar-width:none;
+}
+.nav::-webkit-scrollbar{display:none;}
+.nav-btn{
+  padding:0 20px;
+  border:none;background:none;color:var(--text3);
+  font-size:13px;cursor:pointer;white-space:nowrap;
+  border-bottom:2px solid transparent;transition:.15s;
+  position:relative;
+}
+.nav-btn:hover{color:var(--text);}
+.nav-btn.active{color:var(--accent);border-bottom-color:var(--accent);}
+.nav-btn .badge{
+  position:absolute;top:10px;right:12px;
+  min-width:16px;height:16px;
+  background:var(--red);color:#fff;
+  border-radius:8px;font-size:9px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;
+  padding:0 4px;
+}
+
+/* content area */
+.content{flex:1;overflow:hidden;position:relative;}
+.panel{
+  position:absolute;inset:0;overflow-y:auto;
+  padding:24px;display:none;
+}
+.panel.active{display:block;}
+.panel::-webkit-scrollbar{width:4px;}
+.panel::-webkit-scrollbar-track{background:transparent;}
+.panel::-webkit-scrollbar-thumb{background:var(--s3);border-radius:2px;}
+
+/* ── SHARED COMPONENTS ── */
+.section-title{
+  font-size:11px;letter-spacing:2px;text-transform:uppercase;
+  color:var(--text3);margin-bottom:16px;
+}
+.card{
+  background:var(--s1);border:1px solid var(--border);
+  border-radius:var(--radius);padding:16px;margin-bottom:12px;
+}
+.card:last-child{margin-bottom:0;}
+.card-meta{font-size:11px;color:var(--text3);margin-top:6px;}
+
+.btn{
+  padding:9px 16px;border:1px solid var(--border2);
+  background:var(--s2);color:var(--text);
+  border-radius:7px;cursor:pointer;font-size:13px;transition:.15s;
+}
+.btn:hover{border-color:var(--accent);color:var(--accent);}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;}
+.btn.primary:hover{opacity:.85;}
+.btn.danger{border-color:var(--red);color:var(--red);}
+.btn.sm{padding:6px 12px;font-size:12px;}
+
+input.field, textarea.field{
+  width:100%;padding:10px 12px;
+  background:var(--s2);border:1px solid var(--border2);
+  border-radius:7px;color:var(--text);font-size:13px;font-family:var(--ui);
+  outline:none;transition:border .2s;resize:vertical;
+}
+input.field:focus, textarea.field:focus{border-color:var(--accent);}
+input.field::placeholder, textarea.field::placeholder{color:var(--text3);}
+
+label.lbl{display:block;font-size:11px;color:var(--text3);margin-bottom:6px;letter-spacing:.5px;}
+
+.row{display:flex;gap:8px;align-items:center;}
+.row-spread{display:flex;gap:8px;align-items:center;justify-content:space-between;}
+
+/* ── HOME PANEL ── */
+.feed-compose{
+  background:var(--s1);border:1px solid var(--border);
+  border-radius:var(--radius);padding:16px;margin-bottom:20px;
+}
+.feed-compose textarea{
+  width:100%;background:none;border:none;color:var(--text);
+  font-size:14px;font-family:var(--ui);resize:none;outline:none;
+  min-height:60px;
+}
+.feed-compose textarea::placeholder{color:var(--text3);}
+.feed-compose-footer{
+  display:flex;justify-content:flex-end;margin-top:10px;
+  border-top:1px solid var(--border);padding-top:10px;gap:8px;
+}
+
+.post{
+  background:var(--s1);border:1px solid var(--border);
+  border-radius:var(--radius);padding:16px;margin-bottom:10px;
+  transition:border-color .2s;
+}
+.post:hover{border-color:var(--border2);}
+.post-header{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+.post-avatar{
+  width:34px;height:34px;border-radius:50%;
+  background:var(--s3);border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;
+  font-size:14px;font-weight:700;color:var(--accent);flex-shrink:0;
+}
+.post-author{font-size:13px;font-weight:600;}
+.post-time{font-size:11px;color:var(--text3);margin-left:auto;}
+.post-body{font-size:14px;line-height:1.6;color:var(--text);}
+.post-tag{
+  display:inline-block;font-size:10px;padding:2px 8px;
+  border-radius:12px;margin-right:4px;margin-top:8px;
+  background:var(--s3);color:var(--text3);
+}
+.post-tag.public{background:rgba(0,232,122,0.1);color:var(--green);}
+.post-tag.dm{background:rgba(0,207,255,0.1);color:var(--cyan);}
+
+.empty-state{
+  text-align:center;padding:60px 24px;
+  color:var(--text3);font-size:14px;
+}
+.empty-state .icon{font-size:40px;margin-bottom:12px;}
+.empty-state h3{color:var(--text2);margin-bottom:6px;}
+
+/* ── MESSAGES PANEL ── */
+.msg-layout{display:flex;height:100%;gap:0;}
+.msg-sidebar{
+  width:260px;flex-shrink:0;
+  border-right:1px solid var(--border);
+  overflow-y:auto;
+}
+.msg-content{flex:1;display:flex;flex-direction:column;}
+.msg-header{
+  padding:16px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:10px;
+}
+.msg-thread{flex:1;overflow-y:auto;padding:16px;}
+.msg-compose-bar{
+  padding:12px 16px;border-top:1px solid var(--border);
+  display:flex;gap:8px;align-items:flex-end;
+}
+.msg-compose-bar textarea{
+  flex:1;padding:10px 12px;
+  background:var(--s2);border:1px solid var(--border2);
+  border-radius:8px;color:var(--text);font-size:13px;font-family:var(--ui);
+  resize:none;outline:none;max-height:120px;min-height:42px;
+}
+.msg-compose-bar textarea:focus{border-color:var(--accent);}
+
+.contact{
+  padding:12px 16px;border-bottom:1px solid var(--border);
+  cursor:pointer;transition:background .15s;display:flex;align-items:center;gap:10px;
+}
+.contact:hover{background:var(--s2);}
+.contact.active{background:var(--s2);}
+.contact-avatar{
+  width:36px;height:36px;border-radius:50%;
+  background:var(--s3);display:flex;align-items:center;justify-content:center;
+  font-weight:700;font-size:14px;color:var(--cyan);flex-shrink:0;
+}
+.contact-name{font-size:13px;font-weight:500;}
+.contact-preview{font-size:11px;color:var(--text3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;}
+.unread-badge{
+  margin-left:auto;background:var(--accent);color:#fff;
+  border-radius:10px;font-size:9px;font-weight:700;
+  padding:2px 7px;min-width:18px;text-align:center;
+}
+
+.bubble{
+  max-width:70%;padding:10px 14px;
+  border-radius:12px;margin-bottom:6px;font-size:13px;line-height:1.5;
+}
+.bubble.mine{
+  background:var(--accent);color:#fff;
+  align-self:flex-end;border-bottom-right-radius:3px;
+  margin-left:auto;
+}
+.bubble.theirs{
+  background:var(--s2);border:1px solid var(--border);
+  border-bottom-left-radius:3px;
+}
+.bubble-wrap{display:flex;flex-direction:column;}
+.bubble-meta{font-size:10px;color:var(--text3);margin-bottom:2px;}
+.bubble-meta.mine{text-align:right;}
+
+.new-dm-bar{
+  padding:12px 16px;border-bottom:1px solid var(--border);
+}
+.new-dm-bar input{
+  width:100%;padding:8px 12px;
+  background:var(--s2);border:1px solid var(--border);
+  border-radius:6px;color:var(--text);font-size:12px;font-family:var(--mono);outline:none;
+}
+.new-dm-bar input:focus{border-color:var(--accent);}
+.new-dm-bar input::placeholder{color:var(--text3);}
+
+/* ── NETWORK PANEL ── */
+.peer-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;
+  margin-bottom:20px;
+}
+.peer-card{
+  background:var(--s1);border:1px solid var(--border);
+  border-radius:var(--radius);padding:16px;
+}
+.peer-card .avatar{
+  width:40px;height:40px;border-radius:50%;
+  background:var(--s3);border:2px solid var(--border2);
+  display:flex;align-items:center;justify-content:center;
+  font-weight:700;font-size:16px;color:var(--green);margin-bottom:10px;
+}
+.peer-card .name{font-size:13px;font-weight:600;}
+.peer-card .did-short{font-size:10px;color:var(--text3);font-family:var(--mono);margin-top:3px;}
+.peer-card .status{
+  display:flex;align-items:center;gap:6px;margin-top:10px;
+  font-size:11px;color:var(--green);
+}
+.peer-card .status .dot{
+  width:6px;height:6px;border-radius:50%;
+  background:var(--green);box-shadow:0 0 6px var(--green);
+}
+
+.relay-box{
+  background:var(--s1);border:1px solid var(--border);
+  border-radius:var(--radius);padding:16px;margin-bottom:20px;
+}
+.relay-status{
+  display:flex;align-items:center;gap:8px;
+  margin-bottom:12px;font-size:13px;
+}
+.relay-options{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;}
+.relay-option{
+  padding:10px 12px;border:1px solid var(--border);
+  border-radius:7px;cursor:pointer;transition:.15s;
+}
+.relay-option:hover{border-color:var(--accent);}
+.relay-option.selected{border-color:var(--accent);background:rgba(124,111,255,0.08);}
+.relay-option .ro-name{font-size:12px;font-weight:600;}
+.relay-option .ro-url{font-size:10px;color:var(--text3);font-family:var(--mono);margin-top:2px;}
+.relay-option .ro-badge{font-size:9px;color:var(--green);}
+
+/* ── STUDIO PANEL ── */
+.studio-layout{display:grid;grid-template-columns:1fr 1fr;gap:16px;height:100%;}
+.studio-left,.studio-right{display:flex;flex-direction:column;gap:12px;}
+
+/* ── SETTINGS PANEL ── */
+.settings-section{
+  background:var(--s1);border:1px solid var(--border);
+  border-radius:var(--radius);padding:20px;margin-bottom:12px;
+}
+.settings-section h3{font-size:13px;font-weight:600;margin-bottom:16px;}
+.setting-row{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 0;border-bottom:1px solid var(--border);
+}
+.setting-row:last-child{border-bottom:none;}
+.setting-label{font-size:13px;}
+.setting-sub{font-size:11px;color:var(--text3);margin-top:2px;}
+.did-display{
+  background:var(--s2);border:1px solid var(--border);
+  border-radius:7px;padding:12px;font-family:var(--mono);
+  font-size:11px;color:var(--cyan);word-break:break-all;
+}
+
+/* ── TOAST ── */
+#toast{
+  position:fixed;bottom:24px;right:24px;z-index:9999;
+  display:flex;flex-direction:column;gap:8px;
+  pointer-events:none;
+}
+.toast-msg{
+  background:var(--s1);border:1px solid var(--border2);
+  border-radius:8px;padding:12px 16px;
+  font-size:12px;color:var(--text);
+  box-shadow:0 8px 32px rgba(0,0,0,.4);
+  animation:slideUp .3s ease;max-width:300px;
+}
+.toast-msg.success{border-color:var(--green);color:var(--green);}
+.toast-msg.error{border-color:var(--red);color:var(--red);}
+@keyframes slideUp{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);}}
+
+/* ── CONNECT DID modal ── */
+#connect-modal{
+  position:fixed;inset:0;z-index:500;
+  background:rgba(7,7,12,.85);backdrop-filter:blur(4px);
+  display:none;align-items:center;justify-content:center;
+}
+#connect-modal.open{display:flex;}
+.modal-box{
+  background:var(--s1);border:1px solid var(--border2);
+  border-radius:16px;padding:32px;width:100%;max-width:440px;
+}
+.modal-box h3{font-size:18px;font-weight:700;margin-bottom:8px;}
+.modal-box p{font-size:13px;color:var(--text2);margin-bottom:20px;line-height:1.5;}
+.modal-close{
+  position:absolute;top:16px;right:16px;
+  background:none;border:none;color:var(--text3);cursor:pointer;font-size:20px;
+}
+
+/* ── SCROLLBARS ── */
+.msg-sidebar::-webkit-scrollbar,
+.msg-thread::-webkit-scrollbar{width:3px;}
+.msg-sidebar::-webkit-scrollbar-thumb,
+.msg-thread::-webkit-scrollbar-thumb{background:var(--s3);}
+
+/* responsive */
+@media(max-width:640px){
+  .msg-layout{flex-direction:column;}
+  .msg-sidebar{width:100%;height:200px;border-right:none;border-bottom:1px solid var(--border);}
+  .studio-layout{grid-template-columns:1fr;}
+  .relay-options{grid-template-columns:1fr;}
+}
+
+/* ── GUIDE SIDEBAR ── */
+#shell-body{display:flex;flex:1;overflow:hidden;}
+#guide-sidebar{
+  width:220px;flex-shrink:0;
+  background:var(--s1);border-left:1px solid var(--border);
+  display:flex;flex-direction:column;
+  transition:width .2s ease;overflow:hidden;
+}
+#guide-sidebar.collapsed{width:32px;}
+.guide-toggle{
+  height:44px;display:flex;align-items:center;justify-content:space-between;
+  padding:0 10px;border-bottom:1px solid var(--border);cursor:pointer;
+  color:var(--text3);font-size:11px;flex-shrink:0;user-select:none;
+  letter-spacing:.5px;
+}
+.guide-toggle:hover{color:var(--text);}
+#guide-sidebar.collapsed .guide-toggle{justify-content:center;padding:0;}
+.guide-toggle-icon{font-size:14px;transition:transform .2s;}
+#guide-sidebar.collapsed .guide-toggle-text{display:none;}
+#guide-sidebar.collapsed .guide-toggle-icon{transform:rotate(180deg);}
+.guide-inner{flex:1;overflow-y:auto;overflow-x:hidden;padding:12px;display:flex;flex-direction:column;gap:6px;}
+#guide-sidebar.collapsed .guide-inner{display:none;}
+.guide-inner::-webkit-scrollbar{width:3px;}
+.guide-inner::-webkit-scrollbar-thumb{background:var(--s3);}
+.guide-section-label{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--text3);margin:6px 0 4px;}
+.guide-hint{
+  font-size:11px;line-height:1.5;color:var(--text2);
+  padding:7px 9px;background:var(--s2);border:1px solid var(--border);
+  border-radius:6px;border-left:2px solid var(--accent);
+}
+.guide-hint.done{border-left-color:var(--green);color:var(--text3);opacity:.45;}
+.guide-hint.warn{border-left-color:var(--yellow);color:var(--yellow);}
+.guide-hint.ok{border-left-color:var(--green);color:var(--green);}
+.guide-divider{height:1px;background:var(--border);margin:4px 0;}
+.guide-ai{
+  font-size:11px;color:var(--cyan);line-height:1.5;
+  padding:7px 9px;
+  background:rgba(0,207,255,0.04);border:1px solid rgba(0,207,255,0.1);
+  border-radius:6px;font-style:italic;
+}
+.guide-ai.idle{color:var(--text3);font-style:normal;}
+@media(max-width:640px){#guide-sidebar{display:none;}}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════ -->
+<!-- ONBOARDING OVERLAY                     -->
+<!-- ══════════════════════════════════════ -->
+<div id="onboarding">
+  <div class="ob-logo">⬡ <span>Sovereign</span></div>
+  
+  <div class="progress-dots">
+    <div class="dot active" id="pd-0"></div>
+    <div class="dot" id="pd-1"></div>
+    <div class="dot" id="pd-2"></div>
+  </div>
+
+  <div class="ob-card">
+    <!-- STEP 0: Pick a name -->
+    <div class="ob-step active" id="ob-step-0">
+      <div class="ob-step-num">Step 1 of 3</div>
+      <div class="ob-title">What should people call you?</div>
+      <div class="ob-sub">This is your display name. You can always change it later. No email, no password — just a name.</div>
+      <input class="ob-input" id="ob-name" placeholder="e.g. nova, quiet-river, mk7…" maxlength="32" autocomplete="off" spellcheck="false">
+      <button class="ob-btn" id="ob-btn-0" onclick="obStep0()">Continue →</button>
+      <div class="ob-hint">Already have an account? <a onclick="showImportFlow()">Import your identity</a></div>
+    </div>
+
+    <!-- STEP 1: Generating identity (shown briefly) -->
+    <div class="ob-step" id="ob-step-1">
+      <div class="ob-step-num">Step 2 of 3</div>
+      <div class="ob-title">Creating your identity…</div>
+      <div class="ob-sub">Generating your cryptographic keys from randomness in your browser. This stays on your device.</div>
+      <div class="ob-spinner"></div>
+      <div style="font-size:12px;color:var(--text3);text-align:center;margin-top:8px;" id="gen-status">Collecting entropy…</div>
+    </div>
+
+    <!-- STEP 2: Save backup -->
+    <div class="ob-step" id="ob-step-2">
+      <div class="ob-step-num">Step 2 of 3</div>
+      <div class="ob-title">Save your backup key</div>
+      <div class="ob-sub">If you clear your browser, this file lets you get back in. Keep it somewhere safe — treat it like a house key.</div>
+      <div class="backup-card">
+        <h4>⬡ Your account</h4>
+        <p id="ob-did-preview" style="font-family:var(--mono);font-size:11px;color:var(--cyan);margin-top:6px;word-break:break-all;"></p>
+      </div>
+      <button class="ob-btn" id="ob-btn-2" onclick="downloadBackup()">⬇ Download backup file</button>
+      <button class="ob-btn secondary" style="margin-top:8px;" onclick="skipBackup()">Skip for now (not recommended)</button>
+      <div class="ob-hint">The backup file contains your recovery key. Nobody else can see inside it.</div>
+    </div>
+
+    <!-- STEP 3: Done -->
+    <div class="ob-step" id="ob-step-3">
+      <div class="ob-step-num">Step 3 of 3</div>
+      <div class="ob-success-icon">✦</div>
+      <div class="ob-title" id="ob-welcome-name">Welcome!</div>
+      <div class="ob-sub">Your sovereign identity is ready. You're connected and can start posting, messaging, and building.</div>
+      <button class="ob-btn" onclick="enterShell()">Enter →</button>
+    </div>
+
+    <!-- IMPORT FLOW -->
+    <div class="ob-step" id="ob-step-import">
+      <div class="ob-step-num">Import identity</div>
+      <div class="ob-title">Load your backup</div>
+      <div class="ob-sub">Select the backup file you downloaded when you created your account.</div>
+      <input type="file" id="ob-import-file" accept=".json" style="display:none" onchange="doImport(this)">
+      <button class="ob-btn" onclick="document.getElementById('ob-import-file').click()">📂 Choose backup file</button>
+      <button class="ob-btn secondary" style="margin-top:8px;" onclick="showObStep(0)">← Back</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════ -->
+<!-- MAIN SHELL                            -->
+<!-- ══════════════════════════════════════ -->
+<div id="shell">
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <div class="topbar-logo">⬡ SOVEREIGN</div>
+    <div class="topbar-sep"></div>
+    <div class="topbar-id" id="topbar-id">
+      <span class="dot-live"></span>
+      <span id="topbar-username">—</span>
+    </div>
+    <div class="topbar-net">
+      <div class="net-dot" id="net-dot"></div>
+      <span id="net-label">Offline</span>
+      <span style="color:var(--border2);">·</span>
+      <span id="peer-count-label">0 peers</span>
+    </div>
+  </div>
+
+  <!-- NAV -->
+  <div class="nav">
+    <button class="nav-btn active" onclick="showPanel('home')" id="nav-home">🏠 Home</button>
+    <button class="nav-btn" onclick="showPanel('messages')" id="nav-messages">💬 Messages <span class="badge" id="msg-badge" style="display:none">0</span></button>
+    <button class="nav-btn" onclick="showPanel('network')" id="nav-network">🌐 Network</button>
+    <button class="nav-btn" onclick="showPanel('studio')" id="nav-studio">🛠 Studio</button>
+    <button class="nav-btn" onclick="showPanel('settings')" id="nav-settings">⚙ Settings</button>
+  </div>
+
+  <!-- CONTENT -->
+  <div id="shell-body">
+  <div class="content">
+
+    <!-- ── HOME ── -->
+    <div class="panel active" id="panel-home">
+      <div class="feed-compose">
+        <textarea id="compose-text" placeholder="What's on your mind? Post to all connected peers…" rows="3"></textarea>
+        <div class="feed-compose-footer">
+          <button class="btn sm" onclick="publishPost(false)">📢 Broadcast</button>
+          <button class="btn sm primary" onclick="publishPost(true)">✦ Post</button>
+        </div>
+      </div>
+      <div class="section-title">Feed</div>
+      <div id="feed-list">
+        <div class="empty-state">
+          <div class="icon">✦</div>
+          <h3>Nothing here yet</h3>
+          <p>Post something, or connect to peers to see their updates.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── MESSAGES ── -->
+    <div class="panel" id="panel-messages" style="padding:0;">
+      <div class="msg-layout" style="height:100%;">
+        <div class="msg-sidebar">
+          <div class="new-dm-bar">
+            <input id="dm-to-input" placeholder="Paste a DID to start a chat…" onkeydown="if(event.key==='Enter')startDM()">
+          </div>
+          <div id="contact-list"></div>
+        </div>
+        <div class="msg-content">
+          <div class="msg-header" id="msg-header">
+            <div style="color:var(--text3);font-size:13px;">Select a conversation</div>
+          </div>
+          <div class="msg-thread" id="msg-thread">
+            <div class="empty-state" style="padding:40px 0;">
+              <div class="icon">💬</div>
+              <h3>No conversation selected</h3>
+              <p>Paste a peer's DID above to start chatting</p>
+            </div>
+          </div>
+          <div class="msg-compose-bar" id="msg-compose-bar" style="display:none;">
+            <textarea id="dm-text" placeholder="Type a message…" rows="1"
+              onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendDM();}"></textarea>
+            <button class="btn primary sm" onclick="sendDM()">Send</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── NETWORK ── -->
+    <div class="panel" id="panel-network">
+      <!-- Relay Box -->
+      <div class="relay-box">
+        <div class="relay-status">
+          <div class="net-dot" id="relay-dot"></div>
+          <span id="net-status-label" style="font-weight:600;">Connecting…</span>
+        </div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.6;">
+          This portal shares the <span style="color:var(--accent);font-family:var(--mono);">sovereign-os-mesh</span> with Sovereign OS and Forge Studio.
+          Open any of those apps in another tab and peers appear here automatically — no server, no setup.
+        </div>
+      </div>
+
+      <div class="section-title">Connected Peers</div>
+      <div id="peer-grid" class="peer-grid">
+        <div class="empty-state" style="grid-column:1/-1;padding:32px 0;">
+          <div class="icon">🌐</div>
+          <h3>No peers yet</h3>
+          <p>Connect to a relay or open another tab to see peers appear here</p>
+        </div>
+      </div>
+
+      <div class="section-title" style="margin-top:16px;">Manual Connect</div>
+      <div class="card">
+        <div style="font-size:13px;color:var(--text2);margin-bottom:12px;">
+          No relay? Copy your handshake packet and send it to someone via email, Discord, etc. They paste it on their end.
+        </div>
+        <div class="row" style="gap:8px;margin-bottom:8px;">
+          <button class="btn sm" onclick="copyHandshake()">📋 Copy my handshake</button>
+        </div>
+        <label class="lbl" style="margin-top:12px;">Paste peer's handshake</label>
+        <textarea class="field" id="paste-handshake" rows="2" placeholder='{"node":"sovereign-…","did":"did:sovereign:…",…}'></textarea>
+        <button class="btn sm primary" style="margin-top:8px;" onclick="acceptHandshake()">Accept Handshake</button>
+      </div>
+
+      <div class="section-title" style="margin-top:16px;">Transport Log</div>
+      <div id="p2p-log" style="background:var(--s1);border:1px solid var(--border);border-radius:var(--radius);padding:12px;font-family:var(--mono);font-size:11px;color:var(--text3);max-height:180px;overflow-y:auto;"></div>
+    </div>
+
+    <!-- ── STUDIO ── -->
+    <div class="panel" id="panel-studio">
+      <div class="section-title">Build an App with AI</div>
+      <div style="background:var(--s1);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px;">
+        <div class="row-spread" style="margin-bottom:12px;">
+          <div>
+            <div style="font-size:14px;font-weight:600;">AI App Builder</div>
+            <div style="font-size:12px;color:var(--text3);margin-top:2px;">Describe what you want → get a working HTML app</div>
+          </div>
+          <div style="font-size:11px;" id="studio-ai-status">
+            <span style="color:var(--text3);">Needs local Ollama</span>
+          </div>
+        </div>
+        <label class="lbl">Ollama URL (runs on your computer)</label>
+        <div class="row" style="gap:8px;margin-bottom:16px;">
+          <input class="field" id="studio-ollama-url" value="http://localhost:11434" style="font-family:var(--mono);font-size:12px;">
+          <button class="btn sm" onclick="testOllama()">Test</button>
+        </div>
+        <label class="lbl">What do you want to build?</label>
+        <textarea class="field" id="studio-prompt" rows="4" placeholder="e.g. A simple to-do list with local storage and a clean dark design…"></textarea>
+        <button class="btn primary" style="margin-top:12px;width:100%;" onclick="buildApp()" id="studio-build-btn">✦ Build</button>
+      </div>
+
+      <div id="studio-result" style="display:none;">
+        <div class="section-title">Generated App</div>
+        <div style="background:var(--s1);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;">
+          <div style="padding:10px 14px;border-bottom:1px solid var(--border);display:flex;gap:8px;align-items:center;">
+            <span style="font-size:12px;color:var(--text2);" id="studio-app-name">App</span>
+            <button class="btn sm" style="margin-left:auto;" onclick="downloadApp()">⬇ Download</button>
+            <button class="btn sm" onclick="copyAppCode()">📋 Copy code</button>
+          </div>
+          <iframe id="studio-preview" style="width:100%;height:400px;border:none;background:#fff;" sandbox="allow-scripts"></iframe>
+        </div>
+      </div>
+
+      <div class="section-title" style="margin-top:20px;">Quick Start Templates</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;">
+        <div class="card" style="cursor:pointer;" onclick="useTemplate('A minimalist notes app with auto-save, dark mode, and markdown preview')">
+          <div style="font-size:18px;margin-bottom:6px;">📝</div>
+          <div style="font-size:13px;font-weight:600;">Notes</div>
+          <div style="font-size:11px;color:var(--text3);">Markdown, auto-save</div>
+        </div>
+        <div class="card" style="cursor:pointer;" onclick="useTemplate('A personal budget tracker with categories, charts, and monthly summaries')">
+          <div style="font-size:18px;margin-bottom:6px;">💰</div>
+          <div style="font-size:13px;font-weight:600;">Budget</div>
+          <div style="font-size:11px;color:var(--text3);">Track spending</div>
+        </div>
+        <div class="card" style="cursor:pointer;" onclick="useTemplate('A habit tracker with a 30-day grid, streaks, and motivational messages')">
+          <div style="font-size:18px;margin-bottom:6px;">✅</div>
+          <div style="font-size:13px;font-weight:600;">Habits</div>
+          <div style="font-size:11px;color:var(--text3);">Streaks & goals</div>
+        </div>
+        <div class="card" style="cursor:pointer;" onclick="useTemplate('A portfolio page with animated sections for bio, skills, and contact info')">
+          <div style="font-size:18px;margin-bottom:6px;">🎨</div>
+          <div style="font-size:13px;font-weight:600;">Portfolio</div>
+          <div style="font-size:11px;color:var(--text3);">Showcase work</div>
+        </div>
+        <div class="card" style="cursor:pointer;" onclick="useTemplate('A digital recipe book with search, ingredients list, and step-by-step instructions')">
+          <div style="font-size:18px;margin-bottom:6px;">🍳</div>
+          <div style="font-size:13px;font-weight:600;">Recipes</div>
+          <div style="font-size:11px;color:var(--text3);">Cook & collect</div>
+        </div>
+        <div class="card" style="cursor:pointer;" onclick="useTemplate('A pomodoro timer with sessions log, custom intervals, and ambient sound options')">
+          <div style="font-size:18px;margin-bottom:6px;">⏱</div>
+          <div style="font-size:13px;font-weight:600;">Focus Timer</div>
+          <div style="font-size:11px;color:var(--text3);">Pomodoro</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── SETTINGS ── -->
+    <div class="panel" id="panel-settings">
+      <div class="settings-section">
+        <h3>Your Identity</h3>
+        <label class="lbl">Display name</label>
+        <div style="font-size:15px;font-weight:600;margin-bottom:12px;" id="settings-username">—</div>
+        <label class="lbl">Your DID (address on the network)</label>
+        <div class="did-display" id="settings-did">—</div>
+        <div style="display:flex;gap:8px;margin-top:12px;">
+          <button class="btn sm" onclick="copyDID()">📋 Copy DID</button>
+          <button class="btn sm" onclick="downloadBackup()">⬇ Backup</button>
+          <button class="btn sm danger" onclick="resetIdentity()">⚠ Reset</button>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3>Import Identity</h3>
+        <p style="font-size:13px;color:var(--text2);margin-bottom:12px;">Load a backup file from a previous session or another device.</p>
+        <input type="file" id="settings-import-file" accept=".json" style="display:none" onchange="doImportFromSettings(this)">
+        <button class="btn" onclick="document.getElementById('settings-import-file').click()">📂 Choose backup file</button>
+      </div>
+
+      <div class="settings-section">
+        <h3>Recovery Shares</h3>
+        <p style="font-size:13px;color:var(--text2);margin-bottom:12px;">
+          Your identity is split into 5 pieces. Any 3 of them can reconstruct your account. 
+          Store each piece separately — cloud, USB, trusted people.
+        </p>
+        <div id="shares-display">
+          <button class="btn" onclick="showShares()">View recovery shares</button>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3>About</h3>
+        <p style="font-size:13px;color:var(--text2);line-height:1.6;">
+          Sovereign is a self-contained, cryptographic identity and communication system. 
+          Your keys never leave your browser. No servers see your private data.
+          <br><br>
+          All cryptography runs locally: Ed25519 keys, Keccak-256 entropy, Shamir secret sharing, AES-256-GCM storage.
+        </p>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+
+  <!-- ── GUIDE SIDEBAR ── -->
+  <div id="guide-sidebar">
+    <div class="guide-toggle" onclick="toggleGuide()">
+      <span class="guide-toggle-text">Guide</span>
+      <span class="guide-toggle-icon">›</span>
+    </div>
+    <div class="guide-inner">
+      <div class="guide-section-label">Next step</div>
+      <div id="guide-next" class="guide-hint">Loading…</div>
+      <div class="guide-divider"></div>
+      <div class="guide-section-label">Status</div>
+      <div id="guide-identity" class="guide-hint">—</div>
+      <div id="guide-network" class="guide-hint">—</div>
+      <div id="guide-ollama" class="guide-hint">—</div>
+      <div class="guide-divider"></div>
+      <div class="guide-section-label">AI hint</div>
+      <div id="guide-ai" class="guide-ai idle">—</div>
+    </div>
+  </div>
+
+  </div><!-- /shell-body -->
+</div><!-- /shell -->
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- CONNECT MODAL -->
+<div id="connect-modal">
+  <div class="modal-box" style="position:relative;">
+    <button class="modal-close" onclick="closeConnectModal()">×</button>
+    <h3 id="modal-title">Connect</h3>
+    <p id="modal-body"></p>
+    <div id="modal-content"></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!-- KECCAK ENGINE — entropy collection & hashing             -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<script>
+const KeccakEngine = (() => {
+  const RATE = 136;
+  const RC = [
+    0x0000000000000001n,0x0000000000008082n,0x800000000000808an,0x8000000080008000n,
+    0x000000000000808bn,0x0000000080000001n,0x8000000080008081n,0x8000000000008009n,
+    0x000000000000008an,0x0000000000000088n,0x0000000080008009n,0x000000008000000an,
+    0x000000008000808bn,0x800000000000008bn,0x8000000000008089n,0x8000000000008003n,
+    0x8000000000008002n,0x8000000000000080n,0x000000000000800an,0x800000008000000an,
+    0x8000000080008081n,0x8000000000008080n,0x0000000080000001n,0x8000000080008008n
+  ];
+  const ROT=[0,1,62,28,27,36,44,6,55,20,3,10,43,25,39,41,45,15,21,8,18,2,61,56,14];
+  const M64=0xFFFFFFFFFFFFFFFFn;
+  const rl=(x,n)=>{n=BigInt(n);return((x<<n)|(x>>(64n-n)))&M64;};
+  function kF(S){
+    S=[...S];
+    for(let r=0;r<24;r++){
+      const C=new Array(5).fill(0n);
+      for(let x=0;x<5;x++)C[x]=S[x]^S[x+5]^S[x+10]^S[x+15]^S[x+20];
+      const D=new Array(5).fill(0n);
+      for(let x=0;x<5;x++)D[x]=C[(x+4)%5]^rl(C[(x+1)%5],1);
+      for(let i=0;i<25;i++)S[i]^=D[i%5];
+      const B=new Array(25).fill(0n);
+      for(let x=0;x<5;x++)for(let y=0;y<5;y++){const i=x+5*y,ni=y+5*((2*x+3*y)%5);B[ni]=rl(S[i],ROT[i]);}
+      for(let x=0;x<5;x++)for(let y=0;y<5;y++){const i=x+5*y;S[i]=B[i]^((~B[((x+1)%5)+5*y])&B[((x+2)%5)+5*y]);}
+      S[0]^=RC[r];
+    }
+    return S;
+  }
+  function b2l(b){const l=new Array(25).fill(0n);for(let i=0;i<25;i++){let v=0n;for(let j=0;j<8;j++)v|=BigInt(b[i*8+j]||0)<<BigInt(8*j);l[i]=v&M64;}return l;}
+  function l2b(l){const o=new Uint8Array(200);for(let i=0;i<25;i++){let v=l[i];for(let j=0;j<8;j++){o[i*8+j]=Number(v&0xffn);v>>=8n;}}return o;}
+  let _st=new Uint8Array(200),_steps=[],_sc=0;
+  function absorbChunk(chunk){
+    const p=new Uint8Array(RATE);p.set(chunk.slice(0,RATE));
+    if(chunk.length<RATE){p[chunk.length]^=0x01;p[RATE-1]^=0x80;}
+    const xd=_st.slice();for(let i=0;i<RATE;i++)xd[i]^=p[i];
+    const ap=l2b(kF(b2l(xd)));_st=ap;
+    _steps.push({id:_sc++,afterPermute:ap.slice()});return _st;
+  }
+  function feedBytes(input){
+    const b=typeof input==='string'?new TextEncoder().encode(input):input;
+    let i=0;do{absorbChunk(b.slice(i,i+RATE));i+=RATE;}while(i<b.length);
+  }
+  function squeeze32(){return _st.slice(0,32);}
+  function getStateHex(){return Array.from(_st.slice(0,8)).map(b=>b.toString(16).padStart(2,'0')).join('');}
+  function getStepCount(){return _steps.length;}
+  function reset(){_st=new Uint8Array(200);_steps=[];_sc=0;}
+  let _pool=new Uint8Array(0);
+  function append(b){const m=new Uint8Array(_pool.length+b.length);m.set(_pool);m.set(b,_pool.length);_pool=m;sync();}
+  function sync(){reset();if(_pool.length>0)feedBytes(_pool);}
+  async function collectAndFinish(intentText){
+    const hw=new Uint8Array(64);crypto.getRandomValues(hw);append(hw);
+    const tm=[];for(let i=0;i<32;i++)tm.push(Math.round((performance.now()-Math.floor(performance.now()))*1e6)&0xff);
+    append(new Uint8Array(tm));
+    if(intentText)append(new TextEncoder().encode(intentText));
+    await new Promise(r=>setTimeout(r,300));
+    const ex=new Uint8Array(32);crypto.getRandomValues(ex);append(ex);
+    return squeeze32();
+  }
+  return{collectAndFinish,feedBytes,getStateHex,getStepCount,reset};
+})();
+
+// ── SHAMIR GF(256) ──
+const Shamir = (() => {
+  const EXP=new Uint8Array(512),LOG=new Uint8Array(256);
+  let p=1;for(let i=0;i<255;i++){EXP[i]=p;LOG[p]=i;p=(p<<1)^(p&128?0x1d:0);}
+  for(let i=255;i<512;i++)EXP[i]=EXP[i-255];
+  const gm=(a,b)=>{if(!a||!b)return 0;return EXP[(LOG[a]+LOG[b])%255];};
+  const ep=(co,x)=>{let r=0;for(let i=co.length-1;i>=0;i--)r=gm(r,x)^co[i];return r;};
+  function split(secret,n=5,t=3){
+    const shares=[];
+    for(let b=0;b<secret.length;b++){
+      const co=[secret[b]];
+      for(let i=1;i<t;i++){const r=new Uint8Array(1);crypto.getRandomValues(r);co.push(r[0]);}
+      for(let i=1;i<=n;i++)shares.push({x:i,y:ep(co,i),b});
+    }
+    const out=[];
+    for(let i=0;i<n;i++){
+      const s=shares.filter(s=>s.x===i+1);
+      out.push({x:i+1,ys:s.map(s=>s.y)});
+    }
+    return out;
+  }
+  function combine(shares){
+    const t=shares.length,len=shares[0].ys.length;
+    const secret=new Uint8Array(len);
+    for(let b=0;b<len;b++){
+      let val=0;
+      for(let i=0;i<t;i++){
+        let num=shares[i].ys[b],den=1;
+        for(let j=0;j<t;j++){
+          if(i===j)continue;
+          num=gm(num,shares[j].x);den=gm(den,shares[i].x^shares[j].x);
+        }
+        val^=gm(num,EXP[255-LOG[den]]);
+      }
+      secret[b]=val;
+    }
+    return secret;
+  }
+  return{split,combine};
+})();
+
+// ── IDENTITY ENGINE ──
+const IdentityEngine = (() => {
+  let _id=null;
+  const _keyCache=new Map();
+  const _DB='sovereign-portal-v1';
+
+  async function sha256(b){
+    const h=await crypto.subtle.digest('SHA-256',b);
+    return Array.from(new Uint8Array(h)).map(x=>x.toString(16).padStart(2,'0')).join('');
+  }
+
+  async function generateFromSeed(seed32,username){
+    const keyPair=await crypto.subtle.generateKey({name:'Ed25519'},true,['sign','verify']);
+    const pubSpki=new Uint8Array(await crypto.subtle.exportKey('spki',keyPair.publicKey));
+    const pubHex=Array.from(pubSpki).map(b=>b.toString(16).padStart(2,'0')).join('');
+    const privPkcs8=new Uint8Array(await crypto.subtle.exportKey('pkcs8',keyPair.privateKey));
+    const privHex=Array.from(privPkcs8).map(b=>b.toString(16).padStart(2,'0')).join('');
+    const didSuffix=await sha256(pubSpki);
+    const did='did:sovereign:'+didSuffix.substr(0,24);
+    const keccakHash=Array.from(seed32).map(b=>b.toString(16).padStart(2,'0')).join('').substr(0,16);
+    const id={
+      did,username:username||('user-'+did.substr(14,8)),
+      pubKeyHex:pubHex,privKeyHex:privHex,
+      createdAt:Date.now(),keccakStateHash:keccakHash,entropySteps:3,keyPair
+    };
+    _id=id;_keyCache.set(did,keyPair);
+    await _persist(id);
+    return id;
+  }
+
+  async function _openDB(){
+    return new Promise((res,rej)=>{
+      const r=indexedDB.open(_DB,1);
+      r.onupgradeneeded=e=>{
+        const db=e.target.result;
+        if(!db.objectStoreNames.contains('identities'))db.createObjectStore('identities',{keyPath:'did'});
+        if(!db.objectStoreNames.contains('posts'))db.createObjectStore('posts',{keyPath:'id'});
+        if(!db.objectStoreNames.contains('messages'))db.createObjectStore('messages',{keyPath:'id'});
+      };
+      r.onsuccess=e=>res(e.target.result);
+      r.onerror=rej;
+    });
+  }
+
+  async function _persist(id){
+    const toStore={...id};delete toStore.keyPair;
+    const db=await _openDB();
+    return new Promise((res,rej)=>{
+      const tx=db.transaction('identities','readwrite');
+      const req=tx.objectStore('identities').put(toStore);
+      req.onsuccess=res;req.onerror=rej;
+    });
+  }
+
+  async function restoreLatest(){
+    const db=await _openDB();
+    const all=await new Promise((res,rej)=>{
+      const tx=db.transaction('identities','readonly');
+      const r=tx.objectStore('identities').getAll();
+      r.onsuccess=e=>res(e.target.result);r.onerror=rej;
+    });
+    if(!all||!all.length)return null;
+    const latest=all.sort((a,b)=>b.createdAt-a.createdAt)[0];
+    // Rebuild keyPair from stored hex
+    if(latest.privKeyHex){
+      try{
+        const privRaw=new Uint8Array(latest.privKeyHex.match(/.{2}/g).map(h=>parseInt(h,16)));
+        const privKey=await crypto.subtle.importKey('pkcs8',privRaw,{name:'Ed25519'},true,['sign']);
+        const pubRaw=new Uint8Array(latest.pubKeyHex.match(/.{2}/g).map(h=>parseInt(h,16)));
+        const pubKey=await crypto.subtle.importKey('spki',pubRaw,{name:'Ed25519'},true,['verify']);
+        latest.keyPair={privateKey:privKey,publicKey:pubKey};
+        _keyCache.set(latest.did,latest.keyPair);
+      }catch(e){console.warn('Key restore failed',e);}
+    }
+    _id=latest;
+    return latest;
+  }
+
+  function get(){return _id;}
+  function setActive(id){_id=id;if(id?.keyPair)_keyCache.set(id.did,id.keyPair);}
+  function getKeyPair(did){return _keyCache.get(did)||null;}
+  function openDB(){return _openDB();}
+
+  return{generateFromSeed,restoreLatest,get,setActive,getKeyPair,openDB,sha256};
+})();
+window.IdentityEngine=IdentityEngine;
+
+// ── P2P NETWORK ──
+const P2PNet = (() => {
+  let _online=false,_nodeId=null,_bc=null;
+  let _peers=new Map();
+
+  function _log(msg,cls='info'){
+    const el=document.getElementById('p2p-log');if(!el)return;
+    const d=document.createElement('div');
+    d.style.cssText='font-size:11px;padding:2px 0;border-bottom:1px solid rgba(255,255,255,0.04);';
+    d.style.color=cls==='ok'?'var(--green)':cls==='warn'?'var(--yellow)':'var(--text3)';
+    const t=new Date().toLocaleTimeString('en',{hour12:false});
+    d.textContent='['+t+'] '+msg;
+    el.appendChild(d);el.scrollTop=el.scrollHeight;
+  }
+
+  function _nodeIdFromDid(did){return 'sovereign-'+did.replace(/[^a-z0-9]/gi,'').substr(6,24).toLowerCase();}
+
+  function _setStatus(online,label){
+    _online=online;
+    const dot=document.getElementById('net-dot');
+    const rdot=document.getElementById('relay-dot');
+    const lbl=document.getElementById('net-label');
+    const slbl=document.getElementById('net-status-label');
+    if(dot){dot.className='net-dot'+(online?' online':'');}
+    if(rdot){rdot.className='net-dot'+(online?' online':'');}
+    if(lbl)lbl.textContent=label||'Offline';
+    if(slbl){slbl.textContent=label||'Offline';slbl.style.color=online?'var(--green)':'var(--text)';}
+    _updatePeerCount();
+  }
+
+  function _updatePeerCount(){
+    const el=document.getElementById('peer-count-label');
+    if(el)el.textContent=_peers.size+' peer'+((_peers.size!==1)?'s':'');
+  }
+
+  async function _sign(payload){
+    const id=IdentityEngine.get();if(!id)return null;
+    const kp=id.keyPair||IdentityEngine.getKeyPair(id.did);if(!kp)return null;
+    const bytes=new TextEncoder().encode(JSON.stringify(payload));
+    try{const sig=await crypto.subtle.sign({name:'Ed25519'},kp.privateKey,bytes);
+      return Array.from(new Uint8Array(sig)).map(b=>b.toString(16).padStart(2,'0')).join('');}
+    catch(e){return null;}
+  }
+
+  async function _makeEnvelope(type,payload,to='*'){
+    const id=IdentityEngine.get();if(!id)return null;
+    const env={to,from:_nodeId,did:id.did,username:id.username,pubKeyHex:id.pubKeyHex,type,payload,ts:Date.now()};
+    env.sig=await _sign({to,from:_nodeId,did:id.did,type,payload,ts:env.ts})||'unsigned';
+    return env;
+  }
+
+  async function _dispatch(env){
+    if(!env||!env.type||!env.from)return;
+    if(env.from===_nodeId)return;
+    if(!_peers.has(env.from)&&env.did){
+      _peers.set(env.from,{nodeId:env.from,did:env.did,username:env.username||env.did.substr(14,12),pubKeyHex:env.pubKeyHex||'',ts:Date.now()});
+      _renderPeers();_updatePeerCount();
+    }
+    switch(env.type){
+      case 'HELLO':
+        _log('Peer discovered: '+(env.username||env.from),'ok');
+        const reply=await _makeEnvelope('HELLO_ACK',_buildDoc(),env.from);
+        if(reply)_send(reply);
+        break;
+      case 'HELLO_ACK':
+        _log('Handshake complete: '+(env.username||env.from),'ok');
+        break;
+      case 'MAIL_MSG':
+        _log('Message from '+(env.payload?.fromUsername||env.from),'ok');
+        receiveMessage(env.payload);
+        break;
+      case 'POST':
+        _log('Post from '+(env.payload?.fromUsername||env.from),'ok');
+        receivePost(env.payload);
+        break;
+      case 'PING':
+        const pong=await _makeEnvelope('PONG',{echo:env.payload},env.from);
+        if(pong)_send(pong);
+        break;
+    }
+  }
+
+  function _buildDoc(){
+    const id=IdentityEngine.get();if(!id)return null;
+    return{did:id.did,username:id.username,pubKeyHex:id.pubKeyHex,ts:Date.now()};
+  }
+
+  function _renderPeers(){
+    const el=document.getElementById('peer-grid');if(!el)return;
+    if(_peers.size===0){
+      el.innerHTML='<div class="empty-state" style="grid-column:1/-1;padding:32px 0;"><div class="icon">🌐</div><h3>No peers yet</h3><p>Open Sovereign OS or Forge Studio in another tab — they share the same mesh automatically</p></div>';
+      return;
+    }
+    el.innerHTML='';
+    _peers.forEach(p=>{
+      const initial=(p.username||'?')[0].toUpperCase();
+      const d=document.createElement('div');d.className='peer-card';
+      d.innerHTML='<div class="avatar">'+initial+'</div><div class="name">'+(p.username||p.nodeId)+'</div><div class="did-short">'+((p.did||'').substr(0,20))+'…</div><div class="status"><div class="dot"></div>Connected · same device</div>';
+      el.appendChild(d);
+    });
+  }
+
+  function _send(env){
+    if(!_bc)return 0;
+    try{_bc.postMessage(JSON.stringify(env));return 1;}catch(e){return 0;}
+  }
+
+  async function goOnline(){
+    const id=IdentityEngine.get();if(!id){_log('No identity','warn');return;}
+    _nodeId=_nodeIdFromDid(id.did);
+    try{
+      _bc=new BroadcastChannel('sovereign-os-mesh');
+      _bc.onmessage=async e=>{
+        try{const env=JSON.parse(e.data);await _dispatch(env);}catch(err){}
+      };
+      _setStatus(true,'Mesh active');
+      _log('Connected to sovereign-os-mesh','ok');
+      const hello=await _makeEnvelope('HELLO',_buildDoc());
+      if(hello)_send(hello);
+    }catch(e){
+      _log('BroadcastChannel not available: '+e.message,'warn');
+      _setStatus(false,'Unavailable');
+    }
+  }
+
+  function goOffline(){
+    if(_bc){try{_bc.close();}catch(e){}_bc=null;}
+    _setStatus(false,'Offline');
+  }
+
+  async function broadcast(type,payload){
+    const env=await _makeEnvelope(type,payload,'*');
+    if(!env)return 0;
+    return _send(env);
+  }
+
+  function getPeers(){return _peers;}
+  function isOnline(){return _online;}
+
+  async function getHandshakePacket(){
+    const id=IdentityEngine.get();if(!id)return null;
+    const doc={node:_nodeId,did:id.did,username:id.username,pubKey:id.pubKeyHex,ts:Date.now()};
+    const sig=await _sign(doc);
+    return JSON.stringify({...doc,sig});
+  }
+
+  async function acceptHandshakePacket(raw){
+    try{
+      const doc=JSON.parse(raw);
+      if(!doc.node||!doc.did)throw new Error('Invalid packet');
+      _peers.set(doc.node,{nodeId:doc.node,did:doc.did,username:doc.username||doc.node,pubKeyHex:doc.pubKey||'',ts:Date.now()});
+      _renderPeers();_updatePeerCount();
+      _log('Manual peer accepted: '+(doc.username||doc.node),'ok');
+      toast('Connected to '+(doc.username||doc.node),'success');
+    }catch(e){toast('Invalid handshake packet','error');}
+  }
+
+  return{goOnline,goOffline,broadcast,getPeers,isOnline,getHandshakePacket,acceptHandshakePacket};
+})();
+window.P2PNet=P2PNet;
+</script>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!-- APP LOGIC                                                  -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<script>
+// ── STATE ──
+let _identity = null;
+let _shares = null;
+let _posts = [];
+let _messages = {}; // did → [{from,text,ts,mine}]
+let _activeDM = null;
+
+let _generatedCode = '';
+
+// ── TOAST ──
+function toast(msg, type=''){
+  const t=document.getElementById('toast');
+  const d=document.createElement('div');
+  d.className='toast-msg'+(type?' '+type:'');
+  d.textContent=msg;
+  t.appendChild(d);
+  setTimeout(()=>d.style.opacity='0',3000);
+  setTimeout(()=>d.remove(),3400);
+}
+
+// ── ONBOARDING LOGIC ──
+
+function showObStep(n){
+  document.querySelectorAll('.ob-step').forEach(s=>s.classList.remove('active'));
+  const step=document.getElementById('ob-step-'+n)||document.getElementById('ob-step-'+n);
+  if(step)step.classList.add('active');
+  // Update progress dots
+  [0,1,2].forEach(i=>{
+    const d=document.getElementById('pd-'+i);if(!d)return;
+    d.className='dot'+(i<n?' done':i===n?' active':'');
+  });
+}
+
+function showImportFlow(){
+  document.querySelectorAll('.ob-step').forEach(s=>s.classList.remove('active'));
+  document.getElementById('ob-step-import').classList.add('active');
+}
+
+async function obStep0(){
+  const nameInput=document.getElementById('ob-name');
+  const name=nameInput.value.trim().toLowerCase().replace(/[^a-z0-9-]/g,'').substr(0,24);
+  if(!name){nameInput.focus();return;}
+  
+  // Move to generating step
+  showObStep(1);
+  document.getElementById('gen-status').textContent='Collecting randomness…';
+  
+  try{
+    await new Promise(r=>setTimeout(r,200));
+    document.getElementById('gen-status').textContent='Generating keys…';
+    const seed=await KeccakEngine.collectAndFinish(name+'-'+Date.now());
+    document.getElementById('gen-status').textContent='Creating your identity…';
+    await new Promise(r=>setTimeout(r,200));
+    
+    _identity=await IdentityEngine.generateFromSeed(seed,name);
+    
+    // Generate Shamir shares
+    const privBytes=new Uint8Array(_identity.privKeyHex.match(/.{2}/g).map(h=>parseInt(h,16)));
+    _shares=Shamir.split(privBytes,5,3);
+    
+    document.getElementById('gen-status').textContent='Done!';
+    await new Promise(r=>setTimeout(r,400));
+    
+    // Move to backup step
+    document.getElementById('ob-did-preview').textContent=_identity.did;
+    showObStep(2);
+  }catch(e){
+    console.error(e);
+    toast('Error generating identity: '+e.message,'error');
+    showObStep(0);
+  }
+}
+
+function downloadBackup(){
+  if(!_identity)return;
+  const cert={
+    version:'portal-1.0',
+    did:_identity.did,
+    username:_identity.username,
+    pubKeyHex:_identity.pubKeyHex,
+    privKeyHex:_identity.privKeyHex,
+    createdAt:_identity.createdAt,
+    keccakStateHash:_identity.keccakStateHash,
+    shamirShares:_shares?_shares.map((s,i)=>({index:i+1,x:s.x,ys:Array.from(s.ys)})):[],
+    note:'Sovereign Portal backup. Keep this file safe.'
+  };
+  const blob=new Blob([JSON.stringify(cert,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download=`sovereign-backup-${_identity.username}.json`;a.click();
+  toast('Backup downloaded ✓','success');
+  // Move to done step
+  document.getElementById('ob-welcome-name').textContent='Welcome, '+_identity.username+'!';
+  showObStep(3);
+}
+
+function skipBackup(){
+  if(!confirm('Without a backup, if you clear your browser data you will permanently lose access to your account. Skip anyway?'))return;
+  document.getElementById('ob-welcome-name').textContent='Welcome, '+(_identity?.username||'friend')+'!';
+  showObStep(3);
+}
+
+async function doImport(input){
+  const file=input.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=async e=>{
+    try{
+      const cert=JSON.parse(e.target.result);
+      if(!cert.did||!cert.username)throw new Error('Invalid backup file');
+      
+      // Rebuild keyPair
+      let keyPair=null;
+      if(cert.privKeyHex){
+        const privRaw=new Uint8Array(cert.privKeyHex.match(/.{2}/g).map(h=>parseInt(h,16)));
+        const privKey=await crypto.subtle.importKey('pkcs8',privRaw,{name:'Ed25519'},true,['sign']);
+        const pubRaw=new Uint8Array(cert.pubKeyHex.match(/.{2}/g).map(h=>parseInt(h,16)));
+        const pubKey=await crypto.subtle.importKey('spki',pubRaw,{name:'Ed25519'},true,['verify']);
+        keyPair={privateKey:privKey,publicKey:pubKey};
+      }
+      
+      _identity={...cert,keyPair};
+      IdentityEngine.setActive(_identity);
+      await IdentityEngine.openDB().then(db=>new Promise((res,rej)=>{
+        const id2={...cert};delete id2.keyPair;
+        const tx=db.transaction('identities','readwrite');
+        const r=tx.objectStore('identities').put(id2);r.onsuccess=res;r.onerror=rej;
+      }));
+      
+      document.getElementById('ob-welcome-name').textContent='Welcome back, '+_identity.username+'!';
+      showObStep(3);
+    }catch(err){toast('Import failed: '+err.message,'error');}
+  };
+  reader.readAsText(file);
+}
+
+function enterShell(){
+  IdentityEngine.setActive(_identity);
+  _launchShell();
+}
+
+// ── SHELL ──
+function _launchShell(){
+  document.getElementById('onboarding').classList.add('hidden');
+  document.getElementById('shell').classList.add('active');
+  
+  // Update UI with identity
+  const id=IdentityEngine.get()||_identity;
+  if(id){
+    document.getElementById('topbar-username').textContent=id.username;
+    document.getElementById('settings-username').textContent=id.username;
+    document.getElementById('settings-did').textContent=id.did;
+  }
+  
+  // Auto-connect to network
+  P2PNet.goOnline();
+  
+  // Load persisted posts/messages
+  _loadPersistedData();
+
+  // Init guide
+  setTimeout(()=>{ if(window.Guide) Guide.init(); }, 400);
+}
+
+async function _loadPersistedData(){
+  try{
+    const db=await IdentityEngine.openDB();
+    const posts=await new Promise((res,rej)=>{
+      const tx=db.transaction('posts','readonly');
+      const r=tx.objectStore('posts').getAll();
+      r.onsuccess=e=>res(e.target.result);r.onerror=rej;
+    });
+    if(posts&&posts.length){
+      _posts=posts.sort((a,b)=>b.ts-a.ts);
+      renderFeed();
+    }
+  }catch(e){}
+}
+
+// ── NAVIGATION ──
+function showPanel(name){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('panel-'+name).classList.add('active');
+  document.getElementById('nav-'+name).classList.add('active');
+  if(window.Guide) Guide.onPanel(name);
+}
+
+// ── HOME / FEED ──
+async function publishPost(broadcast){
+  const text=document.getElementById('compose-text').value.trim();
+  if(!text)return;
+  const id=IdentityEngine.get();if(!id){toast('No identity','error');return;}
+  
+  const post={
+    id:'post-'+Date.now(),
+    fromDid:id.did,fromUsername:id.username,
+    text,ts:Date.now(),public:true
+  };
+  
+  _posts.unshift(post);
+  renderFeed();
+  document.getElementById('compose-text').value='';
+  if(window.Guide) Guide.render();
+  
+  // Persist
+  try{
+    const db=await IdentityEngine.openDB();
+    await new Promise((res,rej)=>{
+      const tx=db.transaction('posts','readwrite');
+      const r=tx.objectStore('posts').put(post);r.onsuccess=res;r.onerror=rej;
+    });
+  }catch(e){}
+  
+  if(broadcast){
+    const n=await P2PNet.broadcast('POST',post);
+    toast(n>0?`Broadcast to ${n} relay(s) ✓`:'Posted locally (no peers connected)');
+  }else{
+    toast('Posted ✓');
+  }
+}
+
+function receivePost(post){
+  if(!post||!post.id)return;
+  if(_posts.find(p=>p.id===post.id))return;
+  _posts.unshift(post);
+  renderFeed();
+}
+
+function renderFeed(){
+  const el=document.getElementById('feed-list');if(!el)return;
+  if(!_posts.length){
+    el.innerHTML='<div class="empty-state"><div class="icon">✦</div><h3>Nothing here yet</h3><p>Post something, or connect to peers to see their updates.</p></div>';
+    return;
+  }
+  el.innerHTML=_posts.slice(0,50).map(p=>{
+    const initial=(p.fromUsername||'?')[0].toUpperCase();
+    const time=_relativeTime(p.ts);
+    return `<div class="post">
+      <div class="post-header">
+        <div class="post-avatar">${initial}</div>
+        <div>
+          <div class="post-author">${p.fromUsername||p.fromDid.substr(0,16)}</div>
+          <div class="card-meta">${p.fromDid.substr(0,24)}…</div>
+        </div>
+        <div class="post-time">${time}</div>
+      </div>
+      <div class="post-body">${_escHtml(p.text)}</div>
+      <span class="post-tag public">public</span>
+    </div>`;
+  }).join('');
+}
+
+// ── MESSAGES ──
+function startDM(){
+  const input=document.getElementById('dm-to-input');
+  const did=input.value.trim();
+  if(!did)return;
+  _activeDM=did;
+  if(!_messages[did])_messages[did]=[];
+  renderContacts();
+  renderThread();
+  input.value='';
+}
+
+async function sendDM(){
+  const text=document.getElementById('dm-text').value.trim();
+  if(!text||!_activeDM)return;
+  const id=IdentityEngine.get();if(!id)return;
+  
+  const msg={
+    id:'msg-'+Date.now(),
+    fromDid:id.did,fromUsername:id.username,
+    toDid:_activeDM,text,ts:Date.now(),mine:true
+  };
+  
+  if(!_messages[_activeDM])_messages[_activeDM]=[];
+  _messages[_activeDM].push(msg);
+  renderThread();
+  document.getElementById('dm-text').value='';
+  
+  // Broadcast to network with DM type
+  await P2PNet.broadcast('MAIL_MSG',{...msg,mine:false});
+}
+
+function receiveMessage(msg){
+  if(!msg||!msg.fromDid)return;
+  const key=msg.fromDid;
+  if(!_messages[key])_messages[key]=[];
+  if(_messages[key].find(m=>m.id===msg.id))return;
+  _messages[key].push({...msg,mine:false});
+  renderContacts();
+  if(_activeDM===key)renderThread();
+  else{
+    // Bump badge
+    const badge=document.getElementById('msg-badge');
+    const cur=parseInt(badge.textContent)||0;
+    badge.textContent=cur+1;badge.style.display='flex';
+  }
+  toast(`Message from ${msg.fromUsername||msg.fromDid.substr(0,16)}`);
+}
+
+function selectContact(did){
+  _activeDM=did;
+  renderContacts();
+  renderThread();
+}
+
+function renderContacts(){
+  const el=document.getElementById('contact-list');if(!el)return;
+  const dids=Object.keys(_messages);
+  if(!dids.length){
+    el.innerHTML='<div style="padding:16px;font-size:12px;color:var(--text3);">No conversations yet</div>';
+    return;
+  }
+  el.innerHTML=dids.map(did=>{
+    const msgs=_messages[did];
+    const last=msgs[msgs.length-1];
+    const initial=(last?.fromUsername||did)[0].toUpperCase();
+    const unread=msgs.filter(m=>!m.mine&&!m.read).length;
+    return `<div class="contact${_activeDM===did?' active':''}" onclick="selectContact('${did}')">
+      <div class="contact-avatar">${initial}</div>
+      <div style="overflow:hidden;">
+        <div class="contact-name">${last?.fromUsername||did.substr(0,16)}</div>
+        <div class="contact-preview">${last?.text||''}</div>
+      </div>
+      ${unread?`<div class="unread-badge">${unread}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+function renderThread(){
+  const hdr=document.getElementById('msg-header');
+  const thread=document.getElementById('msg-thread');
+  const bar=document.getElementById('msg-compose-bar');
+  
+  if(!_activeDM){
+    hdr.innerHTML='<div style="color:var(--text3);font-size:13px;">Select a conversation</div>';
+    thread.innerHTML='<div class="empty-state" style="padding:40px 0;"><div class="icon">💬</div><h3>No conversation selected</h3></div>';
+    bar.style.display='none';
+    return;
+  }
+  
+  const msgs=_messages[_activeDM]||[];
+  const firstName=msgs[0]?.fromUsername||_activeDM.substr(0,16);
+  
+  hdr.innerHTML=`<div class="contact-avatar" style="width:32px;height:32px;">${firstName[0].toUpperCase()}</div><div><div style="font-size:13px;font-weight:600;">${firstName}</div><div style="font-size:10px;color:var(--text3);font-family:var(--mono);">${_activeDM.substr(0,32)}…</div></div>`;
+  bar.style.display='flex';
+  
+  if(!msgs.length){
+    thread.innerHTML='<div class="empty-state" style="padding:40px 0;"><div class="icon">✉</div><h3>Say hello</h3></div>';
+    return;
+  }
+  
+  thread.innerHTML=msgs.map(m=>`<div class="bubble-wrap" style="margin-bottom:8px;">
+    ${!m.mine?`<div class="bubble-meta">${m.fromUsername||'them'} · ${_relativeTime(m.ts)}</div>`:''}
+    <div class="bubble ${m.mine?'mine':'theirs'}">${_escHtml(m.text)}</div>
+    ${m.mine?`<div class="bubble-meta mine">${_relativeTime(m.ts)}</div>`:''}
+  </div>`).join('');
+  thread.scrollTop=thread.scrollHeight;
+  
+  // Mark as read
+  msgs.forEach(m=>{if(!m.mine)m.read=true;});
+  renderContacts();
+  document.getElementById('msg-badge').style.display='none';
+}
+
+// ── NETWORK ──
+let _relayConnected=false;
+
+
+
+
+function copyHandshake(){
+  P2PNet.getHandshakePacket().then(p=>{
+    if(!p){toast('No identity active','error');return;}
+    navigator.clipboard.writeText(p).then(()=>toast('Handshake copied ✓','success')).catch(()=>toast('Copy failed'));
+  });
+}
+
+function acceptHandshake(){
+  const raw=document.getElementById('paste-handshake').value.trim();
+  if(!raw){toast('Paste a handshake packet first');return;}
+  P2PNet.acceptHandshakePacket(raw);
+  document.getElementById('paste-handshake').value='';
+}
+
+// ── STUDIO ──
+async function testOllama(){
+  const url=document.getElementById('studio-ollama-url').value.trim();
+  const el=document.getElementById('studio-ai-status');
+  el.innerHTML='<span style="color:var(--text3);">Testing…</span>';
+  try{
+    const r=await fetch(url+'/api/tags',{signal:AbortSignal.timeout(5000)});
+    if(r.ok){
+      const d=await r.json();
+      const count=(d.models||[]).length;
+      el.innerHTML=`<span style="color:var(--green);">✓ ${count} model${count!==1?'s':''}</span>`;
+      toast('Ollama connected ✓','success');
+      if(window.Guide) Guide.markOllama(true);
+    }else throw new Error('HTTP '+r.status);
+  }catch(e){
+    el.innerHTML='<span style="color:var(--red);">✗ Not found</span>';
+    toast('Ollama not reachable. Make sure it\'s running with OLLAMA_ORIGINS="*"');
+  }
+}
+
+function useTemplate(prompt){
+  document.getElementById('studio-prompt').value=prompt;
+  toast('Template loaded — click Build');
+}
+
+async function buildApp(){
+  const prompt=document.getElementById('studio-prompt').value.trim();
+  if(!prompt){toast('Describe what you want to build first');return;}
+  const ollamaUrl=document.getElementById('studio-ollama-url').value.trim();
+  const btn=document.getElementById('studio-build-btn');
+  btn.disabled=true;btn.textContent='Building…';
+  
+  try{
+    const r=await fetch(ollamaUrl+'/api/generate',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'llama3.2',
+        prompt:`You are an expert frontend developer. Create a single, complete, self-contained HTML file for: ${prompt}\n\nRequirements:\n- Single HTML file with all CSS and JS inline\n- Beautiful, functional, modern design\n- Dark theme with good contrast\n- No external dependencies (use system fonts)\n- Working, complete code\n- No explanation, just the HTML\n\nRespond with ONLY the HTML file, starting with <!DOCTYPE html>`,
+        stream:false
+      }),
+      signal:AbortSignal.timeout(120000)
+    });
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const d=await r.json();
+    let code=d.response||'';
+    // Extract HTML if wrapped in code blocks
+    const match=code.match(/```html\n?([\s\S]+?)```/);
+    if(match)code=match[1];
+    else if(code.includes('<!DOCTYPE'))code=code.substr(code.indexOf('<!DOCTYPE'));
+    
+    _generatedCode=code;
+    document.getElementById('studio-app-name').textContent=prompt.substr(0,40)+'…';
+    const preview=document.getElementById('studio-preview');
+    preview.srcdoc=code;
+    document.getElementById('studio-result').style.display='block';
+    toast('App built ✓','success');
+  }catch(e){
+    toast('Build failed: '+e.message+'. Is Ollama running?','error');
+  }finally{
+    btn.disabled=false;btn.textContent='✦ Build';
+  }
+}
+
+function downloadApp(){
+  if(!_generatedCode){toast('No app generated yet');return;}
+  const blob=new Blob([_generatedCode],{type:'text/html'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='sovereign-app-'+Date.now()+'.html';a.click();
+}
+
+function copyAppCode(){
+  if(!_generatedCode){toast('No app generated yet');return;}
+  navigator.clipboard.writeText(_generatedCode).then(()=>toast('Code copied ✓','success'));
+}
+
+// ── SETTINGS ──
+function copyDID(){
+  const id=IdentityEngine.get();if(!id)return;
+  navigator.clipboard.writeText(id.did).then(()=>toast('DID copied ✓','success'));
+}
+
+function showShares(){
+  if(!_shares||!_shares.length){toast('Shares only available this session — download a backup to regenerate','error');return;}
+  const modal=document.getElementById('connect-modal');
+  const content=document.getElementById('modal-content');
+  document.getElementById('modal-title').textContent='Recovery Shares';
+  document.getElementById('modal-body').textContent='Store each of these separately. You need any 3 of 5 to recover your account.';
+  content.innerHTML=_shares.map((s,i)=>`
+    <div style="background:var(--s2);border:1px solid var(--border);border-radius:7px;padding:10px 12px;margin-bottom:8px;">
+      <div style="font-size:11px;color:var(--text3);margin-bottom:4px;">Share ${i+1} of 5</div>
+      <div style="font-family:var(--mono);font-size:10px;color:var(--cyan);word-break:break-all;">${JSON.stringify({x:s.x,ys:Array.from(s.ys).map(b=>b.toString(16).padStart(2,'0')).join('')})}</div>
+    </div>
+  `).join('');
+  modal.classList.add('open');
+}
+
+function resetIdentity(){
+  if(!confirm('This will clear your identity from this browser. Make sure you have a backup first!\n\nReset?'))return;
+  indexedDB.deleteDatabase('sovereign-portal-v1');
+  toast('Identity cleared — reload to start fresh');
+  setTimeout(()=>location.reload(),1500);
+}
+
+async function doImportFromSettings(input){
+  await doImport(input);
+  if(_identity){
+    IdentityEngine.setActive(_identity);
+    document.getElementById('topbar-username').textContent=_identity.username;
+    document.getElementById('settings-username').textContent=_identity.username;
+    document.getElementById('settings-did').textContent=_identity.did;
+    toast('Identity loaded: '+_identity.username,'success');
+  }
+}
+
+function closeConnectModal(){
+  document.getElementById('connect-modal').classList.remove('open');
+}
+
+// ── HELPERS ──
+function _relativeTime(ts){
+  const diff=Date.now()-ts;
+  if(diff<60000)return 'just now';
+  if(diff<3600000)return Math.floor(diff/60000)+'m ago';
+  if(diff<86400000)return Math.floor(diff/3600000)+'h ago';
+  return Math.floor(diff/86400000)+'d ago';
+}
+
+function _escHtml(s){
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+}
+
+// ── BOOT ──
+window.addEventListener('load', async()=>{
+  // Try to restore existing identity
+  try{
+    const id=await IdentityEngine.restoreLatest();
+    if(id){
+      _identity=id;
+      _launchShell();
+      return;
+    }
+  }catch(e){console.warn('Identity restore failed:',e);}
+  
+  // No identity — show onboarding
+  // Auto-start collecting entropy in background
+  document.getElementById('ob-name').focus();
+  document.getElementById('ob-name').addEventListener('keydown',e=>{
+    if(e.key==='Enter')obStep0();
+  });
+});
+
+// ── expose all onclick handlers on window ──
+window.obStep0         = obStep0;
+window.showObStep      = showObStep;
+window.showImportFlow  = showImportFlow;
+window.downloadBackup  = downloadBackup;
+window.skipBackup      = skipBackup;
+window.doImport        = doImport;
+window.enterShell      = enterShell;
+window.showPanel       = showPanel;
+window.publishPost     = publishPost;
+window.startDM         = startDM;
+window.sendDM          = sendDM;
+window.selectContact   = selectContact;
+window.copyHandshake   = copyHandshake;
+window.acceptHandshake = acceptHandshake;
+window.testOllama      = testOllama;
+window.useTemplate     = useTemplate;
+window.buildApp        = buildApp;
+window.downloadApp     = downloadApp;
+window.copyAppCode     = copyAppCode;
+window.copyDID         = copyDID;
+window.showShares      = showShares;
+window.resetIdentity   = resetIdentity;
+window.doImportFromSettings = doImportFromSettings;
+window.closeConnectModal    = closeConnectModal;
+window.toggleGuide          = toggleGuide;
+
+// Close modal on backdrop click
+document.getElementById('connect-modal').addEventListener('click',e=>{
+  if(e.target===e.currentTarget)closeConnectModal();
+});
+
+// ── GUIDE ENGINE ──────────────────────────────────────────
+const Guide = (() => {
+  let _collapsed = false;
+  let _aiTimer = null;
+  let _lastPanel = 'home';
+  let _ollamaOk = null; // null=unknown, true, false
+
+  // ── state snapshot ──
+  function _state(){
+    const id = IdentityEngine.get();
+    return {
+      hasIdentity: !!id,
+      username: id?.username || null,
+      peerCount: P2PNet.getPeers().size,
+      meshOnline: P2PNet.isOnline(),
+      postCount: _posts.length,
+      panel: _lastPanel,
+      ollamaUrl: document.getElementById('studio-ollama-url')?.value || 'http://localhost:11434',
+    };
+  }
+
+  // ── pre-written rules → {next, identity, network, ollama} ──
+  function _rules(s){
+    // next step hint
+    let next;
+    if(!s.hasIdentity){
+      next = {text:'Generate your identity to get started', type:''};
+    } else if(!s.meshOnline){
+      next = {text:'Mesh connecting…', type:'warn'};
+    } else if(s.peerCount === 0){
+      next = {text:'Open Sovereign OS in another tab', type:''};
+    } else if(s.postCount === 0 && s.panel === 'home'){
+      next = {text:'Post something to the mesh', type:''};
+    } else if(s.panel === 'studio' && _ollamaOk === null){
+      next = {text:'Test Ollama connection to build apps', type:''};
+    } else if(s.panel === 'studio' && _ollamaOk === false){
+      next = {text:'Start Ollama: OLLAMA_ORIGINS="*" ollama serve', type:'warn'};
+    } else if(s.peerCount > 0 && s.postCount === 0){
+      next = {text:'Say something — peers are listening', type:''};
+    } else {
+      next = {text:"You're set · " + s.peerCount + ' peer' + (s.peerCount!==1?'s':'') + ' connected', type:'ok'};
+    }
+
+    // identity
+    const identity = s.hasIdentity
+      ? {text:'✓ ' + s.username, type:'ok'}
+      : {text:'No identity yet', type:''};
+
+    // network
+    const network = !s.meshOnline
+      ? {text:'Mesh offline', type:'warn'}
+      : s.peerCount === 0
+        ? {text:'Mesh active · 0 peers', type:''}
+        : {text:'✓ ' + s.peerCount + ' peer' + (s.peerCount!==1?'s':'') + ' on mesh', type:'ok'};
+
+    // ollama
+    const ollama = _ollamaOk === true
+      ? {text:'✓ Ollama connected', type:'ok'}
+      : _ollamaOk === false
+        ? {text:'Ollama offline', type:'warn'}
+        : {text:'Ollama · not tested', type:''};
+
+    return {next, identity, network, ollama};
+  }
+
+  // ── render hints ──
+  function _setHint(id, text, type){
+    const el = document.getElementById(id); if(!el) return;
+    el.textContent = text;
+    el.className = 'guide-hint' + (type ? ' '+type : '');
+  }
+
+  function render(){
+    if(_collapsed) return;
+    const s = _state();
+    const r = _rules(s);
+    _setHint('guide-next',     r.next.text,     r.next.type);
+    _setHint('guide-identity', r.identity.text, r.identity.type);
+    _setHint('guide-network',  r.network.text,  r.network.type);
+    _setHint('guide-ollama',   r.ollama.text,   r.ollama.type);
+  }
+
+  // ── AI hint via Ollama ──
+  async function _fetchAiHint(){
+    const s = _state();
+    if(!s.hasIdentity) return null;
+    const ollamaUrl = s.ollamaUrl;
+    const ctx = [
+      s.hasIdentity   ? 'user has identity: '+s.username : 'no identity',
+      s.meshOnline    ? 'mesh online' : 'mesh offline',
+      s.peerCount > 0 ? s.peerCount+' peers connected' : 'no peers',
+      'current tab: '+s.panel,
+      s.postCount > 0 ? s.postCount+' posts made' : 'no posts yet',
+    ].join(', ');
+
+    try{
+      const r = await fetch(ollamaUrl+'/api/generate', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          model: document.getElementById('studio-ollama-url') ? 
+            (document.getElementById('ollama-model')?.value || 'llama3.2') : 'llama3.2',
+          prompt: 'Sovereign OS guide. Context: '+ctx+'. Give ONE short action hint (max 8 words, no punctuation, lowercase). Just the hint, nothing else.',
+          stream: false,
+          options: {temperature:0.7, num_predict:20}
+        }),
+        signal: AbortSignal.timeout(8000)
+      });
+      if(!r.ok) return null;
+      const d = await r.json();
+      _ollamaOk = true;
+      return (d.response||'').trim().replace(/[.!?"]$/,'').toLowerCase().substr(0,60) || null;
+    }catch(e){
+      if(_ollamaOk === null) _ollamaOk = false;
+      return null;
+    }
+  }
+
+  async function refreshAi(){
+    const el = document.getElementById('guide-ai'); if(!el||_collapsed) return;
+    el.textContent = '…'; el.className = 'guide-ai idle';
+    const hint = await _fetchAiHint();
+    if(hint){
+      el.textContent = hint;
+      el.className = 'guide-ai';
+    } else {
+      // fallback one-liner based on state
+      const s = _state();
+      const fallbacks = {
+        home:     s.peerCount>0 ? 'broadcast a thought' : 'open another tab to find peers',
+        messages: 'paste a peer DID to start a thread',
+        network:  s.peerCount>0 ? 'mesh is live' : 'open sovereign os alongside',
+        studio:   'describe an app to build it',
+        settings: 'download a backup before you need it',
+      };
+      el.textContent = fallbacks[s.panel] || 'explore';
+      el.className = 'guide-ai';
+    }
+    render(); // re-render status too since ollama state may have changed
+  }
+
+  // ── probe Ollama silently on load ──
+  async function _probeOllama(){
+    const url = (document.getElementById('studio-ollama-url')?.value || 'http://localhost:11434');
+    try{
+      const r = await fetch(url+'/api/tags', {signal: AbortSignal.timeout(3000)});
+      _ollamaOk = r.ok;
+    }catch(e){ _ollamaOk = false; }
+    render();
+  }
+
+  // ── public: toggle sidebar ──
+  function toggle(){
+    _collapsed = !_collapsed;
+    const el = document.getElementById('guide-sidebar');
+    if(el) el.classList.toggle('collapsed', _collapsed);
+    if(!_collapsed) { render(); scheduleAi(); }
+  }
+
+  // ── panel change hook ──
+  function onPanel(name){
+    _lastPanel = name;
+    render();
+    scheduleAi();
+  }
+
+  // ── schedule AI refresh (debounced, every panel change or 30s) ──
+  function scheduleAi(){
+    if(_aiTimer) clearTimeout(_aiTimer);
+    _aiTimer = setTimeout(refreshAi, 1200);
+  }
+
+  // ── init ──
+  function init(){
+    render();
+    _probeOllama();
+    scheduleAi();
+    // Re-render every 10s passively
+    setInterval(()=>{ render(); }, 10000);
+  }
+
+  return {init, render, toggle, onPanel, markOllama:(ok)=>{_ollamaOk=ok; render();}};
+})();
+window.Guide = Guide;
+
+function toggleGuide(){ Guide.toggle(); }
+
+</body>
+</html>

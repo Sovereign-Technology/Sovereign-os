@@ -1,0 +1,1983 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'none';
+  script-src 'self' 'unsafe-inline';
+  style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+  font-src 'self' https://fonts.gstatic.com;
+  connect-src 'self' ws: wss: https:;
+  img-src 'self' data: blob:;
+  object-src 'none';
+  base-uri 'none';
+  form-action 'none';
+">
+<title>Forge Square</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Sora:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ── TOKENS ── */
+:root {
+  --ink:       #0c0a08;
+  --s1:        #121009;
+  --s2:        #191510;
+  --s3:        #201c15;
+  --s4:        #2a2419;
+  --border:    rgba(240,210,140,0.08);
+  --border2:   rgba(240,210,140,0.14);
+  --border3:   rgba(240,210,140,0.22);
+  --gold:      #e8a020;
+  --gold2:     #f5c060;
+  --teal:      #2dd4bf;
+  --rose:      #fb7185;
+  --sage:      #86efac;
+  --text:      #f2ece0;
+  --text2:     #b8a888;
+  --text3:     #6a5e48;
+  --mono:      'IBM Plex Mono', monospace;
+  --serif:     'Playfair Display', Georgia, serif;
+  --sans:      'Sora', system-ui, sans-serif;
+  --r:         6px;
+  --r2:        10px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;overflow:hidden;}
+body{
+  background:var(--ink);
+  color:var(--text);
+  font-family:var(--sans);
+  display:flex;
+  height:100vh;
+}
+
+/* ── NOISE OVERLAY ── */
+body::after{
+  content:'';
+  position:fixed;inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events:none;z-index:0;opacity:0.6;
+}
+
+/* ══════════════ RAIL (leftmost) ══════════════ */
+#rail{
+  width:68px;
+  flex-shrink:0;
+  background:var(--s1);
+  border-right:1px solid var(--border);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  padding:16px 0 20px;
+  gap:4px;
+  z-index:10;
+}
+.rail-brand{
+  font-family:var(--serif);
+  font-size:18px;
+  color:var(--gold);
+  margin-bottom:16px;
+  line-height:1;
+  text-shadow:0 0 24px rgba(232,160,32,0.4);
+  cursor:pointer;
+  user-select:none;
+}
+.rail-btn{
+  width:44px;height:44px;
+  border-radius:var(--r2);
+  display:flex;align-items:center;justify-content:center;
+  font-size:18px;
+  cursor:pointer;
+  transition:all 0.18s;
+  border:1px solid transparent;
+  position:relative;
+}
+.rail-btn:hover{ background:var(--s3); }
+.rail-btn.active{
+  background:rgba(232,160,32,0.12);
+  border-color:rgba(232,160,32,0.25);
+}
+.rail-btn.active::before{
+  content:'';
+  position:absolute;left:-1px;
+  top:10px;bottom:10px;width:3px;
+  background:var(--gold);
+  border-radius:0 3px 3px 0;
+}
+.rail-notif{
+  position:absolute;top:6px;right:6px;
+  width:8px;height:8px;
+  background:var(--rose);
+  border-radius:50%;
+  border:2px solid var(--s1);
+}
+.rail-sep{ width:28px;height:1px;background:var(--border);margin:6px 0; }
+.rail-avatar{
+  margin-top:auto;
+  width:36px;height:36px;
+  border-radius:50%;
+  background:linear-gradient(135deg,var(--gold),#c87020);
+  display:flex;align-items:center;justify-content:center;
+  font-size:14px;font-weight:700;color:var(--ink);
+  cursor:pointer;border:2px solid rgba(232,160,32,0.3);
+}
+
+/* ══════════════ SIDEBAR (list panel) ══════════════ */
+#sidebar{
+  width:260px;
+  flex-shrink:0;
+  background:var(--s1);
+  border-right:1px solid var(--border);
+  display:flex;
+  flex-direction:column;
+  z-index:9;
+}
+.sidebar-head{
+  padding:18px 18px 14px;
+  border-bottom:1px solid var(--border);
+  flex-shrink:0;
+}
+.sidebar-title{
+  font-family:var(--serif);
+  font-size:17px;
+  font-weight:800;
+  letter-spacing:-0.3px;
+}
+.sidebar-sub{ font-size:11px;color:var(--text3);margin-top:3px; }
+.sidebar-search{
+  margin-top:12px;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  background:var(--s3);
+  border:1px solid var(--border2);
+  border-radius:var(--r);
+  padding:7px 10px;
+}
+.sidebar-search input{
+  flex:1;background:none;border:none;outline:none;
+  font-size:12px;color:var(--text);font-family:var(--sans);
+}
+.sidebar-search input::placeholder{ color:var(--text3); }
+.search-icon{ font-size:13px;color:var(--text3); }
+
+.sidebar-body{ flex:1;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--s4) transparent; }
+
+/* Conversation / Contact items */
+.convo-item{
+  display:flex;
+  align-items:center;
+  gap:11px;
+  padding:11px 18px;
+  cursor:pointer;
+  transition:background 0.15s;
+  border-bottom:1px solid var(--border);
+  position:relative;
+}
+.convo-item:hover{ background:var(--s2); }
+.convo-item.active{ background:var(--s3); }
+.convo-item.active::after{
+  content:'';
+  position:absolute;right:0;top:6px;bottom:6px;
+  width:3px;background:var(--gold);border-radius:3px 0 0 3px;
+}
+.convo-avatar{
+  width:38px;height:38px;
+  border-radius:50%;
+  flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:14px;font-weight:700;color:var(--ink);
+  position:relative;
+}
+.convo-online{
+  position:absolute;bottom:0;right:0;
+  width:10px;height:10px;
+  background:var(--sage);
+  border-radius:50%;
+  border:2px solid var(--s1);
+}
+.convo-info{ flex:1;overflow:hidden; }
+.convo-name{ font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+.convo-preview{ font-size:11px;color:var(--text3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+.convo-meta{ display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0; }
+.convo-time{ font-size:10px;color:var(--text3); }
+.convo-badge{
+  background:var(--gold);color:var(--ink);
+  font-size:9px;font-weight:700;
+  padding:1px 5px;border-radius:10px;
+}
+.channel-item{
+  display:flex;align-items:center;gap:10px;
+  padding:9px 18px;
+  cursor:pointer;
+  font-size:13px;color:var(--text2);
+  transition:all 0.15s;
+  border-radius:0;
+}
+.channel-item:hover{ background:var(--s2);color:var(--text); }
+.channel-item.active{ background:var(--s3);color:var(--gold); }
+.channel-icon{ font-size:14px;opacity:0.7; }
+.channel-name{ flex:1; }
+.channel-count{ font-size:10px;color:var(--text3); }
+
+.section-divider{
+  padding:10px 18px 5px;
+  font-size:9px;
+  font-weight:700;
+  letter-spacing:1.5px;
+  text-transform:uppercase;
+  color:var(--text3);
+}
+
+/* ══════════════ MAIN (conversation) ══════════════ */
+#main{
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  position:relative;
+}
+
+/* Ambient background glow */
+#main::before{
+  content:'';
+  position:absolute;
+  top:-100px;right:-100px;
+  width:400px;height:400px;
+  background:radial-gradient(circle,rgba(232,160,32,0.04),transparent 70%);
+  pointer-events:none;
+}
+
+.main-head{
+  padding:0 20px;
+  height:56px;
+  flex-shrink:0;
+  display:flex;
+  align-items:center;
+  gap:14px;
+  border-bottom:1px solid var(--border);
+  background:rgba(12,10,8,0.8);
+  backdrop-filter:blur(10px);
+}
+.head-avatar{
+  width:34px;height:34px;
+  border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:700;color:var(--ink);
+  flex-shrink:0;
+}
+.head-info{ flex:1; }
+.head-name{ font-size:14px;font-weight:700; }
+.head-sub{ font-size:11px;color:var(--text3); }
+.head-actions{ display:flex;gap:8px;align-items:center; }
+
+/* Messages scroll area */
+#messages{
+  flex:1;
+  overflow-y:auto;
+  padding:20px 24px;
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+  scrollbar-width:thin;
+  scrollbar-color:var(--s4) transparent;
+}
+
+/* Date divider */
+.date-divider{
+  display:flex;align-items:center;gap:12px;
+  margin:16px 0 12px;
+}
+.date-divider::before,.date-divider::after{
+  content:'';flex:1;
+  height:1px;background:var(--border);
+}
+.date-divider span{
+  font-size:10px;color:var(--text3);
+  font-family:var(--mono);letter-spacing:0.5px;
+  padding:3px 10px;
+  background:var(--s2);
+  border:1px solid var(--border);
+  border-radius:20px;
+}
+
+/* Message bubble */
+.msg{
+  display:flex;
+  gap:12px;
+  padding:6px 8px;
+  border-radius:var(--r);
+  transition:background 0.1s;
+  align-items:flex-start;
+  max-width:100%;
+}
+.msg:hover{ background:var(--s2); }
+.msg.mine{ flex-direction:row-reverse; }
+.msg-avatar{
+  width:34px;height:34px;
+  border-radius:50%;
+  flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:700;color:var(--ink);
+  margin-top:2px;
+}
+.msg-body{ flex:1;max-width:calc(100% - 46px);overflow:hidden; }
+.msg-meta{
+  display:flex;align-items:center;gap:8px;
+  margin-bottom:3px;flex-wrap:wrap;
+}
+.msg-author{ font-size:12px;font-weight:700; }
+.msg-time{ font-size:10px;color:var(--text3);font-family:var(--mono); }
+.msg-sig{
+  font-size:9px;
+  padding:1px 6px;
+  border-radius:10px;
+  font-family:var(--mono);
+  font-weight:500;
+  letter-spacing:0.2px;
+}
+.sig-ok { background:rgba(134,239,172,0.1); color:var(--sage); }
+.sig-mock{ background:rgba(240,210,140,0.1); color:var(--gold2); }
+
+.msg-text{
+  font-size:13px;
+  line-height:1.6;
+  color:var(--text);
+  word-break:break-word;
+}
+.msg.mine .msg-body{ align-items:flex-end;display:flex;flex-direction:column; }
+.msg.mine .msg-meta{ flex-direction:row-reverse; }
+.msg.mine .msg-text{
+  background:rgba(232,160,32,0.1);
+  border:1px solid rgba(232,160,32,0.18);
+  padding:8px 12px;
+  border-radius:12px 4px 12px 12px;
+  max-width:80%;
+  text-align:left;
+}
+.msg-file{
+  margin-top:6px;
+  display:inline-flex;align-items:center;gap:8px;
+  background:var(--s3);
+  border:1px solid var(--border2);
+  border-radius:var(--r);
+  padding:8px 12px;
+  font-size:11px;color:var(--text2);
+  cursor:pointer;
+  transition:border-color 0.15s;
+}
+.msg-file:hover{ border-color:var(--gold); }
+.msg-reactions{
+  display:flex;gap:4px;margin-top:6px;flex-wrap:wrap;
+}
+.reaction{
+  display:flex;align-items:center;gap:3px;
+  padding:2px 7px;
+  background:var(--s3);
+  border:1px solid var(--border2);
+  border-radius:20px;
+  font-size:12px;cursor:pointer;
+  transition:all 0.15s;
+}
+.reaction:hover,.reaction.active{ border-color:var(--gold);background:rgba(232,160,32,0.08); }
+.reaction span{ font-size:10px;color:var(--text3); }
+
+/* Feed post (public square) */
+.post{
+  background:var(--s2);
+  border:1px solid var(--border);
+  border-radius:var(--r2);
+  padding:16px;
+  margin-bottom:12px;
+  transition:border-color 0.2s;
+}
+.post:hover{ border-color:var(--border2); }
+.post-head{ display:flex;align-items:center;gap:10px;margin-bottom:10px; }
+.post-avatar{
+  width:36px;height:36px;
+  border-radius:50%;
+  flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:700;color:var(--ink);
+}
+.post-author{ flex:1; }
+.post-name{ font-size:13px;font-weight:700; }
+.post-did{ font-size:10px;color:var(--text3);font-family:var(--mono); }
+.post-ts{ font-size:10px;color:var(--text3);font-family:var(--mono); }
+.post-body{ font-size:13px;line-height:1.7;color:var(--text);margin-bottom:12px; }
+.post-footer{
+  display:flex;align-items:center;gap:16px;
+  padding-top:10px;
+  border-top:1px solid var(--border);
+}
+.post-action{
+  display:flex;align-items:center;gap:5px;
+  font-size:11px;color:var(--text3);
+  cursor:pointer;padding:3px 6px;border-radius:var(--r);
+  transition:all 0.15s;border:none;background:none;
+  font-family:var(--sans);
+}
+.post-action:hover{ color:var(--gold);background:rgba(232,160,32,0.06); }
+.post-hash{
+  margin-left:auto;
+  font-size:9px;color:var(--text3);
+  font-family:var(--mono);
+  letter-spacing:0.3px;
+}
+
+/* ══════════════ COMPOSE PANE ══════════════ */
+#compose-pane{
+  border-top:1px solid var(--border);
+  background:var(--s1);
+  padding:16px 20px;
+  flex-shrink:0;
+}
+.compose-box{
+  background:var(--s3);
+  border:1px solid var(--border2);
+  border-radius:var(--r2);
+  overflow:hidden;
+  transition:border-color 0.2s,box-shadow 0.2s;
+}
+.compose-box:focus-within{
+  border-color:rgba(232,160,32,0.4);
+  box-shadow:0 0 0 3px rgba(232,160,32,0.06);
+}
+.compose-textarea{
+  width:100%;background:none;
+  border:none;outline:none;
+  color:var(--text);
+  font-family:var(--sans);
+  font-size:13px;
+  line-height:1.6;
+  padding:12px 14px 8px;
+  resize:none;
+  min-height:68px;
+  max-height:200px;
+}
+.compose-textarea::placeholder{ color:var(--text3); }
+.compose-toolbar{
+  display:flex;align-items:center;
+  padding:8px 12px;
+  border-top:1px solid var(--border);
+  gap:6px;
+}
+.compose-tool{
+  width:28px;height:28px;
+  border-radius:var(--r);
+  border:none;background:none;
+  color:var(--text3);font-size:14px;
+  cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:all 0.15s;
+}
+.compose-tool:hover{ background:var(--s4);color:var(--text2); }
+.compose-recipient{
+  display:flex;align-items:center;gap:8px;
+  margin-bottom:10px;
+}
+.compose-recipient span{ font-size:11px;color:var(--text3);white-space:nowrap; }
+.compose-recipient input{
+  flex:1;background:var(--s3);
+  border:1px solid var(--border2);
+  border-radius:var(--r);
+  color:var(--text);
+  font-size:12px;
+  padding:5px 9px;
+  outline:none;
+  font-family:var(--sans);
+}
+.compose-recipient input:focus{ border-color:rgba(232,160,32,0.3); }
+.compose-actions{ margin-left:auto;display:flex;gap:8px; }
+.btn{
+  padding:6px 14px;
+  font-size:12px;font-weight:600;
+  border-radius:var(--r);
+  cursor:pointer;transition:all 0.15s;
+  font-family:var(--sans);
+  display:inline-flex;align-items:center;gap:5px;
+  border:1px solid var(--border2);
+  background:var(--s4);
+  color:var(--text2);
+}
+.btn:hover{ background:var(--s4);color:var(--text);border-color:var(--border3); }
+.btn-gold{
+  background:var(--gold);
+  border-color:var(--gold);
+  color:var(--ink);font-weight:700;
+}
+.btn-gold:hover{ background:var(--gold2);border-color:var(--gold2); }
+.btn-sm{ padding:4px 10px;font-size:11px; }
+
+/* ══════════════ EMPTY / WELCOME ══════════════ */
+.empty-state{
+  flex:1;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  gap:12px;padding:40px;
+  color:var(--text3);
+}
+.empty-glyph{
+  font-size:40px;
+  filter:drop-shadow(0 0 20px rgba(232,160,32,0.2));
+}
+.empty-title{ font-family:var(--serif);font-size:20px;color:var(--text2); }
+.empty-sub{ font-size:12px;text-align:center;max-width:280px;line-height:1.7; }
+
+/* ══════════════ MAIL ══════════════ */
+.mail-item{
+  padding:14px 18px;
+  border-bottom:1px solid var(--border);
+  cursor:pointer;
+  transition:background 0.15s;
+  display:flex;gap:12px;align-items:flex-start;
+}
+.mail-item:hover{ background:var(--s2); }
+.mail-item.active{ background:var(--s3); }
+.mail-item.unread .mail-subject{ font-weight:700;color:var(--text); }
+.mail-dot{
+  width:7px;height:7px;
+  background:var(--gold);
+  border-radius:50%;
+  flex-shrink:0;
+  margin-top:5px;
+}
+.mail-content{ flex:1;overflow:hidden; }
+.mail-sender{ font-size:12px;font-weight:600;margin-bottom:3px; }
+.mail-subject{ font-size:12px;color:var(--text2);margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+.mail-preview{ font-size:11px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+.mail-ts{ font-size:10px;color:var(--text3);font-family:var(--mono);white-space:nowrap; }
+
+.mail-view{
+  flex:1;overflow-y:auto;padding:24px 28px;
+  scrollbar-width:thin;
+  scrollbar-color:var(--s4) transparent;
+}
+.mail-view-head{
+  margin-bottom:20px;
+  padding-bottom:16px;
+  border-bottom:1px solid var(--border);
+}
+.mail-view-subject{ font-family:var(--serif);font-size:22px;margin-bottom:12px;line-height:1.3; }
+.mail-view-meta{ display:flex;gap:14px;flex-wrap:wrap; }
+.meta-chip{
+  font-size:11px;color:var(--text3);
+  display:flex;align-items:center;gap:4px;
+}
+.meta-chip strong{ color:var(--text2); }
+.mail-view-body{
+  font-size:14px;line-height:1.8;
+  color:var(--text);
+  white-space:pre-wrap;
+  word-break:break-word;
+}
+.mail-sig-bar{
+  margin-top:20px;
+  padding:10px 14px;
+  background:rgba(134,239,172,0.06);
+  border:1px solid rgba(134,239,172,0.15);
+  border-radius:var(--r);
+  font-size:11px;
+  font-family:var(--mono);
+  color:var(--sage);
+  display:flex;align-items:center;gap:8px;
+}
+
+/* ══════════════ FILE SHARE ══════════════ */
+.file-card{
+  background:var(--s2);
+  border:1px solid var(--border);
+  border-radius:var(--r2);
+  padding:16px;
+  display:flex;align-items:center;gap:14px;
+  transition:border-color 0.15s;
+  cursor:pointer;
+}
+.file-card:hover{ border-color:var(--border2); }
+.file-icon-box{
+  width:44px;height:44px;
+  background:var(--s3);
+  border:1px solid var(--border2);
+  border-radius:var(--r);
+  display:flex;align-items:center;justify-content:center;
+  font-size:20px;
+  flex-shrink:0;
+}
+.file-info{ flex:1;overflow:hidden; }
+.file-name{ font-size:13px;font-weight:600;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+.file-meta{ font-size:11px;color:var(--text3); }
+.file-hash{ font-size:9px;color:var(--text3);font-family:var(--mono);margin-top:3px;letter-spacing:0.3px; }
+.file-actions{ display:flex;gap:6px;flex-shrink:0; }
+
+/* ══════════════ STATUS BAR ══════════════ */
+#statusbar{
+  position:fixed;bottom:0;left:0;right:0;
+  height:22px;
+  background:var(--s1);
+  border-top:1px solid var(--border);
+  display:flex;align-items:center;
+  padding:0 14px;gap:16px;
+  font-size:10px;color:var(--text3);
+  font-family:var(--mono);
+  z-index:100;
+}
+.sb-item{ display:flex;align-items:center;gap:5px; }
+.sb-dot{ width:5px;height:5px;border-radius:50%;background:var(--sage);box-shadow:0 0 5px var(--sage); }
+.sb-dot.warn{ background:var(--gold);box-shadow:0 0 5px var(--gold); }
+.sb-did{ color:var(--text3);max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+
+/* ══════════════ TOASTS ══════════════ */
+#toast-container{
+  position:fixed;bottom:32px;right:20px;
+  display:flex;flex-direction:column;gap:8px;
+  z-index:999;
+}
+.toast{
+  background:var(--s3);
+  border:1px solid var(--border2);
+  border-radius:var(--r);
+  padding:10px 14px;
+  font-size:12px;
+  display:flex;align-items:center;gap:8px;
+  animation:slideIn 0.2s ease;
+  box-shadow:0 8px 24px rgba(0,0,0,0.4);
+}
+.toast.ok{ border-color:rgba(134,239,172,0.3);color:var(--sage); }
+.toast.warn{ border-color:rgba(232,160,32,0.3);color:var(--gold2); }
+@keyframes slideIn{
+  from{opacity:0;transform:translateX(20px);}
+  to  {opacity:1;transform:translateX(0);}
+}
+
+/* ══════════════ SCROLLBARS ══════════════ */
+::-webkit-scrollbar{ width:4px;height:4px; }
+::-webkit-scrollbar-track{ background:transparent; }
+::-webkit-scrollbar-thumb{ background:var(--s4);border-radius:4px; }
+
+/* ══════════════ ANIMATIONS ══════════════ */
+@keyframes msgIn{
+  from{opacity:0;transform:translateY(6px);}
+  to  {opacity:1;transform:translateY(0);}
+}
+.msg-new{ animation:msgIn 0.2s ease; }
+.post-new{ animation:msgIn 0.3s ease; }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════
+     RAIL
+══════════════════════════════════════════════════ -->
+<nav id="rail">
+  <div class="rail-brand" onclick="showAbout()" title="Forge Square">◈</div>
+
+  <button class="rail-btn active" id="rail-square"   onclick="switchView('square')"   title="Public Square">🌐</button>
+  <button class="rail-btn"        id="rail-messages"  onclick="switchView('messages')" title="Direct Messages">
+    💬
+    <div class="rail-notif" id="rail-notif-dm" style="display:none;"></div>
+  </button>
+  <button class="rail-btn"        id="rail-channels"  onclick="switchView('channels')" title="Channels">📡</button>
+  <button class="rail-btn"        id="rail-mail"      onclick="switchView('mail')"     title="Secure Mail">
+    ✉️
+    <div class="rail-notif" id="rail-notif-mail" style="display:none;"></div>
+  </button>
+  <button class="rail-btn"        id="rail-files"     onclick="switchView('files')"    title="Files">📎</button>
+
+  <div class="rail-sep"></div>
+  <button class="rail-btn" onclick="switchView('contacts')" id="rail-contacts" title="Contacts">👥</button>
+
+  <div class="rail-avatar" id="rail-avatar" onclick="showMyProfile()" title="My Profile">?</div>
+</nav>
+
+<!-- ══════════════════════════════════════════════════
+     SIDEBAR (list panel — swapped by view)
+══════════════════════════════════════════════════ -->
+<div id="sidebar">
+  <div class="sidebar-head">
+    <div class="sidebar-title" id="sb-title">The Square</div>
+    <div class="sidebar-sub"   id="sb-sub">Public · signed · sovereign</div>
+    <div class="sidebar-search">
+      <span class="search-icon">⌕</span>
+      <input type="text" placeholder="Search…" id="sb-search" oninput="sidebarSearch(this.value)">
+    </div>
+  </div>
+  <div class="sidebar-body" id="sb-body">
+    <!-- populated by JS -->
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     MAIN CONTENT
+══════════════════════════════════════════════════ -->
+<div id="main">
+
+  <!-- Head bar -->
+  <div class="main-head" id="main-head">
+    <div class="head-avatar" id="head-avatar" style="background:linear-gradient(135deg,#e8a020,#c87020);">🌐</div>
+    <div class="head-info">
+      <div class="head-name"  id="head-name">The Square</div>
+      <div class="head-sub"   id="head-sub">Public broadcast · all signed messages</div>
+    </div>
+    <div class="head-actions" id="head-actions">
+      <button class="btn btn-sm" onclick="refreshView()">↺</button>
+    </div>
+  </div>
+
+  <!-- Messages / Feed area -->
+  <div id="messages">
+    <!-- populated by JS -->
+  </div>
+
+  <!-- Compose pane -->
+  <div id="compose-pane">
+    <div class="compose-recipient" id="compose-recipient-row" style="display:none;">
+      <span>To:</span>
+      <input type="text" id="compose-to" placeholder="@username or DID…">
+    </div>
+    <div id="compose-subject-row" style="display:none;margin-bottom:10px;">
+      <input type="text" id="compose-subject" placeholder="Subject…"
+        style="width:100%;background:var(--s3);border:1px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:13px;padding:8px 12px;outline:none;font-family:var(--sans);">
+    </div>
+    <div class="compose-box">
+      <textarea class="compose-textarea" id="compose-text" placeholder="Write something…" rows="3"
+        onkeydown="composeKeydown(event)"></textarea>
+      <div class="compose-toolbar">
+        <button class="compose-tool" onclick="attachFile()" title="Attach file">📎</button>
+        <button class="compose-tool" onclick="insertEmoji('👍')" title="Emoji">😊</button>
+        <button class="compose-tool" id="compose-enc-btn" onclick="toggleEncrypt()" title="Encrypt">🔓</button>
+        <input type="file" id="file-input" style="display:none;" onchange="handleFileSelect(this)">
+        <div id="attach-name" style="font-size:11px;color:var(--gold2);display:none;flex:1;"></div>
+        <div class="compose-actions">
+          <button class="btn btn-sm" id="compose-send-label" onclick="sendMessage()" style="display:none;">Send DM</button>
+          <button class="btn btn-gold btn-sm" id="compose-post-label" onclick="postToSquare()">Post to Square</button>
+        </div>
+      </div>
+    </div>
+    <div style="font-size:10px;color:var(--text3);margin-top:8px;font-family:var(--mono);display:flex;align-items:center;gap:6px;">
+      <span style="color:var(--gold);opacity:0.7;">⬡</span>
+      <span id="compose-sig-label">All messages signed with your sovereign identity</span>
+    </div>
+  </div>
+
+</div>
+
+<!-- Status bar -->
+<div id="statusbar">
+  <div class="sb-item"><div class="sb-dot" id="sb-net-dot"></div><span id="sb-net">Local only</span></div>
+  <div class="sb-item"><span>⬡</span><span class="sb-did" id="sb-did">—</span></div>
+  <div class="sb-item" style="margin-left:auto;" id="sb-count">0 posts · 0 messages</div>
+</div>
+
+<!-- Toast container -->
+<div id="toast-container"></div>
+
+<script>
+'use strict';
+
+// ══════════════════════════════════════════════════════════════
+//  SOVEREIGN BRIDGE
+// ══════════════════════════════════════════════════════════════
+const Sovereign = (() => {
+  let _mockId = null;
+
+  async function _getMockId() {
+    if (_mockId) return _mockId;
+    const stored = _ls('sovId');
+    if (stored) { _mockId = stored; return _mockId; }
+    const bytes = crypto.getRandomValues(new Uint8Array(20));
+    const hex   = Array.from(bytes).map(b=>b.toString(16).padStart(2,'0')).join('');
+    _mockId = {
+      did:       'did:sovereign:' + hex,
+      username:  'you',
+      pubKeyHex: hex.slice(0, 8),
+      displayName: 'You'
+    };
+    _saveLs('sovId', _mockId);
+    return _mockId;
+  }
+
+  async function getIdentity()  { return window.sovereign?.getIdentity?.() || _getMockId(); }
+  async function sign(payload)  {
+    if (window.sovereign?.sign) return window.sovereign.sign(payload);
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(payload)));
+    const hex = Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+    return { sig: hex, ts: Date.now(), mock: true };
+  }
+  function store(k,v) { if(window.sovereign?.store) return window.sovereign.store(k,v); _saveLs(k,v); }
+  function load(k)    { return window.sovereign?.load?.(k) || _ls(k); }
+  function isReal()   { return !!window.sovereign?.getIdentity; }
+
+  function _saveLs(k,v){ try{localStorage.setItem('fsq_'+k,JSON.stringify(v));}catch{} }
+  function _ls(k){ try{return JSON.parse(localStorage.getItem('fsq_'+k));}catch{return null;} }
+
+  return { getIdentity, sign, store, load, isReal };
+})();
+
+// ══════════════════════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════════════════════
+let ME = null;
+let VIEW = 'square';          // square | messages | channels | mail | files | contacts
+let ACTIVE_CONVO = null;      // selected DM contact
+let ACTIVE_CHANNEL = 'general';
+let ACTIVE_MAIL = null;
+let ENCRYPT_ON = false;
+let ATTACH = null;
+
+const Data = {
+  posts:     [],    // { id, author, did, text, ts, sig, reactions:{} }
+  dms:       {},    // { did: [{id,from,to,text,ts,sig}] }
+  contacts:  [],    // { did, username, displayName, lastSeen }
+  channels:  {
+    'general':    [],
+    'dev':        [],
+    'sovereign':  [],
+    'off-topic':  [],
+  },
+  mail: {
+    inbox:  [],  // { id, from, subject, body, ts, sig, read }
+    outbox: [],
+  },
+  files: [],      // { id, name, size, type, hash, from, ts, data }
+
+  save() {
+    Sovereign.store('sq_posts',    this.posts.slice(0,100));
+    Sovereign.store('sq_contacts', this.contacts);
+    Sovereign.store('sq_channels', this.channels);
+    Sovereign.store('sq_mail',     this.mail);
+    Sovereign.store('sq_dms',      this.dms);
+    Sovereign.store('sq_files',    this.files.map(f=>({...f, data: undefined})));
+  },
+  load() {
+    const posts    = Sovereign.load('sq_posts');
+    const contacts = Sovereign.load('sq_contacts');
+    const channels = Sovereign.load('sq_channels');
+    const mail     = Sovereign.load('sq_mail');
+    const dms      = Sovereign.load('sq_dms');
+    if (posts)    this.posts    = posts;
+    if (contacts) this.contacts = contacts;
+    if (channels) { for (const k in channels) { if (this.channels[k]) this.channels[k] = channels[k]; } }
+    if (mail)     this.mail     = mail;
+    if (dms)      this.dms      = dms;
+  }
+};
+
+// ══════════════════════════════════════════════════════════════
+//  AVATAR COLORS
+// ══════════════════════════════════════════════════════════════
+const AVATAR_COLORS = [
+  ['#e8a020','#c87020'],['#2dd4bf','#0d9488'],['#fb7185','#e11d48'],
+  ['#a78bfa','#7c3aed'],['#86efac','#16a34a'],['#fbbf24','#d97706'],
+];
+function avatarStyle(seed) {
+  const i = (seed?.charCodeAt?.(14) || 0) % AVATAR_COLORS.length;
+  const [a,b] = AVATAR_COLORS[i];
+  return `background:linear-gradient(135deg,${a},${b});`;
+}
+function avatarInitial(name) {
+  return (name || '?')[0].toUpperCase();
+}
+
+// ══════════════════════════════════════════════════════════════
+//  TOAST
+// ══════════════════════════════════════════════════════════════
+function toast(msg, type='ok') {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.innerHTML = `<span>${type==='ok'?'✓':'⚠'}</span> ${msg}`;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(() => el.remove(), 3200);
+}
+
+// ══════════════════════════════════════════════════════════════
+//  TIME FORMAT
+// ══════════════════════════════════════════════════════════════
+function fmtTime(ts) {
+  const d = new Date(ts);
+  const now = new Date();
+  const today = now.toDateString() === d.toDateString();
+  if (today) return d.toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit',hour12:false});
+  return d.toLocaleDateString('en',{month:'short',day:'numeric'}) + ' ' +
+         d.toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit',hour12:false});
+}
+
+function shortDid(did) {
+  if (!did) return '—';
+  return did.substring(0, 22) + '…';
+}
+
+function shortHash(hex) {
+  if (!hex) return '—';
+  return hex.substring(0, 14) + '…';
+}
+
+// ══════════════════════════════════════════════════════════════
+//  SIGNING HELPER
+// ══════════════════════════════════════════════════════════════
+async function signPayload(payload) {
+  const { sig, mock } = await Sovereign.sign(payload);
+  return { sig, mock: !!mock };
+}
+
+// ══════════════════════════════════════════════════════════════
+//  VIEW SWITCHER
+// ══════════════════════════════════════════════════════════════
+function switchView(view) {
+  VIEW = view;
+  document.querySelectorAll('.rail-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('rail-'+view)?.classList.add('active');
+
+  const composeRecip  = document.getElementById('compose-recipient-row');
+  const composeSubj   = document.getElementById('compose-subject-row');
+  const sendBtn       = document.getElementById('compose-send-label');
+  const postBtn       = document.getElementById('compose-post-label');
+  const composePaneEl = document.getElementById('compose-pane');
+
+  // Reset compose
+  composeRecip.style.display = 'none';
+  composeSubj.style.display  = 'none';
+  sendBtn.style.display      = 'none';
+  postBtn.style.display      = 'flex';
+  composePaneEl.style.display = 'block';
+
+  switch(view) {
+    case 'square':
+      renderSquareSidebar();
+      renderSquareFeed();
+      setHead('🌐', 'The Square', 'Public broadcast · all messages signed and verified');
+      document.getElementById('compose-text').placeholder = 'Share something with the world…';
+      postBtn.textContent = 'Post to Square';
+      break;
+    case 'messages':
+      renderDMSidebar();
+      renderDMView();
+      setHead('💬', ACTIVE_CONVO?.displayName || 'Direct Messages', ACTIVE_CONVO ? shortDid(ACTIVE_CONVO.did) : 'Select a contact to start a conversation');
+      composeRecip.style.display = 'flex';
+      sendBtn.style.display = 'flex';
+      postBtn.style.display = 'none';
+      document.getElementById('compose-text').placeholder = 'Write a message…';
+      break;
+    case 'channels':
+      renderChannelSidebar();
+      renderChannelView();
+      setHead('📡', '#' + ACTIVE_CHANNEL, 'Sovereign channel · messages signed by members');
+      document.getElementById('compose-text').placeholder = `Message #${ACTIVE_CHANNEL}…`;
+      postBtn.textContent = 'Send to Channel';
+      break;
+    case 'mail':
+      renderMailSidebar();
+      renderMailView();
+      setHead('✉️', 'Secure Mail', 'Long-form signed messages · async delivery');
+      composeRecip.style.display = 'flex';
+      composeSubj.style.display = 'block';
+      sendBtn.style.display = 'flex';
+      sendBtn.textContent = 'Send Mail';
+      postBtn.style.display = 'none';
+      document.getElementById('compose-text').placeholder = 'Write your message…';
+      break;
+    case 'files':
+      renderFilesSidebar();
+      renderFilesView();
+      setHead('📎', 'Shared Files', 'Files signed and verified by sender identity');
+      composePaneEl.style.display = 'none';
+      break;
+    case 'contacts':
+      renderContactsSidebar();
+      renderContactsView();
+      setHead('👥', 'Contacts', 'Your sovereign contact list');
+      composePaneEl.style.display = 'none';
+      break;
+  }
+  updateStatusBar();
+}
+
+function setHead(icon, name, sub) {
+  const av = document.getElementById('head-avatar');
+  av.textContent = icon;
+  av.style = '';
+  document.getElementById('head-name').textContent = name;
+  document.getElementById('head-sub').textContent  = sub;
+}
+
+// ══════════════════════════════════════════════════════════════
+//  THE SQUARE — public feed
+// ══════════════════════════════════════════════════════════════
+function renderSquareSidebar() {
+  const sbTitle = document.getElementById('sb-title');
+  const sbSub   = document.getElementById('sb-sub');
+  sbTitle.textContent = 'The Square';
+  sbSub.textContent   = Data.posts.length + ' posts';
+
+  const body = document.getElementById('sb-body');
+  body.innerHTML = '';
+
+  // Stats panel at top
+  const stats = document.createElement('div');
+  stats.style.cssText = 'padding:14px 18px;border-bottom:1px solid var(--border);';
+  stats.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <div style="background:var(--s3);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;">
+        <div style="font-size:18px;font-weight:800;">${Data.posts.length}</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:2px;">Your Posts</div>
+      </div>
+      <div style="background:var(--s3);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;">
+        <div style="font-size:18px;font-weight:800;">${Data.contacts.length}</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:2px;">Contacts</div>
+      </div>
+    </div>
+  `;
+  body.appendChild(stats);
+
+  // Recent posters
+  const section = document.createElement('div');
+  section.innerHTML = '<div class="section-divider">Recent Posters</div>';
+  body.appendChild(section);
+
+  const seen = new Set();
+  Data.posts.slice(0,8).forEach(p => {
+    if (seen.has(p.did)) return;
+    seen.add(p.did);
+    const isMe = p.did === ME?.did;
+    const item = document.createElement('div');
+    item.className = 'convo-item';
+    item.style.cursor = 'default';
+    item.innerHTML = `
+      <div class="convo-avatar" style="${avatarStyle(p.did)}">${avatarInitial(p.author)}</div>
+      <div class="convo-info">
+        <div class="convo-name">${isMe ? 'You' : p.author}</div>
+        <div class="convo-preview">${p.text.substring(0,40)}…</div>
+      </div>
+    `;
+    body.appendChild(item);
+  });
+
+  if (Data.posts.length === 0) {
+    const empty = document.createElement('div');
+    empty.style.cssText = 'padding:20px 18px;text-align:center;color:var(--text3);font-size:12px;';
+    empty.textContent = 'No posts yet. Be the first.';
+    body.appendChild(empty);
+  }
+}
+
+function renderSquareFeed() {
+  const el = document.getElementById('messages');
+  el.innerHTML = '';
+
+  if (Data.posts.length === 0) {
+    el.innerHTML = `<div class="empty-state">
+      <div class="empty-glyph">◈</div>
+      <div class="empty-title">The Square is quiet</div>
+      <div class="empty-sub">Post something to start the conversation. Every message is signed with your sovereign identity.</div>
+    </div>`;
+    return;
+  }
+
+  const grouped = groupByDate(Data.posts, 'ts');
+  grouped.forEach(({ date, items }) => {
+    const divider = document.createElement('div');
+    divider.className = 'date-divider';
+    divider.innerHTML = `<span>${date}</span>`;
+    el.appendChild(divider);
+
+    items.forEach(post => el.appendChild(buildPostEl(post)));
+  });
+
+  el.scrollTop = el.scrollHeight;
+}
+
+function buildPostEl(post) {
+  const isMe = post.did === ME?.did;
+  const div = document.createElement('div');
+  div.className = 'post';
+  div.id = 'post-' + post.id;
+
+  const reactions = post.reactions || {};
+  const reactionHtml = Object.entries(reactions).map(([em, users]) =>
+    `<div class="reaction ${users.includes(ME?.did)?'active':''}" onclick="react('${post.id}','${em}')">
+      ${em} <span>${users.length}</span>
+    </div>`
+  ).join('');
+
+  const emojiRow = ['👍','❤️','🔥','⬡'].map(em =>
+    `<div class="reaction" onclick="react('${post.id}','${em}')" title="${em}">
+      ${em} <span>${(reactions[em]||[]).length || ''}</span>
+    </div>`
+  ).join('');
+
+  div.innerHTML = `
+    <div class="post-head">
+      <div class="post-avatar" style="${avatarStyle(post.did)}">${avatarInitial(post.author)}</div>
+      <div class="post-author">
+        <div class="post-name">${isMe ? 'You' : post.author}</div>
+        <div class="post-did">${shortDid(post.did)}</div>
+      </div>
+      <div class="post-ts">${fmtTime(post.ts)}</div>
+    </div>
+    <div class="post-body">${escapeHtml(post.text)}</div>
+    <div class="post-footer">
+      <button class="post-action" onclick="react('${post.id}','❤️')">♥ ${(post.reactions?.['❤️']||[]).length||''}</button>
+      <button class="post-action" onclick="replyToPost('${post.id}')">↩ Reply</button>
+      ${isMe ? `<button class="post-action" onclick="deletePost('${post.id}')">✕ Delete</button>` : ''}
+      <span class="msg-sig ${post.mock?'sig-mock':'sig-ok'}" style="margin-left:4px;">⬡ ${post.mock?'mock-signed':'verified'}</span>
+      <span class="post-hash">${shortHash(post.sig)}</span>
+    </div>
+  `;
+  return div;
+}
+
+async function postToSquare() {
+  const text = document.getElementById('compose-text').value.trim();
+  if (!text) { toast('Write something first', 'warn'); return; }
+
+  const post = {
+    id:        'post_' + Date.now(),
+    author:    ME?.username || 'you',
+    did:       ME?.did      || 'unknown',
+    text, ts:  Date.now(),
+    reactions: {}
+  };
+
+  const { sig, mock } = await signPayload({ text, ts: post.ts, did: post.did });
+  post.sig  = sig;
+  post.mock = mock;
+
+  Data.posts.unshift(post);
+  Data.save();
+
+  document.getElementById('compose-text').value = '';
+  renderSquareFeed();
+  renderSquareSidebar();
+  updateStatusBar();
+  toast('Posted to the Square');
+}
+
+function deletePost(id) {
+  Data.posts = Data.posts.filter(p => p.id !== id);
+  Data.save();
+  renderSquareFeed();
+  renderSquareSidebar();
+}
+
+async function react(postId, emoji) {
+  const post = Data.posts.find(p => p.id === postId);
+  if (!post) return;
+  post.reactions = post.reactions || {};
+  post.reactions[emoji] = post.reactions[emoji] || [];
+  const idx = post.reactions[emoji].indexOf(ME?.did);
+  if (idx >= 0) post.reactions[emoji].splice(idx, 1);
+  else post.reactions[emoji].push(ME?.did);
+  Data.save();
+  document.getElementById('post-'+postId)?.replaceWith(buildPostEl(post));
+}
+
+function replyToPost(id) {
+  const post = Data.posts.find(p => p.id === id);
+  if (!post) return;
+  document.getElementById('compose-text').value = `@${post.author} `;
+  document.getElementById('compose-text').focus();
+}
+
+// ══════════════════════════════════════════════════════════════
+//  DIRECT MESSAGES
+// ══════════════════════════════════════════════════════════════
+function renderDMSidebar() {
+  document.getElementById('sb-title').textContent = 'Messages';
+  document.getElementById('sb-sub').textContent   = Data.contacts.length + ' contacts';
+  const body = document.getElementById('sb-body');
+  body.innerHTML = '';
+
+  const newBtn = document.createElement('div');
+  newBtn.style.cssText = 'padding:12px 18px;border-bottom:1px solid var(--border);';
+  newBtn.innerHTML = `<button class="btn" style="width:100%;" onclick="newContact()">＋ New Contact</button>`;
+  body.appendChild(newBtn);
+
+  if (!Data.contacts.length) {
+    const e = document.createElement('div');
+    e.style.cssText = 'padding:20px 18px;text-align:center;color:var(--text3);font-size:12px;';
+    e.textContent = 'No contacts yet.';
+    body.appendChild(e);
+    return;
+  }
+
+  Data.contacts.forEach(c => {
+    const thread = Data.dms[c.did] || [];
+    const last   = thread[thread.length - 1];
+    const unread = thread.filter(m => !m.read && m.from !== ME?.did).length;
+    const isActive = ACTIVE_CONVO?.did === c.did;
+
+    const item = document.createElement('div');
+    item.className = 'convo-item' + (isActive ? ' active' : '');
+    item.onclick = () => { ACTIVE_CONVO = c; switchView('messages'); };
+    item.innerHTML = `
+      <div class="convo-avatar" style="${avatarStyle(c.did)}">
+        ${avatarInitial(c.displayName || c.username)}
+        <div class="convo-online" style="display:none;"></div>
+      </div>
+      <div class="convo-info">
+        <div class="convo-name">${c.displayName || c.username}</div>
+        <div class="convo-preview">${last ? escapeHtml(last.text.substring(0,38)) : 'No messages yet'}</div>
+      </div>
+      <div class="convo-meta">
+        <span class="convo-time">${last ? fmtTime(last.ts) : ''}</span>
+        ${unread ? `<span class="convo-badge">${unread}</span>` : ''}
+      </div>
+    `;
+    body.appendChild(item);
+  });
+}
+
+function renderDMView() {
+  const el = document.getElementById('messages');
+  el.innerHTML = '';
+
+  if (!ACTIVE_CONVO) {
+    el.innerHTML = `<div class="empty-state">
+      <div class="empty-glyph">💬</div>
+      <div class="empty-title">Direct Messages</div>
+      <div class="empty-sub">Select a contact to start a private conversation. Messages are signed end-to-end.</div>
+    </div>`;
+    return;
+  }
+
+  setHead(avatarInitial(ACTIVE_CONVO.displayName), ACTIVE_CONVO.displayName || ACTIVE_CONVO.username, shortDid(ACTIVE_CONVO.did));
+  document.getElementById('compose-to').value = ACTIVE_CONVO.did;
+
+  const thread = Data.dms[ACTIVE_CONVO.did] || [];
+  if (!thread.length) {
+    el.innerHTML = `<div class="empty-state">
+      <div class="empty-glyph">✉</div>
+      <div class="empty-title">No messages yet</div>
+      <div class="empty-sub">Send your first message to ${ACTIVE_CONVO.displayName || ACTIVE_CONVO.username}</div>
+    </div>`;
+    return;
+  }
+
+  // Mark as read
+  thread.forEach(m => { if (m.from !== ME?.did) m.read = true; });
+  Data.save();
+
+  const grouped = groupByDate(thread, 'ts');
+  grouped.forEach(({ date, items }) => {
+    const divider = document.createElement('div');
+    divider.className = 'date-divider';
+    divider.innerHTML = `<span>${date}</span>`;
+    el.appendChild(divider);
+    items.forEach(msg => el.appendChild(buildMsgEl(msg)));
+  });
+
+  el.scrollTop = el.scrollHeight;
+}
+
+function buildMsgEl(msg) {
+  const isMe = msg.from === ME?.did;
+  const contact = Data.contacts.find(c => c.did === msg.from);
+  const name = isMe ? 'You' : (contact?.displayName || contact?.username || shortDid(msg.from));
+
+  const div = document.createElement('div');
+  div.className = 'msg' + (isMe ? ' mine' : '') + ' msg-new';
+
+  const avatarStyle_ = isMe
+    ? `background:linear-gradient(135deg,var(--gold),#c87020);`
+    : avatarStyle(msg.from);
+
+  div.innerHTML = `
+    <div class="msg-avatar" style="${avatarStyle_}">${avatarInitial(name)}</div>
+    <div class="msg-body">
+      <div class="msg-meta">
+        <span class="msg-author">${name}</span>
+        <span class="msg-time">${fmtTime(msg.ts)}</span>
+        <span class="msg-sig ${msg.mock?'sig-mock':'sig-ok'}">⬡ ${msg.mock?'mock':'verified'}</span>
+      </div>
+      <div class="msg-text">${escapeHtml(msg.text)}</div>
+    </div>
+  `;
+  return div;
+}
+
+async function sendMessage() {
+  const text = document.getElementById('compose-text').value.trim();
+  const toDid = ACTIVE_CONVO?.did || document.getElementById('compose-to')?.value?.trim();
+  if (!text || !toDid) { toast('Select a contact and write a message', 'warn'); return; }
+
+  const msg = {
+    id:   'dm_' + Date.now(),
+    from: ME?.did,
+    to:   toDid,
+    text, ts: Date.now(),
+    read: true
+  };
+
+  const { sig, mock } = await signPayload({ text, from: msg.from, to: msg.to, ts: msg.ts });
+  msg.sig  = sig;
+  msg.mock = mock;
+
+  if (!Data.dms[toDid]) Data.dms[toDid] = [];
+  Data.dms[toDid].push(msg);
+  Data.save();
+
+  document.getElementById('compose-text').value = '';
+  renderDMView();
+  renderDMSidebar();
+  toast('Message sent');
+}
+
+async function newContact() {
+  const did = prompt('Enter contact DID or username:');
+  if (!did?.trim()) return;
+  const username = did.startsWith('did:') ? did.substring(14, 28) : did;
+  const contact = {
+    did: did.startsWith('did:') ? did : 'did:sovereign:' + did,
+    username, displayName: username,
+    addedAt: Date.now()
+  };
+  if (!Data.contacts.find(c => c.did === contact.did)) {
+    Data.contacts.push(contact);
+    Data.save();
+  }
+  ACTIVE_CONVO = contact;
+  renderDMSidebar();
+  renderDMView();
+  toast('Contact added');
+}
+
+// ══════════════════════════════════════════════════════════════
+//  CHANNELS
+// ══════════════════════════════════════════════════════════════
+function renderChannelSidebar() {
+  document.getElementById('sb-title').textContent = 'Channels';
+  document.getElementById('sb-sub').textContent   = Object.keys(Data.channels).length + ' channels';
+  const body = document.getElementById('sb-body');
+  body.innerHTML = '';
+
+  document.createElement('div');
+  const head = document.createElement('div');
+  head.innerHTML = '<div class="section-divider">Your Channels</div>';
+  body.appendChild(head);
+
+  Object.keys(Data.channels).forEach(ch => {
+    const count = Data.channels[ch].length;
+    const item = document.createElement('div');
+    item.className = 'channel-item' + (ACTIVE_CHANNEL === ch ? ' active' : '');
+    item.onclick = () => { ACTIVE_CHANNEL = ch; switchView('channels'); };
+    item.innerHTML = `
+      <span class="channel-icon">#</span>
+      <span class="channel-name">${ch}</span>
+      <span class="channel-count">${count}</span>
+    `;
+    body.appendChild(item);
+  });
+
+  const sep = document.createElement('div');
+  sep.innerHTML = '<div class="section-divider" style="margin-top:8px;">Actions</div>';
+  body.appendChild(sep);
+  const newCh = document.createElement('div');
+  newCh.style.cssText = 'padding:8px 18px;';
+  newCh.innerHTML = `<button class="btn" style="width:100%;font-size:11px;" onclick="createChannel()">＋ Create Channel</button>`;
+  body.appendChild(newCh);
+}
+
+function renderChannelView() {
+  const el = document.getElementById('messages');
+  el.innerHTML = '';
+  setHead('📡', '#' + ACTIVE_CHANNEL, 'Sovereign channel · signed by members');
+  document.getElementById('compose-text').placeholder = `Message #${ACTIVE_CHANNEL}…`;
+  document.getElementById('compose-post-label').textContent = 'Send';
+
+  const msgs = Data.channels[ACTIVE_CHANNEL] || [];
+  if (!msgs.length) {
+    el.innerHTML = `<div class="empty-state">
+      <div class="empty-glyph">#</div>
+      <div class="empty-title">#${ACTIVE_CHANNEL}</div>
+      <div class="empty-sub">No messages yet. Start the conversation.</div>
+    </div>`;
+    return;
+  }
+
+  const grouped = groupByDate(msgs, 'ts');
+  grouped.forEach(({ date, items }) => {
+    const divider = document.createElement('div');
+    divider.className = 'date-divider';
+    divider.innerHTML = `<span>${date}</span>`;
+    el.appendChild(divider);
+    items.forEach(msg => el.appendChild(buildMsgEl(msg)));
+  });
+
+  el.scrollTop = el.scrollHeight;
+}
+
+async function postToChannelOrSquare() {
+  if (VIEW === 'channels') {
+    await postToChannel();
+  } else {
+    await postToSquare();
+  }
+}
+
+async function postToChannel() {
+  const text = document.getElementById('compose-text').value.trim();
+  if (!text) return;
+
+  const msg = {
+    id:   'ch_' + Date.now(),
+    from: ME?.did,
+    channel: ACTIVE_CHANNEL,
+    author: ME?.username || 'you',
+    text, ts: Date.now()
+  };
+  const { sig, mock } = await signPayload(msg);
+  msg.sig = sig; msg.mock = mock;
+
+  if (!Data.channels[ACTIVE_CHANNEL]) Data.channels[ACTIVE_CHANNEL] = [];
+  Data.channels[ACTIVE_CHANNEL].push(msg);
+  Data.save();
+
+  document.getElementById('compose-text').value = '';
+  renderChannelView();
+  renderChannelSidebar();
+  toast(`Sent to #${ACTIVE_CHANNEL}`);
+}
+
+function createChannel() {
+  const name = prompt('Channel name (lowercase, no spaces):');
+  if (!name) return;
+  const clean = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+  if (!clean) return;
+  if (!Data.channels[clean]) Data.channels[clean] = [];
+  ACTIVE_CHANNEL = clean;
+  Data.save();
+  switchView('channels');
+}
+
+// ══════════════════════════════════════════════════════════════
+//  SECURE MAIL
+// ══════════════════════════════════════════════════════════════
+function renderMailSidebar() {
+  document.getElementById('sb-title').textContent = 'Secure Mail';
+  const unread = Data.mail.inbox.filter(m => !m.read).length;
+  document.getElementById('sb-sub').textContent   = `${Data.mail.inbox.length} inbox · ${unread} unread`;
+
+  const body = document.getElementById('sb-body');
+  body.innerHTML = '';
+
+  // Folder tabs
+  const folders = document.createElement('div');
+  folders.style.cssText = 'display:flex;border-bottom:1px solid var(--border);';
+  ['Inbox','Outbox'].forEach((f,i) => {
+    const btn = document.createElement('button');
+    btn.textContent = f + (i===0 && unread ? ` (${unread})` : '');
+    btn.style.cssText = `flex:1;padding:10px;font-size:12px;font-weight:600;border:none;background:none;cursor:pointer;font-family:var(--sans);border-bottom:2px solid ${i===0?'var(--gold)':'transparent'};color:${i===0?'var(--gold)':'var(--text3)'};`;
+    btn.onclick = () => renderMailList(f.toLowerCase());
+    body.appendChild(btn);
+  });
+  body.appendChild(folders);
+
+  renderMailList('inbox', body);
+}
+
+function renderMailList(folder, container) {
+  const body = container || document.getElementById('sb-body');
+  const existing = body.querySelectorAll('.mail-item');
+  existing.forEach(e => e.remove());
+
+  const items = folder === 'inbox' ? Data.mail.inbox : Data.mail.outbox;
+  if (!items.length) {
+    const e = document.createElement('div');
+    e.className = 'mail-item';
+    e.style.cssText = 'color:var(--text3);font-size:12px;cursor:default;';
+    e.textContent = `No ${folder} mail.`;
+    body.appendChild(e);
+    return;
+  }
+
+  items.slice().reverse().forEach(mail => {
+    const item = document.createElement('div');
+    item.className = 'mail-item' + (!mail.read ? ' unread' : '') + (ACTIVE_MAIL?.id === mail.id ? ' active' : '');
+    item.onclick = () => { ACTIVE_MAIL = mail; mail.read = true; Data.save(); renderMailView(); renderMailSidebar(); };
+    item.innerHTML = `
+      ${!mail.read ? '<div class="mail-dot"></div>' : '<div style="width:7px;"></div>'}
+      <div class="mail-content">
+        <div class="mail-sender">${folder==='inbox' ? (mail.from || 'Unknown') : 'To: ' + (mail.to || '?')}</div>
+        <div class="mail-subject">${escapeHtml(mail.subject || '(no subject)')}</div>
+        <div class="mail-preview">${escapeHtml(mail.body?.substring(0,50) || '')}</div>
+      </div>
+      <div class="mail-ts">${fmtTime(mail.ts)}</div>
+    `;
+    body.appendChild(item);
+  });
+}
+
+function renderMailView() {
+  const el = document.getElementById('messages');
+  el.innerHTML = '';
+
+  if (!ACTIVE_MAIL) {
+    el.innerHTML = `<div class="empty-state">
+      <div class="empty-glyph">✉</div>
+      <div class="empty-title">Secure Mail</div>
+      <div class="empty-sub">Long-form signed messages. Every mail is cryptographically verified against the sender's sovereign identity.</div>
+    </div>`;
+    return;
+  }
+
+  const mail = ACTIVE_MAIL;
+  const el2 = document.createElement('div');
+  el2.className = 'mail-view';
+  el2.innerHTML = `
+    <div class="mail-view-head">
+      <div class="mail-view-subject">${escapeHtml(mail.subject || '(no subject)')}</div>
+      <div class="mail-view-meta">
+        <div class="meta-chip">From: <strong>${escapeHtml(mail.from || 'Unknown')}</strong></div>
+        <div class="meta-chip">To: <strong>${escapeHtml(mail.to || ME?.did || '?')}</strong></div>
+        <div class="meta-chip">${fmtTime(mail.ts)}</div>
+      </div>
+    </div>
+    <div class="mail-view-body">${escapeHtml(mail.body || '')}</div>
+    <div class="mail-sig-bar" style="margin-top:20px;">
+      ⬡ ${mail.mock ? 'Mock-signed (standalone mode)' : 'Signature verified against sender DID'}
+      · hash: ${shortHash(mail.sig)}
+    </div>
+    <div style="margin-top:16px;display:flex;gap:8px;">
+      <button class="btn" onclick="replyToMail()">↩ Reply</button>
+      <button class="btn" onclick="ACTIVE_MAIL=null;renderMailView();" style="margin-left:auto;color:var(--rose);">Delete</button>
+    </div>
+  `;
+  el.appendChild(el2);
+}
+
+async function sendMail() {
+  const to      = document.getElementById('compose-to')?.value.trim();
+  const subject = document.getElementById('compose-subject')?.value.trim();
+  const body    = document.getElementById('compose-text').value.trim();
+  if (!to || !body) { toast('Fill in recipient and body', 'warn'); return; }
+
+  const mail = {
+    id: 'mail_' + Date.now(),
+    from: ME?.username || ME?.did || 'you',
+    to, subject: subject || '(no subject)',
+    body, ts: Date.now(), read: false
+  };
+  const { sig, mock } = await signPayload(mail);
+  mail.sig = sig; mail.mock = mock;
+
+  Data.mail.outbox.push(mail);
+  Data.save();
+
+  document.getElementById('compose-text').value    = '';
+  document.getElementById('compose-subject').value = '';
+  document.getElementById('compose-to').value      = '';
+  renderMailSidebar();
+  toast('Mail sent');
+}
+
+function replyToMail() {
+  if (!ACTIVE_MAIL) return;
+  document.getElementById('compose-to').value      = ACTIVE_MAIL.from;
+  document.getElementById('compose-subject').value = 'Re: ' + (ACTIVE_MAIL.subject || '');
+  document.getElementById('compose-text').focus();
+}
+
+// ══════════════════════════════════════════════════════════════
+//  FILES
+// ══════════════════════════════════════════════════════════════
+function renderFilesSidebar() {
+  document.getElementById('sb-title').textContent = 'Files';
+  document.getElementById('sb-sub').textContent   = Data.files.length + ' shared files';
+  const body = document.getElementById('sb-body');
+  body.innerHTML = '';
+
+  // Drop zone
+  const dropZone = document.createElement('div');
+  dropZone.style.cssText = 'padding:14px 18px;border-bottom:1px solid var(--border);';
+  dropZone.innerHTML = `
+    <div id="file-drop-zone" style="border:1px dashed var(--border2);border-radius:var(--r);padding:16px;text-align:center;cursor:pointer;font-size:11px;color:var(--text3);transition:all 0.2s;"
+      onclick="document.getElementById('file-input-share').click()"
+      ondragover="event.preventDefault();this.style.borderColor='var(--gold)'"
+      ondragleave="this.style.borderColor='var(--border2)'"
+      ondrop="handleFileDrop(event)">
+      Drop files here or click to share
+    </div>
+    <input type="file" id="file-input-share" style="display:none;" onchange="shareFileFromInput(this)">
+  `;
+  body.appendChild(dropZone);
+
+  const section = document.createElement('div');
+  section.innerHTML = '<div class="section-divider">Shared Files</div>';
+  body.appendChild(section);
+
+  if (!Data.files.length) {
+    const e = document.createElement('div');
+    e.style.cssText = 'padding:16px 18px;font-size:11px;color:var(--text3);';
+    e.textContent = 'No files shared yet.';
+    body.appendChild(e);
+  } else {
+    Data.files.forEach(f => {
+      const item = document.createElement('div');
+      item.className = 'convo-item';
+      item.style.cursor = 'default';
+      item.innerHTML = `
+        <div style="font-size:20px;">${fileEmoji(f.type)}</div>
+        <div class="convo-info">
+          <div class="convo-name" style="font-size:11px;">${f.name}</div>
+          <div class="convo-preview">${fmtSize(f.size)}</div>
+        </div>
+      `;
+      body.appendChild(item);
+    });
+  }
+}
+
+function renderFilesView() {
+  const el = document.getElementById('messages');
+  el.innerHTML = '';
+
+  if (!Data.files.length) {
+    el.innerHTML = `<div class="empty-state">
+      <div class="empty-glyph">📎</div>
+      <div class="empty-title">No files yet</div>
+      <div class="empty-sub">Drop files in the sidebar to share them. Each file gets a hash signature tied to your identity.</div>
+    </div>`;
+    return;
+  }
+
+  const wrapper = document.createElement('div');
+  wrapper.style.cssText = 'padding:20px;display:flex;flex-direction:column;gap:10px;';
+
+  Data.files.slice().reverse().forEach(f => {
+    const card = document.createElement('div');
+    card.className = 'file-card';
+    card.innerHTML = `
+      <div class="file-icon-box">${fileEmoji(f.type)}</div>
+      <div class="file-info">
+        <div class="file-name">${escapeHtml(f.name)}</div>
+        <div class="file-meta">${fmtSize(f.size)} · ${fmtTime(f.ts)} · from ${f.from || 'you'}</div>
+        <div class="file-hash">⬡ ${shortHash(f.hash)}</div>
+      </div>
+      <div class="file-actions">
+        ${f.data ? `<button class="btn btn-sm" onclick="downloadFile('${f.id}')">↓ Save</button>` : ''}
+        <button class="btn btn-sm" onclick="deleteFile('${f.id}')" style="color:var(--rose);">✕</button>
+      </div>
+    `;
+    wrapper.appendChild(card);
+  });
+
+  el.appendChild(wrapper);
+}
+
+async function shareFileFromInput(input) {
+  const file = input.files[0];
+  if (!file) return;
+  await addFile(file);
+  input.value = '';
+}
+
+async function handleFileDrop(e) {
+  e.preventDefault();
+  e.currentTarget.style.borderColor = 'var(--border2)';
+  const file = e.dataTransfer?.files?.[0];
+  if (file) await addFile(file);
+}
+
+async function addFile(file) {
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    const data  = e.target.result;
+    const buf   = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(data));
+    const hash  = Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+    const entry = {
+      id:   'f_' + Date.now(),
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      ts:   Date.now(),
+      from: ME?.username || 'you',
+      hash, data
+    };
+    Data.files.unshift(entry);
+    Data.save();
+    renderFilesSidebar();
+    renderFilesView();
+    toast('File shared: ' + file.name);
+  };
+  reader.readAsDataURL(file);
+}
+
+function downloadFile(id) {
+  const f = Data.files.find(f => f.id === id);
+  if (!f?.data) return;
+  const a = document.createElement('a');
+  a.href = f.data;
+  a.download = f.name;
+  a.click();
+}
+
+function deleteFile(id) {
+  Data.files = Data.files.filter(f => f.id !== id);
+  Data.save();
+  renderFilesSidebar();
+  renderFilesView();
+}
+
+function fileEmoji(type='') {
+  if (type.startsWith('image')) return '🖼️';
+  if (type.startsWith('video')) return '🎬';
+  if (type.startsWith('audio')) return '🎵';
+  if (type.includes('pdf'))     return '📄';
+  if (type.includes('zip') || type.includes('tar')) return '🗜️';
+  if (type.includes('json') || type.includes('text')) return '📝';
+  return '📎';
+}
+
+function fmtSize(bytes) {
+  if (!bytes) return '—';
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
+  return (bytes/1024/1024).toFixed(1) + ' MB';
+}
+
+// ══════════════════════════════════════════════════════════════
+//  CONTACTS
+// ══════════════════════════════════════════════════════════════
+function renderContactsSidebar() {
+  document.getElementById('sb-title').textContent = 'Contacts';
+  document.getElementById('sb-sub').textContent   = Data.contacts.length + ' contacts';
+  const body = document.getElementById('sb-body');
+  body.innerHTML = '';
+
+  const btn = document.createElement('div');
+  btn.style.cssText = 'padding:12px 18px;border-bottom:1px solid var(--border);';
+  btn.innerHTML = `<button class="btn" style="width:100%;" onclick="newContact()">＋ Add Contact</button>`;
+  body.appendChild(btn);
+
+  Data.contacts.forEach(c => {
+    const item = document.createElement('div');
+    item.className = 'convo-item';
+    item.onclick = () => { ACTIVE_CONVO = c; switchView('messages'); };
+    item.innerHTML = `
+      <div class="convo-avatar" style="${avatarStyle(c.did)}">${avatarInitial(c.displayName || c.username)}</div>
+      <div class="convo-info">
+        <div class="convo-name">${c.displayName || c.username}</div>
+        <div class="convo-preview" style="font-family:var(--mono);font-size:10px;">${shortDid(c.did)}</div>
+      </div>
+    `;
+    body.appendChild(item);
+  });
+}
+
+function renderContactsView() {
+  const el = document.getElementById('messages');
+  el.innerHTML = '';
+
+  if (!Data.contacts.length) {
+    el.innerHTML = `<div class="empty-state">
+      <div class="empty-glyph">👥</div>
+      <div class="empty-title">No contacts yet</div>
+      <div class="empty-sub">Add a contact by their DID or username to start messaging.</div>
+    </div>`;
+    return;
+  }
+
+  const wrapper = document.createElement('div');
+  wrapper.style.cssText = 'padding:24px;display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;align-content:start;';
+
+  Data.contacts.forEach(c => {
+    const card = document.createElement('div');
+    card.style.cssText = 'background:var(--s2);border:1px solid var(--border);border-radius:var(--r2);padding:16px;cursor:pointer;transition:border-color 0.15s;';
+    card.onmouseenter = () => card.style.borderColor = 'var(--border2)';
+    card.onmouseleave = () => card.style.borderColor = 'var(--border)';
+    card.onclick = () => { ACTIVE_CONVO = c; switchView('messages'); };
+    card.innerHTML = `
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+        <div style="width:40px;height:40px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:var(--ink);${avatarStyle(c.did)}">${avatarInitial(c.displayName||c.username)}</div>
+        <div>
+          <div style="font-size:13px;font-weight:700;">${c.displayName || c.username}</div>
+          <div style="font-size:10px;color:var(--text3);font-family:var(--mono);">${shortDid(c.did)}</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;">
+        <button class="btn btn-sm" onclick="event.stopPropagation();ACTIVE_CONVO=arguments[0];switchView('messages');" style="flex:1;">💬 Message</button>
+      </div>
+    `;
+    wrapper.appendChild(card);
+  });
+
+  el.appendChild(wrapper);
+}
+
+// ══════════════════════════════════════════════════════════════
+//  COMPOSE HELPERS
+// ══════════════════════════════════════════════════════════════
+function composeKeydown(e) {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    switch(VIEW) {
+      case 'square':   postToSquare(); break;
+      case 'messages': sendMessage(); break;
+      case 'channels': postToChannel(); break;
+      case 'mail':     sendMail(); break;
+    }
+  }
+}
+
+function attachFile() { document.getElementById('file-input').click(); }
+function handleFileSelect(input) {
+  const file = input.files[0];
+  if (!file) return;
+  ATTACH = file;
+  const nameEl = document.getElementById('attach-name');
+  nameEl.textContent = `📎 ${file.name}`;
+  nameEl.style.display = 'flex';
+}
+
+function toggleEncrypt() {
+  ENCRYPT_ON = !ENCRYPT_ON;
+  const btn = document.getElementById('compose-enc-btn');
+  btn.textContent  = ENCRYPT_ON ? '🔒' : '🔓';
+  btn.title = ENCRYPT_ON ? 'Encrypted (click to disable)' : 'Encrypt message';
+  document.getElementById('compose-sig-label').textContent = ENCRYPT_ON
+    ? 'End-to-end encrypted · signed with your sovereign identity'
+    : 'All messages signed with your sovereign identity';
+}
+
+function insertEmoji(em) {
+  const ta = document.getElementById('compose-text');
+  const pos = ta.selectionStart;
+  ta.value = ta.value.slice(0, pos) + em + ta.value.slice(pos);
+  ta.selectionStart = ta.selectionEnd = pos + em.length;
+  ta.focus();
+}
+
+// ══════════════════════════════════════════════════════════════
+//  THE POST BUTTON (routes by view)
+// ══════════════════════════════════════════════════════════════
+function postToSquare_or_Channel() {
+  if (VIEW === 'channels') postToChannel();
+  else postToSquare();
+}
+
+// Override onclick of compose-post-label after switchView sets VIEW
+document.getElementById('compose-post-label').onclick = () => {
+  if (VIEW === 'channels') postToChannel();
+  else postToSquare();
+};
+document.getElementById('compose-send-label').onclick = () => {
+  if (VIEW === 'mail') sendMail();
+  else sendMessage();
+};
+
+// ══════════════════════════════════════════════════════════════
+//  SIDEBAR SEARCH
+// ══════════════════════════════════════════════════════════════
+function sidebarSearch(q) {
+  if (!q) { switchView(VIEW); return; }
+  q = q.toLowerCase();
+  // Simple highlight filter — just re-render with filter
+  if (VIEW === 'square') {
+    const filtered = Data.posts.filter(p => p.text.toLowerCase().includes(q) || p.author.toLowerCase().includes(q));
+    const el = document.getElementById('messages');
+    el.innerHTML = '';
+    if (!filtered.length) { el.innerHTML = '<div style="padding:20px;color:var(--text3);text-align:center;font-size:12px;">No results</div>'; return; }
+    filtered.forEach(p => el.appendChild(buildPostEl(p)));
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+//  STATUS BAR
+// ══════════════════════════════════════════════════════════════
+function updateStatusBar() {
+  document.getElementById('sb-did').textContent = ME ? shortDid(ME.did) : '—';
+  document.getElementById('sb-net-dot').className = 'sb-dot' + (Sovereign.isReal() ? '' : ' warn');
+  document.getElementById('sb-net').textContent = Sovereign.isReal() ? 'Sovereign Core' : 'Standalone (mock)';
+  const total = Data.posts.length + Object.values(Data.dms).reduce((a,t)=>a+t.length,0);
+  const mailInbox = Data.mail.inbox.length;
+  document.getElementById('sb-count').textContent = `${Data.posts.length} posts · ${mailInbox} mail`;
+
+  // Notification dots
+  const unreadDm   = Object.values(Data.dms).flat().filter(m => !m.read && m.from !== ME?.did).length;
+  const unreadMail = Data.mail.inbox.filter(m => !m.read).length;
+  document.getElementById('rail-notif-dm').style.display   = unreadDm   ? 'block' : 'none';
+  document.getElementById('rail-notif-mail').style.display = unreadMail ? 'block' : 'none';
+}
+
+// ══════════════════════════════════════════════════════════════
+//  UTILS
+// ══════════════════════════════════════════════════════════════
+function escapeHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function groupByDate(items, tsField) {
+  const map = {};
+  items.forEach(item => {
+    const d = new Date(item[tsField]);
+    const key = d.toDateString();
+    if (!map[key]) map[key] = [];
+    map[key].push(item);
+  });
+  return Object.entries(map).map(([date, items]) => ({ date, items })).reverse();
+}
+
+function refreshView() { switchView(VIEW); }
+
+function showAbout() {
+  alert('Forge Square\n\nSovereign communication platform.\nEvery message is cryptographically signed with your DID.\n\nPart of the Forge ecosystem.\ncore: sovereign_os · studio: forge_studio · comms: forge_square');
+}
+
+function showMyProfile() {
+  Sovereign.getIdentity().then(id => {
+    alert(`Your Identity\n\nDisplay: ${id?.username || '—'}\nDID: ${id?.did || '—'}\nPubKey: ${id?.pubKeyHex || '—'}\n\nCore connected: ${Sovereign.isReal() ? 'Yes' : 'No (mock mode)'}`);
+  });
+}
+
+// ══════════════════════════════════════════════════════════════
+//  SEED DATA (first load)
+// ══════════════════════════════════════════════════════════════
+function seedData() {
+  if (Data.posts.length || Data.contacts.length) return;
+
+  const demoUsers = [
+    { did: 'did:sovereign:a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4', username: 'herald', displayName: 'Herald Node' },
+    { did: 'did:sovereign:f9e8d7c6b5a4f9e8d7c6b5a4f9e8d7c6', username: 'axiom',  displayName: 'Axiom' },
+    { did: 'did:sovereign:1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d', username: 'ghost',  displayName: 'Ghost Protocol' },
+  ];
+
+  Data.contacts = demoUsers;
+  Data.posts = [
+    { id:'p0', author:'herald', did:demoUsers[0].did, text:'The sovereign infrastructure is live. Identity without permission. Communication without surveillance.', ts:Date.now()-7200000, reactions:{'⬡':[demoUsers[1].did]}, sig:'demo0', mock:true },
+    { id:'p1', author:'axiom',  did:demoUsers[1].did, text:'Every message signed. Every file hashed. You own your data — permanently.', ts:Date.now()-3600000, reactions:{}, sig:'demo1', mock:true },
+    { id:'p2', author:'ghost',  did:demoUsers[2].did, text:'Forge Studio just dropped. Build apps on top of the core without touching crypto internals. Architecture is clean.', ts:Date.now()-900000, reactions:{'❤️':[demoUsers[0].did]}, sig:'demo2', mock:true },
+  ];
+
+  const welcomeMail = {
+    id: 'mail_welcome',
+    from: 'herald',
+    to: 'you',
+    subject: 'Welcome to Forge Square',
+    body: `Your sovereign communication layer is ready.\n\nThe Square is your public broadcast channel — post to everyone. Direct Messages are private, signed one-to-one. Channels are topic-based group spaces. Secure Mail is for longer, async messages.\n\nEvery message carries your sovereign signature. Nobody can impersonate you.\n\n— Herald Node`,
+    ts: Date.now() - 120000,
+    sig: 'welcomeSig',
+    mock: true,
+    read: false
+  };
+  Data.mail.inbox.push(welcomeMail);
+  Data.save();
+}
+
+// ══════════════════════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════════════════════
+(async () => {
+  ME = await Sovereign.getIdentity();
+  Data.load();
+  seedData();
+
+  // Set avatar
+  const initial = avatarInitial(ME?.username || 'Y');
+  document.getElementById('rail-avatar').textContent = initial;
+  document.getElementById('rail-avatar').style.cssText += avatarStyle(ME?.did || '');
+
+  updateStatusBar();
+  switchView('square');
+})();
+</script>
+</body>
+</html>
