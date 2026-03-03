@@ -505,6 +505,8 @@ main{
 #epct,#ebar{display:none;}
 /* keep sponge vis visible via #sponge */
 </style>
+<!-- QR Code library (pure JS, no deps) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
 
@@ -575,7 +577,7 @@ main{
           <div class="id-meta" id="id-display-meta"></div>
           <div class="id-actions">
             <button class="btn btn-secondary btn-sm" onclick="copyMyDID()">Copy DID</button>
-            <button class="btn btn-secondary btn-sm" onclick="shareHandshake()">Share handshake</button>
+            <button class="btn btn-secondary btn-sm" onclick="showQR()">📷 QR Handshake</button>
             <button class="btn btn-danger btn-sm" onclick="resetIdentity()">Reset</button>
           </div>
         </div>
@@ -712,14 +714,15 @@ main{
         <div style="font-size:12px;color:var(--text2);margin-bottom:10px;line-height:1.5;">
           Share your handshake packet out-of-band (email, text) and paste theirs here to connect without a relay server.
         </div>
-        <button class="btn btn-secondary" style="margin-bottom:10px;" onclick="shareHandshake()">
-          Copy my handshake packet
+        <button class="btn btn-secondary" style="margin-bottom:10px;" onclick="showQR()">
+          📷 Show QR handshake
         </button>
         <div class="handshake-area">
           <label>Paste peer's handshake packet</label>
           <textarea id="paste-handshake" placeholder='{"node":"sovereign-...","did":"...","username":"...",...}'></textarea>
           <div class="handshake-actions">
             <button class="btn btn-primary btn-sm" onclick="acceptHandshake()">Accept & Connect</button>
+            <button class="btn btn-secondary btn-sm" onclick="openCamScanner()" title="Scan peer's QR with your camera">📷 Scan QR</button>
             <button class="btn btn-secondary btn-sm" onclick="document.getElementById('paste-handshake').value=''">Clear</button>
           </div>
         </div>
@@ -2957,6 +2960,339 @@ window.addEventListener('load', async () => {
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('genesis_sw.js', { scope: '/' }).catch(() => {});
 }
+
+</script>
+
+<!-- ══ QR HANDSHAKE MODAL ══ -->
+<div id="qr-modal" style="
+  display:none;position:fixed;inset:0;z-index:99999;
+  background:rgba(4,5,8,0.88);backdrop-filter:blur(12px);
+  align-items:center;justify-content:center;
+">
+  <div style="
+    background:#0e1017;border:1px solid rgba(34,211,238,0.25);
+    border-radius:16px;padding:32px 28px 24px;
+    max-width:340px;width:90%;position:relative;
+    box-shadow:0 0 60px rgba(34,211,238,0.08);
+    font-family:'Geist Mono','Courier New',monospace;
+    display:flex;flex-direction:column;align-items:center;gap:16px;
+  ">
+    <!-- close -->
+    <button onclick="closeQR()" style="
+      position:absolute;top:12px;right:14px;
+      background:none;border:none;color:#8b95a8;font-size:18px;
+      cursor:pointer;line-height:1;padding:4px 8px;border-radius:6px;
+    " title="Close">✕</button>
+
+    <!-- title -->
+    <div style="font-size:11px;letter-spacing:2px;color:#22d3ee;text-transform:uppercase;">
+      QR Handshake
+    </div>
+
+    <!-- QR canvas container -->
+    <div id="qr-canvas-wrap" style="
+      background:#fff;border-radius:10px;padding:12px;
+      display:flex;align-items:center;justify-content:center;
+      min-width:220px;min-height:220px;
+    "></div>
+
+    <!-- user info under QR -->
+    <div style="text-align:center;">
+      <div id="qr-username" style="font-size:13px;color:#f0f2f5;font-weight:500;"></div>
+      <div id="qr-did-short" style="font-size:10px;color:#8b95a8;margin-top:4px;word-break:break-all;"></div>
+    </div>
+
+    <!-- instructions -->
+    <div style="
+      font-size:10px;color:#454e5e;text-align:center;line-height:1.6;
+      border-top:1px solid rgba(255,255,255,0.06);padding-top:14px;width:100%;
+    ">
+      Peer scans this QR to auto-paste your handshake packet.<br>
+      <span style="color:#22d3ee;">No relay needed.</span>
+    </div>
+
+    <!-- copy fallback -->
+    <button onclick="shareHandshake()" style="
+      width:100%;padding:9px;border-radius:8px;
+      border:1px solid rgba(255,255,255,0.1);
+      background:rgba(255,255,255,0.04);
+      color:#8b95a8;font-family:inherit;font-size:11px;
+      cursor:pointer;letter-spacing:0.5px;
+      transition:all 0.15s;
+    "
+    onmouseover="this.style.borderColor='rgba(34,211,238,0.3)';this.style.color='#22d3ee'"
+    onmouseout="this.style.borderColor='rgba(255,255,255,0.1)';this.style.color='#8b95a8'"
+    >
+      ⧉ Copy packet to clipboard instead
+    </button>
+  </div>
+</div>
+
+<script>
+// ── QR Handshake Modal ──────────────────────────────────────────────
+
+let _qrInstance = null;
+
+async function showQR() {
+  // Build the handshake packet (mirrors P2PNet.copyHandshake internals)
+  const modal = document.getElementById('qr-modal');
+  const wrap   = document.getElementById('qr-canvas-wrap');
+  const uname  = document.getElementById('qr-username');
+  const didEl  = document.getElementById('qr-did-short');
+
+  // Get identity
+  const id = typeof IdentityEngine !== 'undefined' ? IdentityEngine.get() : null;
+  if (!id) { toast('No identity — generate one first'); return; }
+
+  // Build packet
+  const packet = {
+    node: (window.P2PNet && window.P2PNet._nodeId) || id.did.replace('did:sovereign:','sovereign-').slice(0,32),
+    did:  id.did,
+    username: id.username,
+    pubKeyHex: id.pubKeyHex,
+    ts: Date.now(),
+  };
+  // Sign if P2PNet available
+  try {
+    if (window.P2PNet && typeof window.P2PNet._sign === 'function') {
+      packet.sig = await window.P2PNet._sign(packet) || 'unsigned';
+    } else { packet.sig = 'unsigned'; }
+  } catch(e) { packet.sig = 'unsigned'; }
+
+  const txt = JSON.stringify(packet);
+
+  // Update labels
+  uname.textContent  = id.username || 'Sovereign User';
+  didEl.textContent  = id.did.length > 40
+    ? id.did.slice(0,20) + '…' + id.did.slice(-12)
+    : id.did;
+
+  // Clear previous QR
+  wrap.innerHTML = '';
+  _qrInstance = null;
+
+  // Render QR
+  try {
+    _qrInstance = new QRCode(wrap, {
+      text:         txt,
+      width:        210,
+      height:       210,
+      colorDark:    '#000000',
+      colorLight:   '#ffffff',
+      correctLevel: QRCode.CorrectLevel.M,
+    });
+  } catch(e) {
+    wrap.innerHTML = `<div style="font-size:11px;color:#f87171;padding:16px;text-align:center;">
+      QR too large — use copy instead.<br><br>
+      <span style="font-size:9px;color:#8b95a8;">Packet: ${txt.length} chars</span>
+    </div>`;
+  }
+
+  modal.style.display = 'flex';
+}
+
+function closeQR() {
+  document.getElementById('qr-modal').style.display = 'none';
+  _qrInstance = null;
+}
+
+// Close on backdrop click
+document.getElementById('qr-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeQR();
+});
+
+// Close on Escape
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeQR();
+});
+
+// ── Wire QR into the peer scanner side ──────────────────────────────
+// If a peer scans the QR on THEIR device, we auto-paste + accept it.
+// We check URL params on load: ?handshake=<encoded_packet>
+(function checkQRHandshakeParam() {
+  const params = new URLSearchParams(window.location.search);
+  const raw = params.get('handshake');
+  if (!raw) return;
+  try {
+    const decoded = decodeURIComponent(raw);
+    const ta = document.getElementById('paste-handshake');
+    if (ta) {
+      ta.value = decoded;
+      // Give page time to init, then auto-accept
+      setTimeout(() => {
+        if (typeof acceptHandshake === 'function') {
+          acceptHandshake();
+          toast('QR handshake auto-accepted ✓');
+          // Switch to Network tab
+          const netBtn = document.querySelector('.nav-btn[onclick*="network"]');
+          if (netBtn) netBtn.click();
+        }
+      }, 1800);
+    }
+  } catch(e) { console.warn('[QR] Failed to parse handshake param', e); }
+})();
+
+
+// ── Camera QR Scanner ───────────────────────────────────────────────
+// Uses BarcodeDetector API (Chrome/Edge 88+, Safari 17.4+)
+// Falls back to instructional message on unsupported browsers.
+
+let _camStream = null;
+
+function openCamScanner() {
+  // Build scanner modal dynamically
+  let scanModal = document.getElementById('qr-scan-modal');
+  if (!scanModal) {
+    scanModal = document.createElement('div');
+    scanModal.id = 'qr-scan-modal';
+    scanModal.style.cssText = `
+      display:none;position:fixed;inset:0;z-index:99999;
+      background:rgba(4,5,8,0.92);backdrop-filter:blur(12px);
+      align-items:center;justify-content:center;
+    `;
+    scanModal.innerHTML = `
+      <div style="
+        background:#0e1017;border:1px solid rgba(34,211,238,0.25);
+        border-radius:16px;padding:24px 20px 20px;
+        max-width:340px;width:90%;position:relative;
+        box-shadow:0 0 60px rgba(34,211,238,0.08);
+        font-family:'Geist Mono','Courier New',monospace;
+        display:flex;flex-direction:column;align-items:center;gap:14px;
+      ">
+        <button onclick="closeCamScanner()" style="
+          position:absolute;top:12px;right:14px;
+          background:none;border:none;color:#8b95a8;font-size:18px;
+          cursor:pointer;line-height:1;padding:4px 8px;border-radius:6px;
+        ">✕</button>
+        <div style="font-size:11px;letter-spacing:2px;color:#22d3ee;text-transform:uppercase;">
+          Scan Peer QR
+        </div>
+        <div style="position:relative;width:260px;height:260px;border-radius:10px;overflow:hidden;background:#000;">
+          <video id="qr-cam-video" autoplay playsinline muted style="width:100%;height:100%;object-fit:cover;"></video>
+          <!-- corner brackets -->
+          <div style="position:absolute;inset:0;pointer-events:none;">
+            <div style="position:absolute;top:10px;left:10px;width:28px;height:28px;border-top:2px solid #22d3ee;border-left:2px solid #22d3ee;border-radius:2px 0 0 0;"></div>
+            <div style="position:absolute;top:10px;right:10px;width:28px;height:28px;border-top:2px solid #22d3ee;border-right:2px solid #22d3ee;border-radius:0 2px 0 0;"></div>
+            <div style="position:absolute;bottom:10px;left:10px;width:28px;height:28px;border-bottom:2px solid #22d3ee;border-left:2px solid #22d3ee;border-radius:0 0 0 2px;"></div>
+            <div style="position:absolute;bottom:10px;right:10px;width:28px;height:28px;border-bottom:2px solid #22d3ee;border-right:2px solid #22d3ee;border-radius:0 0 2px 0;"></div>
+            <!-- scan line -->
+            <div id="qr-scan-line" style="
+              position:absolute;left:10px;right:10px;height:2px;
+              background:linear-gradient(90deg,transparent,#22d3ee,transparent);
+              top:50%;animation:scanline 1.8s ease-in-out infinite;
+            "></div>
+          </div>
+        </div>
+        <div id="qr-scan-status" style="font-size:10px;color:#8b95a8;text-align:center;line-height:1.6;">
+          Point camera at peer's QR code
+        </div>
+      </div>
+      <style>
+        @keyframes scanline {
+          0%   { top: 12%; }
+          50%  { top: 84%; }
+          100% { top: 12%; }
+        }
+      </style>
+    `;
+    document.body.appendChild(scanModal);
+    scanModal.addEventListener('click', (e) => { if (e.target === scanModal) closeCamScanner(); });
+  }
+
+  // Check BarcodeDetector support
+  if (!('BarcodeDetector' in window)) {
+    const status = document.getElementById('qr-scan-status');
+    if (status) status.innerHTML = `
+      <span style="color:#fbbf24;">Camera scanning requires Chrome 88+ or Safari 17.4+.</span><br>
+      Ask peer to copy their packet to clipboard instead.
+    `;
+    scanModal.style.display = 'flex';
+    return;
+  }
+
+  scanModal.style.display = 'flex';
+
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+    .then(stream => {
+      _camStream = stream;
+      const video = document.getElementById('qr-cam-video');
+      video.srcObject = stream;
+      video.play();
+      _startQRDetection(video);
+    })
+    .catch(err => {
+      const status = document.getElementById('qr-scan-status');
+      if (status) status.innerHTML = `<span style="color:#f87171;">Camera denied: ${err.message}</span>`;
+    });
+}
+
+function closeCamScanner() {
+  const scanModal = document.getElementById('qr-scan-modal');
+  if (scanModal) scanModal.style.display = 'none';
+  if (_camStream) {
+    _camStream.getTracks().forEach(t => t.stop());
+    _camStream = null;
+  }
+}
+
+async function _startQRDetection(video) {
+  const detector = new BarcodeDetector({ formats: ['qr_code'] });
+  const status   = document.getElementById('qr-scan-status');
+  let scanning   = true;
+
+  const tick = async () => {
+    if (!scanning || !_camStream) return;
+    if (video.readyState < 2) { requestAnimationFrame(tick); return; }
+
+    try {
+      const codes = await detector.detect(video);
+      if (codes.length > 0) {
+        scanning = false;
+        const raw = codes[0].rawValue;
+
+        // Validate it looks like a sovereign handshake packet
+        let packet;
+        try { packet = JSON.parse(raw); } catch(e) { packet = null; }
+
+        if (packet && packet.did && packet.node) {
+          // Success — paste into textarea and close camera
+          const ta = document.getElementById('paste-handshake');
+          if (ta) ta.value = raw;
+
+          if (status) status.innerHTML = `<span style="color:#22c55e;">✓ Packet scanned! Connecting…</span>`;
+
+          setTimeout(() => {
+            closeCamScanner();
+            if (typeof acceptHandshake === 'function') {
+              acceptHandshake();
+              toast('Peer connected via QR scan ✓');
+            }
+          }, 700);
+        } else {
+          // Not a valid packet
+          if (status) status.innerHTML = `<span style="color:#fbbf24;">QR doesn't look like a handshake packet. Try again.</span>`;
+          setTimeout(() => {
+            scanning = true;
+            if (status) status.textContent = 'Point camera at peer\'s QR code';
+            requestAnimationFrame(tick);
+          }, 2000);
+        }
+        return;
+      }
+    } catch(e) { /* detector not ready yet */ }
+
+    requestAnimationFrame(tick);
+  };
+
+  requestAnimationFrame(tick);
+}
+
+window.openCamScanner  = openCamScanner;
+window.closeCamScanner = closeCamScanner;
+
+// Expose globally
+window.showQR  = showQR;
+window.closeQR = closeQR;
 
 </script>
 </body>
