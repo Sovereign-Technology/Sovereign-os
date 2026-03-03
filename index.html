@@ -873,29 +873,41 @@ textarea.field-input {
 
     <div class="divider"></div>
 
-    <div class="two-col">
-      <!-- Share your handshake -->
-      <div class="handshake-box">
-        <div class="handshake-title">📤 Share Your Handshake</div>
-        <div class="handshake-desc">Send this packet to the person you want to connect with. They paste it in "Receive Handshake" to open a direct connection.</div>
-        <div id="my-handshake" style="font-family:var(--mono);font-size:10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:10px;word-break:break-all;color:var(--green);max-height:80px;overflow:auto;margin-bottom:10px;">Generate your identity first →</div>
-        <button class="btn btn-ghost btn-sm" onclick="copyHandshake()">Copy Packet</button>
+    <!-- ── STEP 1: Generate Offer ── -->
+    <div class="handshake-box" style="margin-bottom:16px;">
+      <div class="handshake-title">🔗 Step 1 — Generate a Connection Offer</div>
+      <div class="handshake-desc">Do this on <strong>one device</strong>. It creates a cryptographic connection packet. Send that packet to the other device by any means — text, email, copy-paste, QR code, whatever works.</div>
+      <button class="btn btn-primary btn-sm btn-mono" id="btn-gen-offer" onclick="generateOffer()" style="margin-bottom:12px;">▶ GENERATE OFFER PACKET</button>
+      <div id="offer-status" style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-bottom:8px;"></div>
+      <div id="offer-packet-wrap" style="display:none;">
+        <div id="offer-packet" style="font-family:var(--mono);font-size:10px;background:var(--bg3);border:1px solid rgba(0,200,240,0.3);border-radius:6px;padding:10px;word-break:break-all;color:var(--cyan);max-height:100px;overflow:auto;margin-bottom:8px;cursor:pointer;" onclick="copyOfferPacket()"></div>
+        <button class="btn btn-ghost btn-sm" onclick="copyOfferPacket()">📋 Copy Offer Packet</button>
+        <span style="font-size:10px;color:var(--text3);margin-left:10px;">← Send this to your peer. Then wait for their Answer Packet (Step 3).</span>
       </div>
+    </div>
 
-      <!-- Receive a handshake -->
-      <div class="handshake-box">
-        <div class="handshake-title">📥 Receive Handshake</div>
-        <div class="handshake-desc">Paste the packet you received from a peer here to establish a direct connection.</div>
-        <textarea class="field-input" id="peer-handshake-input" placeholder="Paste handshake packet here…" style="margin-bottom:10px;"></textarea>
-        <button class="btn btn-primary btn-sm" onclick="processHandshake()">Connect Peer</button>
-      </div>
+    <!-- ── STEP 2: Paste incoming packet (offer OR answer) ── -->
+    <div class="handshake-box" style="margin-bottom:16px;">
+      <div class="handshake-title">📥 Step 2 — Paste a Packet You Received</div>
+      <div class="handshake-desc">If someone sent you an <strong>Offer Packet</strong>, paste it here — the app will generate an Answer Packet for you to send back. If you're waiting for a response and received an <strong>Answer Packet</strong>, paste it here to complete the connection.</div>
+      <textarea class="field-input" id="peer-packet-input" placeholder="Paste Offer or Answer packet here…" style="margin-bottom:10px;min-height:70px;"></textarea>
+      <button class="btn btn-primary btn-sm" onclick="processIncomingPacket()">Process Packet</button>
+      <div id="process-status" style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:8px;"></div>
+    </div>
+
+    <!-- ── STEP 3: Answer packet output (shown after processing an offer) ── -->
+    <div class="handshake-box" id="answer-packet-wrap" style="display:none;margin-bottom:16px;border-color:rgba(0,232,122,0.3);">
+      <div class="handshake-title">📤 Step 3 — Send This Answer Packet Back</div>
+      <div class="handshake-desc">Send this to the person who gave you the Offer Packet. Once they paste it in Step 2, the connection opens.</div>
+      <div id="answer-packet" style="font-family:var(--mono);font-size:10px;background:var(--bg3);border:1px solid rgba(0,232,122,0.3);border-radius:6px;padding:10px;word-break:break-all;color:var(--green);max-height:100px;overflow:auto;margin-bottom:8px;cursor:pointer;" onclick="copyAnswerPacket()"></div>
+      <button class="btn btn-ghost btn-sm" onclick="copyAnswerPacket()">📋 Copy Answer Packet</button>
     </div>
 
     <div class="divider"></div>
 
     <!-- Connected peers -->
     <div style="font-size:15px;font-weight:600;margin-bottom:16px;">Connected Peers <span id="peer-count" style="font-size:12px;color:var(--text3);font-weight:400;"></span></div>
-    <div id="peer-list"><div class="peer-list-empty">No peers connected. Use relay or manual handshake above.</div></div>
+    <div id="peer-list"><div class="peer-list-empty">No peers connected yet — use Steps 1–3 above.</div></div>
 
     <div class="divider"></div>
     <div style="font-size:13px;font-weight:600;margin-bottom:8px;">Network Log</div>
@@ -1214,7 +1226,7 @@ async function loadIdentityUI() {
   document.getElementById('identity-username').textContent = id.username;
   document.getElementById('identity-did-display').textContent = id.did;
   // Update connect panel handshake
-  updateHandshakePacket();
+  // (offer packets are generated on-demand in Connect tab)
   // Render apps (now identity known)
   renderApps();
 }
@@ -1249,48 +1261,296 @@ async function deleteIdentity() {
 }
 
 // ══════════════════════════════════════════
-// WEBRTC PEER CONNECT
+// WEBRTC — COMPLETE SIGNALING & P2P LAYER
 // ══════════════════════════════════════════
 const ICE_SERVERS = [
-  { urls:'stun:stun.l.google.com:19302' },
-  { urls:'stun:stun1.l.google.com:19302' },
+  { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'stun:stun1.l.google.com:19302' },
+  { urls: 'stun:stun2.l.google.com:19302' },
+  { urls: 'stun:stun.cloudflare.com:3478' },
 ];
 
-function updateHandshakePacket() {
-  if (!SYS.identity) { document.getElementById('my-handshake').textContent = 'Generate your identity first →'; return; }
-  const packet = JSON.stringify({ did: SYS.identity.did, name: SYS.identity.username, ts: Date.now(), v:2 });
-  document.getElementById('my-handshake').textContent = btoa(packet);
+// pending RTCPeerConnections waiting for their answer
+// keyed by our own DID (only one offer at a time per session)
+SYS.pendingPC = null; // { pc, dc }
+
+// ── Helpers ──────────────────────────────
+
+function setOfferStatus(msg, color) {
+  const el = document.getElementById('offer-status');
+  if (el) { el.textContent = msg; el.style.color = color || 'var(--text3)'; }
+}
+function setProcessStatus(msg, color) {
+  const el = document.getElementById('process-status');
+  if (el) { el.textContent = msg; el.style.color = color || 'var(--text3)'; }
 }
 
-function copyHandshake() {
-  const text = document.getElementById('my-handshake').textContent;
-  if (text.startsWith('Generate')) { toast('Create your identity first', 'error'); return; }
-  navigator.clipboard.writeText(text).then(() => toast('Handshake packet copied', 'success'));
+function waitForICE(pc, timeoutMs = 8000) {
+  return new Promise(resolve => {
+    if (pc.iceGatheringState === 'complete') { resolve(); return; }
+    const done = () => { pc.onicegatheringstatechange = null; resolve(); };
+    pc.onicegatheringstatechange = () => { if (pc.iceGatheringState === 'complete') done(); };
+    setTimeout(done, timeoutMs); // fallback — use whatever candidates gathered so far
+  });
 }
 
-async function processHandshake() {
-  const raw = document.getElementById('peer-handshake-input').value.trim();
-  if (!raw) { toast('Paste a handshake packet first', 'error'); return; }
+function wireDataChannel(dc, peerDid, peerName) {
+  dc.onopen = async () => {
+    const peer = SYS.peers.get(peerDid);
+    if (peer) { peer.state = 'open'; peer.dc = dc; }
+    else {
+      await dbPut('contacts', { did: peerDid, name: peerName, addedAt: Date.now() });
+      SYS.peers.set(peerDid, { did: peerDid, name: peerName, state: 'open', rtc: null, dc });
+    }
+    netLog(`⚡ DataChannel open with ${peerName}`);
+    toast(`Connected to ${peerName}`, 'success');
+    renderPeers();
+    renderConvoList();
+    if (SYS.currentConvo === peerDid) renderMessages(peerDid);
+  };
+  dc.onclose = () => {
+    const peer = SYS.peers.get(peerDid);
+    if (peer) { peer.state = 'offline'; peer.dc = null; }
+    netLog(`DataChannel closed with ${peerName}`);
+    renderPeers();
+  };
+  dc.onmessage = e => {
+    try { receiveMessage(JSON.parse(e.data)); } catch {}
+  };
+}
+
+// ── STEP 1: Initiator generates offer ────
+
+async function generateOffer() {
+  if (!SYS.identity) { toast('Create your identity first', 'error'); navigate('identity'); return; }
+  const btn = document.getElementById('btn-gen-offer');
+  btn.disabled = true;
+  setOfferStatus('> Creating WebRTC peer connection…', 'var(--text3)');
+
   try {
-    const peer = JSON.parse(atob(raw));
-    if (!peer.did || !peer.name) throw new Error('Invalid packet');
-    await addPeer(peer.did, peer.name);
-    document.getElementById('peer-handshake-input').value = '';
-  } catch {
-    toast('Invalid handshake packet', 'error');
+    // Close any previous pending connection
+    if (SYS.pendingPC) { try { SYS.pendingPC.pc.close(); } catch {} SYS.pendingPC = null; }
+
+    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+    const dc = pc.createDataChannel('sovereign', { ordered: true });
+
+    SYS.pendingPC = { pc, dc };
+
+    // The offer side wires the channel directly
+    const myDid = SYS.identity.did;
+    const myName = SYS.identity.username;
+
+    setOfferStatus('> Gathering ICE candidates (8s max)…', 'var(--text3)');
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    await waitForICE(pc);
+
+    // Encode offer + identity into a single shareable packet
+    const payload = {
+      v: 3,
+      type: 'OFFER',
+      did: myDid,
+      name: myName,
+      sdp: pc.localDescription.sdp,
+    };
+    const packet = btoa(JSON.stringify(payload));
+
+    // Show the packet
+    const wrap = document.getElementById('offer-packet-wrap');
+    const el = document.getElementById('offer-packet');
+    el.textContent = packet;
+    wrap.style.display = 'block';
+    setOfferStatus('> Offer ready. Send the packet above to your peer, then wait for their Answer Packet.', 'var(--green)');
+
+    // When the DataChannel opens, wire it up
+    const didForClosure = myDid;
+    dc.onopen = async () => {
+      // We don't know peer DID yet from this side until they connect
+      // The peerDid will be set when we process the answer
+      const peerEntry = [...SYS.peers.values()].find(p => p.rtc === pc);
+      if (peerEntry) {
+        peerEntry.state = 'open';
+        peerEntry.dc = dc;
+        netLog(`⚡ DataChannel open with ${peerEntry.name}`);
+        toast(`Connected to ${peerEntry.name}`, 'success');
+        renderPeers(); renderConvoList();
+      }
+    };
+    dc.onclose = () => {
+      const peerEntry = [...SYS.peers.values()].find(p => p.rtc === pc);
+      if (peerEntry) { peerEntry.state = 'offline'; peerEntry.dc = null; renderPeers(); }
+    };
+    dc.onmessage = e => { try { receiveMessage(JSON.parse(e.data)); } catch {} };
+
+    netLog('Offer created — waiting for peer answer…');
+    btn.disabled = false;
+  } catch (err) {
+    console.error(err);
+    setOfferStatus('> Error: ' + err.message, 'var(--red)');
+    btn.disabled = false;
+    toast('Failed to create offer: ' + err.message, 'error');
   }
 }
 
-async function addPeer(did, name) {
-  if (SYS.peers.has(did)) { toast(`Already connected to ${name}`, 'error'); return; }
-  await dbPut('contacts', { did, name, addedAt: Date.now() });
-  const peerState = { did, name, state:'connecting', rtc:null, dc:null };
-  SYS.peers.set(did, peerState);
-  netLog(`Peer added: ${name} (${did.slice(0,20)}…)`);
+function copyOfferPacket() {
+  const text = document.getElementById('offer-packet')?.textContent;
+  if (!text) return;
+  navigator.clipboard.writeText(text).then(() => toast('Offer packet copied!', 'success'));
+}
+function copyAnswerPacket() {
+  const text = document.getElementById('answer-packet')?.textContent;
+  if (!text) return;
+  navigator.clipboard.writeText(text).then(() => toast('Answer packet copied!', 'success'));
+}
+
+// ── STEP 2: Process any incoming packet (offer or answer) ──
+
+async function processIncomingPacket() {
+  const raw = document.getElementById('peer-packet-input').value.trim();
+  if (!raw) { toast('Paste a packet first', 'error'); return; }
+
+  let payload;
+  try { payload = JSON.parse(atob(raw)); }
+  catch { toast('Invalid packet — not a valid base64 Sovereign packet', 'error'); return; }
+
+  if (!payload.v || payload.v < 3) {
+    // Legacy v2 identity-only handshake — just add as offline peer
+    if (payload.did && payload.name) {
+      await registerPeer(payload.did, payload.name, null);
+      document.getElementById('peer-packet-input').value = '';
+      setProcessStatus('> Legacy handshake — peer added (no live connection). Both need to use the new flow for real-time messaging.', 'var(--amber)');
+    } else {
+      toast('Unrecognized packet format', 'error');
+    }
+    return;
+  }
+
+  if (payload.type === 'OFFER') {
+    await handleIncomingOffer(payload);
+  } else if (payload.type === 'ANSWER') {
+    await handleIncomingAnswer(payload);
+  } else {
+    toast('Unknown packet type: ' + payload.type, 'error');
+  }
+}
+
+// ── Responder receives Offer, generates Answer ──
+
+async function handleIncomingOffer(payload) {
+  if (!SYS.identity) { toast('Create your identity first', 'error'); navigate('identity'); return; }
+
+  setProcessStatus('> Received offer from ' + payload.name + '. Creating answer…', 'var(--cyan)');
+
+  try {
+    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+
+    // Responder receives the DataChannel
+    pc.ondatachannel = e => {
+      wireDataChannel(e.channel, payload.did, payload.name);
+    };
+
+    await pc.setRemoteDescription({ type: 'offer', sdp: payload.sdp });
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+
+    setProcessStatus('> Gathering ICE candidates (8s max)…', 'var(--text3)');
+    await waitForICE(pc);
+
+    // Register the peer (state: connecting until channel opens)
+    await registerPeer(payload.did, payload.name, pc);
+
+    // Build answer packet
+    const answerPayload = {
+      v: 3,
+      type: 'ANSWER',
+      did: SYS.identity.did,
+      name: SYS.identity.username,
+      offerDid: payload.did, // so initiator knows which pending PC to complete
+      sdp: pc.localDescription.sdp,
+    };
+    const packet = btoa(JSON.stringify(answerPayload));
+
+    // Show Answer packet
+    document.getElementById('answer-packet').textContent = packet;
+    document.getElementById('answer-packet-wrap').style.display = 'block';
+    document.getElementById('peer-packet-input').value = '';
+
+    setProcessStatus('> Answer ready! Send the Answer Packet (below) back to ' + payload.name, 'var(--green)');
+    netLog(`Answer created for ${payload.name} — waiting for DataChannel to open…`);
+    toast('Answer created — send the Answer Packet back to ' + payload.name, 'success');
+  } catch (err) {
+    console.error(err);
+    setProcessStatus('> Error processing offer: ' + err.message, 'var(--red)');
+    toast('Failed to process offer', 'error');
+  }
+}
+
+// ── Initiator receives Answer, completes connection ──
+
+async function handleIncomingAnswer(payload) {
+  if (!SYS.pendingPC) {
+    toast('No pending offer found — generate an Offer Packet first (Step 1)', 'error');
+    return;
+  }
+
+  setProcessStatus('> Received answer from ' + payload.name + '. Completing connection…', 'var(--cyan)');
+
+  try {
+    const { pc, dc } = SYS.pendingPC;
+    await pc.setRemoteDescription({ type: 'answer', sdp: payload.sdp });
+
+    // Register peer and attach channel
+    await registerPeer(payload.did, payload.name, pc);
+    const peer = SYS.peers.get(payload.did);
+    if (peer) peer.dc = dc; // dc already open or about to be
+
+    // Re-wire the dc with the now-known peer DID
+    dc.onopen = async () => {
+      const p = SYS.peers.get(payload.did);
+      if (p) { p.state = 'open'; p.dc = dc; }
+      netLog(`⚡ DataChannel open with ${payload.name}`);
+      toast(`Connected to ${payload.name}`, 'success');
+      renderPeers(); renderConvoList();
+      if (SYS.currentConvo === payload.did) renderMessages(payload.did);
+    };
+    dc.onclose = () => {
+      const p = SYS.peers.get(payload.did);
+      if (p) { p.state = 'offline'; p.dc = null; renderPeers(); }
+    };
+    dc.onmessage = e => { try { receiveMessage(JSON.parse(e.data)); } catch {} };
+
+    // If dc already open (race), fire manually
+    if (dc.readyState === 'open') dc.onopen();
+
+    document.getElementById('peer-packet-input').value = '';
+    SYS.pendingPC = null;
+    setProcessStatus('> Connection complete! DataChannel opening…', 'var(--green)');
+    netLog(`Answer from ${payload.name} applied — DataChannel opening…`);
+  } catch (err) {
+    console.error(err);
+    setProcessStatus('> Error completing connection: ' + err.message, 'var(--red)');
+    toast('Failed to complete connection', 'error');
+  }
+}
+
+// ── Register peer in state + DB ──
+
+async function registerPeer(did, name, pc) {
+  if (!SYS.peers.has(did)) {
+    await dbPut('contacts', { did, name, addedAt: Date.now() });
+    SYS.peers.set(did, { did, name, state: 'connecting', rtc: pc, dc: null });
+  } else {
+    const p = SYS.peers.get(did);
+    if (pc) p.rtc = pc;
+    p.state = 'connecting';
+  }
+  netLog(`Peer registered: ${name} (${did.slice(0, 24)}…)`);
   renderPeers();
   renderConvoList();
-  toast(`Added ${name} to peers`, 'success');
 }
+
+// Legacy alias kept for any old references
+async function addPeer(did, name) { return registerPeer(did, name, null); }
 
 // ══════════════════════════════════════════
 // RELAY (WebSocket)
@@ -1329,9 +1589,12 @@ function disconnectRelay() {
 
 function handleRelayMessage(msg) {
   if (msg.type === 'PEER_LIST') {
-    msg.peers?.forEach(p => { if (!SYS.peers.has(p.did) && p.did !== SYS.identity?.did) { addPeer(p.did, p.name); } });
+    msg.peers?.forEach(p => { if (!SYS.peers.has(p.did) && p.did !== SYS.identity?.did) registerPeer(p.did, p.name, null); });
   }
   if (msg.type === 'MESSAGE') { receiveMessage(msg); }
+  // Relay-forwarded signaling packets
+  if (msg.type === 'OFFER' && msg.to === SYS.identity?.did) handleIncomingOffer(msg);
+  if (msg.type === 'ANSWER' && msg.to === SYS.identity?.did) handleIncomingAnswer(msg);
 }
 
 // ══════════════════════════════════════════
