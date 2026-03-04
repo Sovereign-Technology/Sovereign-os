@@ -6,200 +6,165 @@
 <title>Sovereign — Bridge</title>
 <style>
 :root {
-  --bg:      #08080c;
-  --bg2:     #0e0e14;
-  --bg3:     #161620;
-  --bg4:     #1e1e2a;
-  --border:  #252535;
-  --border2: #353550;
-  --accent:  #00e87a;
-  --accent2: #0af;
-  --nostr:   #a855f7;
-  --matrix:  #0dbd8b;
-  --rss:     #f97316;
-  --wf:      #38bdf8;
-  --text:    #d8d8e8;
-  --text2:   #7070a0;
-  --text3:   #404060;
-  --danger:  #f43f5e;
-  --warn:    #fbbf24;
-  --font:    'Courier New', 'Lucida Console', monospace;
+  --bg:    #08080c;
+  --bg2:   #0e0e16;
+  --bg3:   #161620;
+  --bg4:   #1e1e2a;
+  --border: rgba(255,255,255,0.07);
+  --border2:rgba(255,255,255,0.13);
+  --accent: #00e87a;
+  --cyan:   #0af;
+  --nostr:  #a855f7;
+  --matrix: #0dbd8b;
+  --rss:    #f97316;
+  --wf:     #38bdf8;
+  --text:   #e0e0ee;
+  --text2:  #7070a0;
+  --text3:  #404060;
+  --danger: #f43f5e;
+  --warn:   #fbbf24;
+  --mono:   'Courier New', monospace;
+  --ui:     system-ui, sans-serif;
 }
-* { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { height: 100%; }
-body {
-  font-family: var(--font);
-  background: var(--bg);
-  color: var(--text);
-  font-size: 12px;
-  line-height: 1.6;
-  overflow: hidden;
-}
-body::before {
-  content: '';
-  position: fixed; inset: 0; pointer-events: none; z-index: 9999;
-  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,.06) 2px, rgba(0,0,0,.06) 4px);
-}
-#app { display: flex; flex-direction: column; height: 100vh; }
-#header {
-  display: flex; align-items: center; gap: 16px;
-  padding: 10px 16px;
-  background: var(--bg2);
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-}
-.logo { font-size: 11px; font-weight: bold; letter-spacing: 3px; color: var(--accent); white-space: nowrap; }
-.logo span { color: var(--text3); }
-#identity-bar { flex: 1; display: flex; align-items: center; gap: 10px; overflow: hidden; }
-.id-chip {
-  display: flex; align-items: center; gap: 6px;
-  background: var(--bg3); border: 1px solid var(--border);
-  padding: 3px 8px; font-size: 10px; color: var(--text2);
-  cursor: pointer; transition: border-color .15s;
-  white-space: nowrap; overflow: hidden; max-width: 280px;
-}
-.id-chip:hover { border-color: var(--border2); color: var(--text); }
-.id-chip .lbl { color: var(--text3); margin-right: 2px; }
-.id-chip .val { overflow: hidden; text-overflow: ellipsis; font-size: 9px; }
-#sdot { width: 6px; height: 6px; border-radius: 50%; background: var(--text3); flex-shrink: 0; transition: background .3s; }
-#sdot.on { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
-#tabs {
-  display: flex;
-  background: var(--bg2);
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-}
-.tbtn {
-  padding: 8px 18px; font-family: var(--font); font-size: 10px;
-  letter-spacing: 2px; text-transform: uppercase;
-  background: none; border: none; border-bottom: 2px solid transparent;
-  color: var(--text3); cursor: pointer; transition: color .15s, border-color .15s;
-}
-.tbtn:hover { color: var(--text); }
-.tbtn.on { color: var(--text); border-bottom-color: var(--accent); }
-.tbtn[data-t="nostr"].on   { border-bottom-color: var(--nostr); color: var(--nostr); }
-.tbtn[data-t="matrix"].on  { border-bottom-color: var(--matrix); color: var(--matrix); }
-.tbtn[data-t="feeds"].on   { border-bottom-color: var(--rss); color: var(--rss); }
-.tbtn[data-t="id"].on      { border-bottom-color: var(--wf); color: var(--wf); }
-#content { flex: 1; overflow: hidden; display: flex; }
-.tpanel { display: none; width: 100%; height: 100%; overflow: hidden; }
-.tpanel.on { display: flex; }
-.split { display: flex; width: 100%; height: 100%; }
-.sidebar {
-  width: 220px; flex-shrink: 0;
-  background: var(--bg2); border-right: 1px solid var(--border);
-  display: flex; flex-direction: column; overflow: hidden;
-}
-.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-.stitle {
-  font-size: 9px; letter-spacing: 3px; text-transform: uppercase;
-  color: var(--text3); padding: 10px 12px 6px;
-  border-bottom: 1px solid var(--border); flex-shrink: 0;
-}
-.sbody { flex: 1; overflow-y: auto; padding: 10px; }
-.sbody::-webkit-scrollbar { width: 3px; }
-.sbody::-webkit-scrollbar-thumb { background: var(--border2); }
-input, textarea, select {
-  font-family: var(--font); font-size: 11px;
-  background: var(--bg3); border: 1px solid var(--border);
-  color: var(--text); padding: 6px 8px; outline: none; width: 100%;
-  transition: border-color .15s;
-}
-input:focus, textarea:focus { border-color: var(--border2); }
-textarea { resize: vertical; min-height: 60px; }
-input::placeholder, textarea::placeholder { color: var(--text3); }
-button {
-  font-family: var(--font); font-size: 10px; letter-spacing: 1px;
-  padding: 6px 14px; border: 1px solid var(--border);
-  background: var(--bg3); color: var(--text2);
-  cursor: pointer; text-transform: uppercase; transition: all .15s; white-space: nowrap;
-}
-button:hover { background: var(--bg4); color: var(--text); border-color: var(--border2); }
-button.nb { border-color: var(--nostr); color: var(--nostr); }
-button.nb:hover { background: rgba(168,85,247,.1); }
-button.mb { border-color: var(--matrix); color: var(--matrix); }
-button.mb:hover { background: rgba(13,189,139,.1); }
-button.rb { border-color: var(--rss); color: var(--rss); }
-button.rb:hover { background: rgba(249,115,22,.1); }
-button.wb { border-color: var(--wf); color: var(--wf); }
-button.wb:hover { background: rgba(56,189,248,.1); }
-button.xb { border-color: var(--danger); color: var(--danger); }
-button.xb:hover { background: rgba(244,63,94,.1); }
-button:disabled { opacity: .35; cursor: not-allowed; }
-.row { display: flex; gap: 6px; align-items: flex-start; }
-.row input, .row select { flex: 1; }
-.col { display: flex; flex-direction: column; gap: 6px; }
-.litem {
-  display: flex; align-items: center; gap: 8px;
-  padding: 6px 8px; font-size: 10px;
-  border: 1px solid var(--border);
-  margin-bottom: 4px; background: var(--bg);
-  cursor: pointer; transition: border-color .15s;
-}
-.litem:hover { border-color: var(--border2); }
-.litem .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--text3); flex-shrink: 0; }
-.litem .dot.ok  { background: var(--accent); }
-.litem .dot.err { background: var(--danger); }
-.litem .dot.pnd { background: var(--warn); }
-.litem .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.litem .rm { color: var(--text3); font-size: 10px; }
-.litem .rm:hover { color: var(--danger); }
-.feed { flex: 1; overflow-y: auto; padding: 10px; }
-.feed::-webkit-scrollbar { width: 3px; }
-.feed::-webkit-scrollbar-thumb { background: var(--border2); }
-.ecard {
-  border: 1px solid var(--border);
-  margin-bottom: 8px; padding: 10px;
-  background: var(--bg2); animation: si .2s ease;
-}
-@keyframes si { from { opacity:0; transform:translateY(-4px); } to { opacity:1; } }
-.ehead { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
-.eauthor { font-size: 10px; color: var(--nostr); word-break: break-all; }
-.etime { font-size: 9px; color: var(--text3); white-space: nowrap; margin-left: 8px; }
-.ebody { font-size: 11px; color: var(--text); white-space: pre-wrap; word-break: break-word; }
-.eacts { display: flex; gap: 6px; margin-top: 8px; }
-.eacts button { padding: 3px 8px; font-size: 9px; }
-.cbar { padding: 10px; border-top: 1px solid var(--border); background: var(--bg2); display: flex; flex-direction: column; gap: 6px; }
-.cbar .row { align-items: flex-end; }
-.cc { font-size: 9px; color: var(--text3); text-align: right; }
-.ritem {
-  padding: 7px 10px; font-size: 10px; cursor: pointer;
-  border-left: 2px solid transparent; transition: all .12s; color: var(--text2);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.ritem:hover { background: var(--bg3); color: var(--text); }
-.ritem.on { border-left-color: var(--matrix); color: var(--matrix); background: var(--bg3); }
-.mxmsg { margin-bottom: 10px; animation: si .15s ease; }
-.mxmsg .snd { font-size: 10px; color: var(--matrix); margin-bottom: 2px; }
-.mxmsg.me .snd { color: var(--accent); }
-.mxmsg .bd { font-size: 11px; color: var(--text); }
-.mxmsg .ts { font-size: 9px; color: var(--text3); }
-.fitem { border: 1px solid var(--border); margin-bottom: 8px; padding: 10px; background: var(--bg2); animation: si .2s ease; }
-.fitem .ft { font-size: 11px; color: var(--rss); margin-bottom: 4px; }
-.fitem .ft a { color: inherit; text-decoration: none; }
-.fitem .ft a:hover { text-decoration: underline; }
-.fitem .fm { font-size: 9px; color: var(--text3); margin-bottom: 6px; }
-.fitem .fb { font-size: 10px; color: var(--text2); max-height: 60px; overflow: hidden; }
-.wfcard { border: 1px solid var(--wf); padding: 14px; background: var(--bg2); animation: si .2s ease; }
-.wfcard .wn { font-size: 14px; color: var(--wf); margin-bottom: 8px; }
-.wfcard .wr { font-size: 10px; color: var(--text2); margin-bottom: 4px; }
-.wfcard .wr .k { color: var(--text3); display: inline-block; width: 90px; }
-.wflink {
-  display: inline-block; font-size: 9px; padding: 2px 8px;
-  border: 1px solid var(--border); margin: 2px 2px 2px 0; color: var(--text3); cursor: pointer;
-}
-.wflink:hover { color: var(--text); border-color: var(--border2); }
-.tag { display: inline-block; font-size: 8px; letter-spacing: 1px; padding: 1px 6px; border: 1px solid; text-transform: uppercase; }
-.tag.n { border-color: var(--nostr); color: var(--nostr); }
-.tag.r { border-color: var(--rss); color: var(--rss); }
-.notice { padding: 8px 12px; font-size: 10px; margin-bottom: 8px; border-left: 3px solid var(--text3); }
-.notice.ok   { border-color: var(--accent); color: var(--accent); background: rgba(0,232,122,.05); }
-.notice.err  { border-color: var(--danger); color: var(--danger); background: rgba(244,63,94,.05); }
-.notice.warn { border-color: var(--warn); color: var(--warn); background: rgba(251,191,36,.05); }
-.notice.info { border-color: var(--accent2); color: var(--accent2); background: rgba(0,170,255,.05); }
-.lsm { font-size: 9px; color: var(--text3); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 3px; }
-.mono { font-family: var(--font); font-size: 9px; color: var(--text2); word-break: break-all; }
-hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
+*, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+html, body { height:100%; }
+body { font-family:var(--ui); background:var(--bg); color:var(--text); font-size:13px; line-height:1.6; overflow:hidden; }
+
+/* scanline */
+body::before { content:''; position:fixed; inset:0; pointer-events:none; z-index:9999; background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.05) 2px,rgba(0,0,0,.05) 4px); }
+
+/* ── HEADER ── */
+#app { display:flex; flex-direction:column; height:100vh; }
+#header { display:flex; align-items:center; gap:12px; padding:10px 16px; background:var(--bg2); border-bottom:1px solid var(--border2); flex-shrink:0; }
+.logo { font-size:12px; font-weight:bold; letter-spacing:3px; color:var(--accent); font-family:var(--mono); white-space:nowrap; }
+.logo span { color:var(--text3); }
+#identity-bar { flex:1; display:flex; align-items:center; gap:8px; overflow:hidden; }
+.id-chip { display:flex; align-items:center; gap:5px; background:var(--bg3); border:1px solid var(--border2); padding:4px 10px; font-size:10px; color:var(--text2); cursor:pointer; font-family:var(--mono); transition:border-color .15s; }
+.id-chip:hover { border-color:var(--accent); }
+.id-chip .lbl { color:var(--text3); }
+.id-chip .val { overflow:hidden; text-overflow:ellipsis; font-size:9px; max-width:160px; }
+#sdot { width:7px; height:7px; border-radius:50%; background:var(--text3); flex-shrink:0; transition:background .3s; }
+#sdot.on { background:var(--accent); box-shadow:0 0 6px var(--accent); }
+#btn-export { display:none; font-size:9px; padding:5px 10px; background:none; border:1px solid var(--border2); color:var(--text2); cursor:pointer; font-family:var(--mono); letter-spacing:1px; }
+#btn-export:hover { border-color:var(--accent); color:var(--accent); }
+
+/* ── TABS ── */
+#tabs { display:flex; background:var(--bg2); border-bottom:1px solid var(--border2); flex-shrink:0; overflow-x:auto; scrollbar-width:none; }
+#tabs::-webkit-scrollbar { display:none; }
+.tbtn { padding:0 18px; height:44px; font-family:var(--mono); font-size:11px; letter-spacing:1.5px; text-transform:uppercase; background:none; border:none; border-bottom:2px solid transparent; color:var(--text3); cursor:pointer; transition:color .15s,border-color .15s; white-space:nowrap; flex-shrink:0; }
+.tbtn:hover { color:var(--text); }
+.tbtn.on { color:var(--text); border-bottom-color:var(--accent); }
+.tbtn[data-t="nostr"].on  { border-bottom-color:var(--nostr); color:var(--nostr); }
+.tbtn[data-t="matrix"].on { border-bottom-color:var(--matrix); color:var(--matrix); }
+.tbtn[data-t="feeds"].on  { border-bottom-color:var(--rss); color:var(--rss); }
+.tbtn[data-t="id"].on     { border-bottom-color:var(--wf); color:var(--wf); }
+
+/* ── CONTENT ── */
+#content { flex:1; overflow:hidden; display:flex; }
+.tpanel { display:none; width:100%; height:100%; overflow:hidden; }
+.tpanel.on { display:flex; }
+.split { display:flex; width:100%; height:100%; }
+
+/* ── SIDEBAR ── */
+.sidebar { width:220px; flex-shrink:0; background:var(--bg2); border-right:1px solid var(--border); display:flex; flex-direction:column; overflow:hidden; }
+.main { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+.stitle { font-size:9px; letter-spacing:2.5px; text-transform:uppercase; color:var(--text3); padding:10px 14px 7px; border-bottom:1px solid var(--border); flex-shrink:0; }
+.sbody { flex:1; overflow-y:auto; padding:10px; scrollbar-width:thin; scrollbar-color:var(--bg4) transparent; }
+
+/* ── INPUTS ── */
+input, textarea, select { font-family:var(--mono); font-size:11px; background:var(--bg3); border:1px solid var(--border2); color:var(--text); padding:7px 10px; outline:none; width:100%; transition:border-color .15s; }
+input:focus, textarea:focus { border-color:var(--accent); }
+textarea { resize:vertical; min-height:60px; }
+input::placeholder, textarea::placeholder { color:var(--text3); }
+button { font-family:var(--mono); font-size:10px; letter-spacing:1px; padding:7px 14px; border:1px solid var(--border2); background:var(--bg3); color:var(--text2); cursor:pointer; text-transform:uppercase; transition:all .15s; white-space:nowrap; }
+button:hover { background:var(--bg4); color:var(--text); border-color:var(--border2); }
+button.nb { border-color:var(--nostr); color:var(--nostr); }
+button.nb:hover { background:rgba(168,85,247,.1); }
+button.mb { border-color:var(--matrix); color:var(--matrix); }
+button.mb:hover { background:rgba(13,189,139,.1); }
+button.rb { border-color:var(--rss); color:var(--rss); }
+button.rb:hover { background:rgba(249,115,22,.1); }
+button.wb { border-color:var(--wf); color:var(--wf); }
+button.wb:hover { background:rgba(56,189,248,.1); }
+button.xb { border-color:var(--danger); color:var(--danger); }
+button.xb:hover { background:rgba(244,63,94,.1); }
+button:disabled { opacity:.35; cursor:not-allowed; }
+.row { display:flex; gap:6px; align-items:flex-start; }
+.row input, .row select { flex:1; }
+.col { display:flex; flex-direction:column; gap:7px; }
+
+/* ── RELAY / PEER LISTS ── */
+.litem { display:flex; align-items:center; gap:8px; padding:7px 10px; font-size:10px; border:1px solid var(--border); margin-bottom:4px; background:var(--bg); cursor:pointer; transition:border-color .15s; }
+.litem:hover { border-color:var(--border2); }
+.litem .dot { width:5px; height:5px; border-radius:50%; background:var(--text3); flex-shrink:0; }
+.litem .dot.ok  { background:var(--accent); }
+.litem .dot.err { background:var(--danger); }
+.litem .dot.pnd { background:var(--warn); animation:blink 1s infinite; }
+@keyframes blink { 50% { opacity:.3; } }
+.litem .nm { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:10px; }
+.litem .rm { color:var(--text3); font-size:11px; }
+.litem .rm:hover { color:var(--danger); }
+
+/* ── FEED ── */
+.feed { flex:1; overflow-y:auto; padding:10px; scrollbar-width:thin; scrollbar-color:var(--bg4) transparent; }
+.ecard { border:1px solid var(--border); margin-bottom:8px; padding:12px; background:var(--bg2); animation:si .2s ease; }
+@keyframes si { from{opacity:0;transform:translateY(-3px)} to{opacity:1} }
+.ehead { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px; }
+.eauthor { font-size:10px; color:var(--nostr); word-break:break-all; font-family:var(--mono); }
+.etime   { font-size:9px; color:var(--text3); white-space:nowrap; margin-left:8px; flex-shrink:0; }
+.ebody   { font-size:12px; color:var(--text); white-space:pre-wrap; word-break:break-word; line-height:1.6; }
+.eacts   { display:flex; gap:6px; margin-top:8px; }
+.eacts button { padding:3px 9px; font-size:9px; }
+
+/* ── COMPOSE BAR ── */
+.cbar { padding:10px 12px; border-top:1px solid var(--border); background:var(--bg2); display:flex; flex-direction:column; gap:6px; flex-shrink:0; }
+.cbar .row { align-items:flex-end; }
+.cc { font-size:9px; color:var(--text3); text-align:right; }
+
+/* ── MATRIX ── */
+.ritem { padding:8px 12px; font-size:11px; cursor:pointer; border-left:2px solid transparent; transition:all .12s; color:var(--text2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ritem:hover { background:var(--bg3); color:var(--text); }
+.ritem.on { border-left-color:var(--matrix); color:var(--matrix); background:var(--bg3); }
+.mxmsg { margin-bottom:10px; animation:si .15s ease; }
+.mxmsg .snd { font-size:10px; color:var(--matrix); margin-bottom:2px; font-family:var(--mono); }
+.mxmsg.me .snd { color:var(--accent); }
+.mxmsg .bd { font-size:12px; color:var(--text); }
+.mxmsg .ts { font-size:9px; color:var(--text3); }
+
+/* ── FEEDS ── */
+.fitem { border:1px solid var(--border); margin-bottom:8px; padding:10px; background:var(--bg2); animation:si .2s ease; }
+.fitem .ft { font-size:12px; color:var(--rss); margin-bottom:3px; }
+.fitem .ft a { color:inherit; text-decoration:none; }
+.fitem .ft a:hover { text-decoration:underline; }
+.fitem .fm { font-size:9px; color:var(--text3); margin-bottom:5px; }
+.fitem .fb { font-size:11px; color:var(--text2); max-height:56px; overflow:hidden; }
+
+/* ── WEBFINGER ── */
+.wfcard { border:1px solid var(--wf); padding:16px; background:var(--bg2); animation:si .2s ease; }
+.wfcard .wn { font-size:15px; color:var(--wf); margin-bottom:8px; font-weight:600; }
+.wfcard .wr { font-size:10px; color:var(--text2); margin-bottom:4px; }
+.wfcard .wr .k { color:var(--text3); display:inline-block; width:80px; }
+.wflink { display:inline-block; font-size:9px; padding:2px 7px; border:1px solid var(--border); margin:2px 2px 2px 0; color:var(--text3); cursor:pointer; font-family:var(--mono); }
+.wflink:hover { color:var(--text); border-color:var(--border2); }
+
+/* ── TAGS & NOTICES ── */
+.tag { display:inline-block; font-size:8px; letter-spacing:1px; padding:1px 5px; border:1px solid; text-transform:uppercase; font-family:var(--mono); }
+.tag.n { border-color:var(--nostr); color:var(--nostr); }
+.tag.r { border-color:var(--rss); color:var(--rss); }
+.notice { padding:8px 12px; font-size:11px; margin-bottom:8px; border-left:3px solid var(--text3); line-height:1.5; }
+.notice.ok   { border-color:var(--accent); color:var(--accent); background:rgba(0,232,122,.05); }
+.notice.err  { border-color:var(--danger); color:var(--danger); background:rgba(244,63,94,.05); }
+.notice.warn { border-color:var(--warn); color:var(--warn); background:rgba(251,191,36,.05); }
+.notice.info { border-color:var(--cyan); color:var(--cyan); background:rgba(0,170,255,.05); }
+
+/* ── IDENTITY ── */
+.lsm { font-size:9px; color:var(--text3); letter-spacing:1px; text-transform:uppercase; margin-bottom:4px; font-family:var(--mono); }
+.mono-val { font-family:var(--mono); font-size:9px; color:var(--text2); word-break:break-all; line-height:1.7; }
+hr { border:none; border-top:1px solid var(--border); margin:10px 0; }
+
+/* ── TOOLBAR ── */
+.toolbar { display:flex; align-items:center; gap:8px; padding:8px 12px; border-bottom:1px solid var(--border); background:var(--bg2); flex-shrink:0; flex-wrap:wrap; }
+.toolbar-label { font-size:9px; letter-spacing:2px; color:var(--text3); font-family:var(--mono); flex:1; }
 </style>
 </head>
 <body>
@@ -216,7 +181,7 @@ hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
       <span class="lbl">NPUB</span><span class="val" id="chip-npub-v">—</span>
     </div>
   </div>
-  <button id="btn-export" style="display:none;font-size:9px;padding:4px 10px">EXPORT</button>
+  <button id="btn-export">EXPORT</button>
 </div>
 
 <div id="tabs">
@@ -237,12 +202,12 @@ hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
           <div id="relay-list"></div>
           <div class="row" style="margin-top:6px">
             <input id="relay-in" placeholder="wss://relay.damus.io" />
-            <button class="nb" id="btn-add-relay" style="padding:6px 10px">+</button>
+            <button class="nb" id="btn-add-relay" style="padding:7px 10px">+</button>
           </div>
         </div>
         <div class="stitle">Direct Messages</div>
         <div class="sbody" id="dm-list"></div>
-        <div style="padding:8px;border-top:1px solid var(--border)">
+        <div style="padding:10px;border-top:1px solid var(--border)">
           <div class="lsm">New DM</div>
           <div class="col">
             <input id="dm-in" placeholder="npub1… or hex pubkey" />
@@ -251,11 +216,10 @@ hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
         </div>
       </div>
       <div class="main">
-        <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--border);background:var(--bg2)">
-          <span style="font-size:9px;letter-spacing:2px;color:var(--text3)" id="feed-lbl">GLOBAL FEED</span>
-          <div style="flex:1"></div>
-          <button style="font-size:9px;padding:4px 10px" id="btn-global">↺ GLOBAL</button>
-          <button style="font-size:9px;padding:4px 10px" id="btn-myfeed">MY FEED</button>
+        <div class="toolbar">
+          <span class="toolbar-label" id="feed-lbl">GLOBAL FEED</span>
+          <button style="font-size:9px;padding:5px 10px" id="btn-global">↺ Global</button>
+          <button style="font-size:9px;padding:5px 10px" id="btn-myfeed">My Feed</button>
         </div>
         <div class="feed" id="nostr-feed"><div class="notice info">Connect a relay to see events. Ctrl+Enter to publish.</div></div>
         <div class="cbar">
@@ -263,7 +227,7 @@ hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
           <div class="row">
             <span class="cc" id="cc">0 / 280</span>
             <div style="flex:1"></div>
-            <button class="nb" id="btn-pub">PUBLISH NOTE</button>
+            <button class="nb" id="btn-pub">Publish Note</button>
           </div>
         </div>
       </div>
@@ -280,23 +244,23 @@ hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
             <input id="mx-srv" value="https://matrix.org" placeholder="https://matrix.org" />
             <input id="mx-usr" placeholder="@user:matrix.org" />
             <input id="mx-pwd" type="password" placeholder="password" />
-            <button class="mb" id="btn-mxlogin">CONNECT</button>
+            <button class="mb" id="btn-mxlogin">Connect</button>
           </div>
           <div id="mx-conn" style="display:none">
             <div class="notice ok" id="mx-status">Connected</div>
-            <button class="xb" id="btn-mxout" style="width:100%;margin-top:4px">DISCONNECT</button>
+            <button class="xb" id="btn-mxout" style="width:100%;margin-top:4px">Disconnect</button>
           </div>
         </div>
         <div class="stitle">Rooms</div>
-        <div class="sbody" id="mx-rooms"><div style="font-size:10px;color:var(--text3)">Not connected.</div></div>
+        <div class="sbody" id="mx-rooms"><div style="font-size:11px;color:var(--text3)">Not connected.</div></div>
       </div>
       <div class="main">
-        <div style="padding:8px 12px;border-bottom:1px solid var(--border);background:var(--bg2);font-size:10px;color:var(--text3)" id="mx-rtitle">Select a room →</div>
+        <div class="toolbar"><span class="toolbar-label" id="mx-rtitle">Select a room →</span></div>
         <div class="feed" id="mx-feed"><div class="notice info">Connect to Matrix and select a room.</div></div>
         <div class="cbar">
           <div class="row">
             <input id="mx-msg" placeholder="Message…" />
-            <button class="mb" id="btn-mxsend">SEND</button>
+            <button class="mb" id="btn-mxsend">Send</button>
           </div>
         </div>
       </div>
@@ -312,21 +276,20 @@ hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
           <div class="col">
             <input id="feed-url" placeholder="https://example.com/feed.xml" />
             <div class="row">
-              <label style="font-size:9px;color:var(--text3);display:flex;align-items:center;gap:4px">
+              <label style="font-size:9px;color:var(--text3);display:flex;align-items:center;gap:4px;cursor:pointer">
                 <input type="checkbox" id="feed-proxy" style="width:auto"> CORS proxy
               </label>
               <div style="flex:1"></div>
-              <button class="rb" id="btn-addfeed">+ ADD</button>
+              <button class="rb" id="btn-addfeed">+ Add</button>
             </div>
           </div>
         </div>
         <div class="sbody" id="feed-list"></div>
       </div>
       <div class="main">
-        <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--border);background:var(--bg2)">
-          <span style="font-size:9px;letter-spacing:2px;color:var(--text3)">ALL FEEDS</span>
-          <div style="flex:1"></div>
-          <button class="rb" style="font-size:9px;padding:4px 10px" id="btn-refreshfeeds">↺ REFRESH ALL</button>
+        <div class="toolbar">
+          <span class="toolbar-label">ALL FEEDS</span>
+          <button class="rb" style="font-size:9px;padding:5px 10px" id="btn-refreshfeeds">↺ Refresh All</button>
         </div>
         <div class="feed" id="feed-panel"><div class="notice info">Add a feed URL to subscribe.</div></div>
       </div>
@@ -341,11 +304,11 @@ hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
         <div class="sbody" style="flex:0">
           <div class="col">
             <div class="lsm">Nostr pubkey (hex)</div>
-            <div class="mono" id="id-pub">—</div>
+            <div class="mono-val" id="id-pub">—</div>
             <div class="lsm" style="margin-top:8px">npub</div>
-            <div class="mono" id="id-npub">—</div>
+            <div class="mono-val" id="id-npub">—</div>
             <hr>
-            <button class="xb" id="btn-reset">RESET BRIDGE KEYS</button>
+            <button class="xb" id="btn-reset">Reset Keys</button>
           </div>
         </div>
         <div class="stitle">Import / Derive</div>
@@ -353,25 +316,25 @@ hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
           <div class="col">
             <div class="lsm">nsec or hex privkey</div>
             <input id="imp-key" placeholder="nsec1… or 64-char hex" />
-            <button class="wb" id="btn-impkey">IMPORT KEY</button>
+            <button class="wb" id="btn-impkey">Import Key</button>
             <hr>
-            <div class="lsm">Derive from Sovereign privkey</div>
+            <div class="lsm">Derive from Sovereign key</div>
             <input id="drv-key" placeholder="Ed25519 private key hex" />
-            <button class="wb" id="btn-drvkey">DERIVE NOSTR KEY</button>
+            <button class="wb" id="btn-drvkey">Derive Nostr Key</button>
           </div>
         </div>
       </div>
       <div class="main">
-        <div style="padding:8px 12px;border-bottom:1px solid var(--border);background:var(--bg2);font-size:9px;letter-spacing:2px;color:var(--text3)">
-          WEBFINGER · ACTIVITYPUB RESOLVER
+        <div class="toolbar">
+          <span class="toolbar-label">WEBFINGER · ACTIVITYPUB RESOLVER</span>
         </div>
         <div style="padding:12px;border-bottom:1px solid var(--border);background:var(--bg2)">
           <div class="row">
             <input id="wf-in" placeholder="@user@mastodon.social" />
-            <button class="wb" id="btn-wf">RESOLVE</button>
+            <button class="wb" id="btn-wf">Resolve</button>
           </div>
         </div>
-        <div class="feed" id="wf-out"><div class="notice info">Enter a Fediverse handle to resolve their identity and find Nostr links.</div></div>
+        <div class="feed" id="wf-out"><div class="notice info">Enter a Fediverse handle to resolve their identity.</div></div>
       </div>
     </div>
   </div>
@@ -1352,3 +1315,4 @@ document.addEventListener('DOMContentLoaded', async () => {
 </script>
 </body>
 </html>
+
