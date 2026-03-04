@@ -20,14 +20,14 @@
       bar.id    = 'sovereign-hash-bar';
       bar.style.cssText = [
         'position:fixed','bottom:0','left:0','right:0','z-index:99999',
-        'background:rgba(6,6,8,.97)','border-top:1px solid #1a1a28',
-        'font-family:Courier New,monospace','font-size:9px','color:#64748b',
+        'background:rgba(6,6,8,.97)','border-top:1px solid rgba(80,230,130,0.25)',
+        'font-family:Courier New,monospace','font-size:13px','color:#64748b',
         'padding:3px 12px','display:flex','align-items:center','gap:8px',
         'pointer-events:none',
       ].join(';');
       bar.innerHTML = ''; // will use textContent below — safe static strings only
       const label = document.createElement('span');
-      label.style.color = '#00d4ff';
+      label.style.color = '#00ffd5';
       label.textContent = 'FILE SHA-256';
       const hashEl = document.createElement('span');
       hashEl.id    = 'sovereign-hash-value';

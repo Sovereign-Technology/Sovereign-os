@@ -758,14 +758,14 @@ function injectStatusDot() {
   dot.id = 'transport-dot';
   dot.innerHTML = `<style>
     #transport-dot{position:fixed;bottom:12px;left:12px;z-index:9999;display:flex;align-items:center;gap:6px;
-      background:rgba(6,6,8,.88);border:1px solid #1a1a28;border-radius:20px;padding:5px 10px;
-      font-family:'Courier New',monospace;font-size:9px;color:#94a3b8;backdrop-filter:blur(8px);pointer-events:none}
-    #transport-dot .dot{width:6px;height:6px;border-radius:50%;background:#334155;transition:background .3s}
-    #transport-dot .dot.kdf  {background:#fbbf24;box-shadow:0 0 6px #fbbf2466}
-    #transport-dot .dot.dht  {background:#00ff88;box-shadow:0 0 6px #00ff8866}
-    #transport-dot .dot.mesh {background:#a78bfa;box-shadow:0 0 6px #a78bfa66}
-    #transport-dot .dot.chain{background:#00d4ff;box-shadow:0 0 6px #00d4ff66}
-    #transport-dot .dot.err  {background:#ff3366;box-shadow:0 0 6px #ff336666}
+      background:rgba(6,18,6,.96);border:1px solid rgba(80,230,130,0.25);border-radius:20px;padding:5px 10px;
+      font-family:'Courier New',monospace;font-size:13px;color:#b8f5a0;backdrop-filter:blur(8px);pointer-events:none}
+    #transport-dot .dot{width:6px;height:6px;border-radius:50%;background:#2a5a36;transition:background .3s}
+    #transport-dot .dot.kdf  {background:#ffe156;box-shadow:0 0 6px #ffe15666}
+    #transport-dot .dot.dht  {background:#4eff91;box-shadow:0 0 6px #4eff9166}
+    #transport-dot .dot.mesh {background:#d97dff;box-shadow:0 0 6px #d97dff66}
+    #transport-dot .dot.chain{background:#00ffd5;box-shadow:0 0 6px #00ffd566}
+    #transport-dot .dot.err  {background:#ff6eb4;box-shadow:0 0 6px #ff6eb466}
   </style>
   <span class="dot" id="td-kdf" title="KDF"></span>
   <span class="dot" id="td-dht" title="DHT/WebRTC"></span>
