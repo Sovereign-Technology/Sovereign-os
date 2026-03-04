@@ -4502,6 +4502,9 @@ window.downloadSharesFile = function(){
 // TAB SWITCHING — with on-enter hooks
 // ══════════════════════════════════════════════════════════
 const _tabOnEnter = {
+  stack:      ()=>{ updateStackStatus(); },
+  runtime:    ()=>{ EventRuntime.refreshMetrics(); },
+  trustgraph: ()=>{ TrustGraph.renderCanvas(); TrustGraph.renderList(); },
   governance: ()=>{ Governance.loadFromIDB(); },
   assets:     ()=>{ Assets.loadFromIDB(); },
   network:    ()=>{ /* nothing extra needed */ },
@@ -4519,11 +4522,21 @@ const _tabOnEnter = {
 function switchTab(name){
   document.querySelectorAll('.tab-content').forEach(el=>el.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(el=>el.classList.remove('active'));
-  const tabMap={birth:'tab-birth',identity:'tab-identity',governance:'tab-governance',assets:'tab-assets',network:'tab-network',witness:'tab-witness',feed:'tab-feed',memory:'tab-memory',parser:'tab-parser',tokens:'tab-tokens',attacks:'tab-attacks',search:'tab-search',invariants:'tab-invariants'};
-  const el=document.getElementById(tabMap[name]);if(el)el.classList.add('active');
-  const tabs=[...document.querySelectorAll('.nav-tab')];
-  const idx=['birth','identity','governance','assets','network','witness','feed','memory','parser','tokens','attacks','search','invariants'].indexOf(name);
-  if(tabs[idx])tabs[idx].classList.add('active');
+  const tabMap={
+    birth:'tab-birth', stack:'tab-stack', runtime:'tab-runtime', trustgraph:'tab-trustgraph',
+    identity:'tab-identity', governance:'tab-governance', assets:'tab-assets',
+    network:'tab-network', witness:'tab-witness', feed:'tab-feed',
+    memory:'tab-memory', parser:'tab-parser', tokens:'tab-tokens',
+    attacks:'tab-attacks', search:'tab-search', invariants:'tab-invariants',
+    devtools:'tab-devtools'
+  };
+  const el=document.getElementById(tabMap[name]);
+  if(el) el.classList.add('active');
+  // Match nav button by onclick content rather than fragile index
+  document.querySelectorAll('.nav-tab').forEach(btn=>{
+    const oc=btn.getAttribute('onclick')||'';
+    if(oc.includes("'"+name+"'") || oc.includes('"'+name+'"')) btn.classList.add('active');
+  });
   if(_tabOnEnter[name])_tabOnEnter[name]();
 }
 // (duplicate newIdentity removed)
@@ -7086,7 +7099,7 @@ const EventRuntime = (() => {
   window.EventRuntime_getRoot = () => stateRoot(state);
   window.EventRuntime_getEvents = () => events;
 
-  return { emit, replay, computeRoot, verifyAll, clearLog, exportLog, probeDeteminism };
+  return { emit, replay, computeRoot, verifyAll, clearLog, exportLog, probeDeteminism, refreshMetrics: updateMetrics };
 })();
 window.EventRuntime = EventRuntime;
 
@@ -7139,12 +7152,12 @@ const TrustGraph = (() => {
     const ctx = canvas.getContext('2d');
     const W = canvas.width, H = canvas.height;
     ctx.clearRect(0, 0, W, H);
-    ctx.fillStyle = '#0d0d12';
+    ctx.fillStyle = '#060d06';
     ctx.fillRect(0, 0, W, H);
 
     if (assertions.length === 0) {
-      ctx.fillStyle = '#94a3b8';
-      ctx.font = '11px Courier New';
+      ctx.fillStyle = '#72c97a';
+      ctx.font = 'bold 14px Courier New';
       ctx.textAlign = 'center';
       ctx.fillText('No trust assertions — graph is empty', W/2, H/2);
       return;
@@ -7274,7 +7287,7 @@ const TrustGraph = (() => {
     tgLog(`Query: ${did.slice(0,24)}… scope:${scope} → ${pass ? 'PASS' : 'FAIL'} (${confidence.toFixed(2)}/${required})`, pass ? 'ok' : 'warn');
   }
 
-  return { assert, revoke, query };
+  return { assert, revoke, query, renderCanvas, renderList: renderAssertions };
 })();
 window.TrustGraph = TrustGraph;
 
