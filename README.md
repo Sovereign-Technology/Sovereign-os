@@ -287,3 +287,332 @@ Contact **iconoclastdao@gmail.com** for commercial licensing inquiries.
 ---
 
 *"The tools of sovereignty should be sovereign themselves."*
+
+---
+
+## Self-Hosting Guide
+
+Sovereign is designed to run as static files — no application server, no database, no runtime dependencies. Hosting it means putting the files somewhere a browser can reach them over HTTP/HTTPS and optionally running the relay as a persistent WebSocket service.
+
+### Option 1 — Local Machine (Simplest)
+
+The fastest way to run the full stack locally. Pick any static file server:
+
+```bash
+# Node (one-liner, no config)
+npx serve .
+
+# Python (built-in, no install)
+python3 -m http.server 8080
+
+# PHP (built-in)
+php -S localhost:8080
+
+# Caddy (zero-config HTTPS on localhost)
+caddy file-server --browse
+```
+
+Then open `http://localhost:8080/index.html` in your browser. The service worker will register and cache all assets on first load, enabling full offline use after that.
+
+> **Note:** The service worker will not register over a bare `file://` URL. You must use HTTP, even locally.
+
+---
+
+### Option 2 — Static File Host (GitHub Pages, Netlify, Cloudflare Pages)
+
+Because Sovereign is pure static HTML, any static host works with zero configuration. There is no build step.
+
+**GitHub Pages**
+
+1. Push your Sovereign folder to a GitHub repository
+2. Go to Settings → Pages → Source → select your branch and root folder
+3. Your node is live at `https://yourusername.github.io/your-repo/`
+
+**Netlify**
+
+1. Drag and drop the folder into [netlify.com/drop](https://netlify.com/drop)
+2. Or connect your GitHub repo and set publish directory to `/`
+3. No build command needed — leave it blank
+
+**Cloudflare Pages**
+
+1. Connect your repo in the Cloudflare dashboard
+2. Set build command: *(leave empty)*
+3. Set output directory: `/`
+4. Deploy
+
+All three give you HTTPS automatically. The service worker will register and all features work.
+
+---
+
+### Option 3 — VPS / Dedicated Server
+
+For a permanent, accessible node — useful if you want a relay that is always reachable or want to share your Sovereign instance with others.
+
+**Nginx**
+
+Create `/etc/nginx/sites-available/sovereign`:
+
+```nginx
+server {
+    listen 80;
+    server_name your-domain.com;
+
+    root /var/www/sovereign;
+    index index.html;
+
+    # Required for service worker scope
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Required headers for SharedArrayBuffer (if used) and service worker
+    add_header Cross-Origin-Opener-Policy same-origin;
+    add_header Cross-Origin-Embedder-Policy require-corp;
+
+    # Cache static assets, never cache HTML
+    location ~* \.(js|css|png|ico|woff2)$ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+    location ~* \.html$ {
+        add_header Cache-Control "no-cache";
+    }
+}
+```
+
+Enable and reload:
+
+```bash
+ln -s /etc/nginx/sites-available/sovereign /etc/nginx/sites-enabled/
+nginx -t && systemctl reload nginx
+```
+
+Add HTTPS with Certbot:
+
+```bash
+apt install certbot python3-certbot-nginx
+certbot --nginx -d your-domain.com
+```
+
+**Caddy** (HTTPS automatic, config minimal)
+
+Create a `Caddyfile` in your Sovereign directory:
+
+```
+your-domain.com {
+    root * /var/www/sovereign
+    file_server
+    header Cross-Origin-Opener-Policy same-origin
+    header Cross-Origin-Embedder-Policy require-corp
+}
+```
+
+Run:
+
+```bash
+caddy run
+```
+
+Caddy handles HTTPS certificate issuance and renewal automatically.
+
+---
+
+### Option 4 — Self-Hosting the Relay (`relay.html`)
+
+The relay is the only component that needs a persistent network presence. It is a WebSocket server that brokers WebRTC handshakes — once two peers connect, the relay is no longer in the communication path.
+
+The relay UI (`relay.html`) is a browser-based admin interface, not the relay server itself. To self-host a relay, you need a WebSocket server running on a machine with a public IP.
+
+**Minimal Node.js relay server**
+
+Create `relay-server.js`:
+
+```javascript
+const { WebSocketServer } = require('ws');
+
+const PORT = process.env.PORT || 8765;
+const wss  = new WebSocketServer({ port: PORT });
+const peers = new Map(); // did → socket
+
+wss.on('connection', (ws) => {
+  let myDid = null;
+
+  ws.on('message', (raw) => {
+    let msg;
+    try { msg = JSON.parse(raw); } catch { return; }
+
+    // Register identity
+    if (msg.type === 'HELLO' && msg.did) {
+      myDid = msg.did;
+      peers.set(myDid, ws);
+      ws.send(JSON.stringify({ type: 'HELLO_ACK', peers: [...peers.keys()] }));
+      broadcast({ type: 'PEER_ONLINE', did: myDid }, myDid);
+      return;
+    }
+
+    // Route to target peer
+    if (msg.to && peers.has(msg.to)) {
+      peers.get(msg.to).send(JSON.stringify({ ...msg, from: myDid }));
+    }
+  });
+
+  ws.on('close', () => {
+    if (myDid) {
+      peers.delete(myDid);
+      broadcast({ type: 'PEER_OFFLINE', did: myDid }, myDid);
+    }
+  });
+
+  function broadcast(msg, exceptDid) {
+    const payload = JSON.stringify(msg);
+    for (const [did, sock] of peers) {
+      if (did !== exceptDid && sock.readyState === 1) sock.send(payload);
+    }
+  }
+});
+
+console.log(`Sovereign relay listening on ws://0.0.0.0:${PORT}`);
+```
+
+Run it:
+
+```bash
+npm install ws
+node relay-server.js
+```
+
+**Keep it running with PM2:**
+
+```bash
+npm install -g pm2
+pm2 start relay-server.js --name sovereign-relay
+pm2 save
+pm2 startup
+```
+
+**Expose it over WSS (required for HTTPS-served nodes)**
+
+If your Sovereign files are served over HTTPS, the relay must use `wss://` — browsers block mixed content. Proxy the relay through Nginx:
+
+```nginx
+# Add inside your server block:
+location /relay {
+    proxy_pass http://localhost:8765;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host $host;
+    proxy_read_timeout 3600s;
+    proxy_send_timeout 3600s;
+}
+```
+
+Your relay URL becomes: `wss://your-domain.com/relay`
+
+Enter this in Genesis Node → **Connect → Relay** on both devices.
+
+---
+
+### Option 5 — LAN / Intranet Node
+
+For use within a local network (home lab, organization, air-gapped environment):
+
+1. Run any static file server on one machine:
+   ```bash
+   npx serve --listen 0.0.0.0 --port 8080 .
+   ```
+2. Other devices on the network open `http://192.168.x.x:8080/index.html`
+3. For the relay, run `relay-server.js` on the same or a dedicated machine and point all nodes at `ws://192.168.x.x:8765`
+
+Within a LAN, WebRTC connections often succeed without STUN servers because peers are on the same subnet. The relay is still useful for initial discovery.
+
+---
+
+### STUN / TURN Configuration
+
+WebRTC uses STUN to discover public IP addresses for NAT traversal. Sovereign ships with Google's and Cloudflare's free STUN servers:
+
+```
+stun:stun.l.google.com:19302
+stun:stun1.l.google.com:19302
+stun:stun2.l.google.com:19302
+stun:stun.cloudflare.com:3478
+```
+
+These work for most home and office networks. If peers are behind symmetric NAT (common in some corporate networks), STUN alone will not be enough — you will need a TURN server, which relays media traffic.
+
+**Self-hosting a TURN server with coturn:**
+
+```bash
+apt install coturn
+
+# /etc/turnserver.conf
+listening-port=3478
+tls-listening-port=5349
+realm=your-domain.com
+user=sovereign:your-secret-password
+lt-cred-mech
+fingerprint
+no-multicast-peers
+```
+
+Then add your TURN server to the `ICE_SERVERS` constant in `index.html`:
+
+```javascript
+const ICE_SERVERS = [
+  { urls: 'stun:stun.l.google.com:19302' },
+  {
+    urls: 'turn:your-domain.com:3478',
+    username: 'sovereign',
+    credential: 'your-secret-password'
+  }
+];
+```
+
+---
+
+### Content Security Policy
+
+The HTML files ship with a strict CSP:
+
+```
+default-src 'none';
+script-src 'self' 'unsafe-inline';
+style-src 'self' 'unsafe-inline';
+connect-src 'self' http://localhost:11434 ws: wss: https:;
+img-src 'self' data: blob:;
+worker-src blob:;
+```
+
+`http://localhost:11434` is the Ollama local AI endpoint. If you are not using Ollama, you can remove it. All WebSocket and HTTPS connections are permitted under `ws: wss: https:` — tighten this to specific domains in a production deployment if you want a narrower surface:
+
+```
+connect-src 'self' wss://your-relay.com https://your-relay.com;
+```
+
+---
+
+### Connecting the Relay Admin UI
+
+Once your relay server is running, open `relay.html` in a browser and enter your relay's WebSocket URL. The admin UI shows:
+
+- Connected peers and their DIDs
+- Message routing activity
+- Live connection graph
+- Uptime and throughput stats
+
+The relay server itself does not depend on `relay.html` being open — the Node.js process runs independently. The HTML file is purely an observation and management interface.
+
+---
+
+### Hosting Checklist
+
+| Task | Required | Notes |
+|---|---|---|
+| Serve files over HTTP or HTTPS | ✅ | `file://` breaks service worker |
+| HTTPS for public nodes | Recommended | Required for `wss://` relay, geolocation, camera (QR scan) |
+| Relay server running | Optional | Needed for cross-network peer discovery |
+| Relay behind WSS proxy | If HTTPS | Mixed content blocks `ws://` from HTTPS pages |
+| TURN server | Optional | Only needed for symmetric NAT environments |
+| PM2 or systemd for relay | Recommended | Keeps relay alive after reboot |
