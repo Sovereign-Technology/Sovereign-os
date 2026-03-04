@@ -28,7 +28,7 @@
   --border-hi: rgba(255,255,255,0.14);
   --text:      #f4fff0;
   --text2:     #b8f5a0;
-  --text3:     #72c97a;
+  --text3:     #9de89a;
   --accent:    #4eff91;
   --accent2:   #00ffd5;
   --green:     #4eff91;
@@ -86,9 +86,9 @@ body {
 }
 
 .sidebar-section-label {
-  font-size: 16px;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 1px;
+  letter-spacing: 1.5px;
   text-transform: uppercase;
   color: var(--text3);
   padding: 12px 20px 6px;
@@ -544,22 +544,22 @@ body {
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
           <div style="font-size:13px;font-weight:700;">AI Engine <span id="active-engine-label" style="color:var(--text3);font-weight:400;font-size:12px;">— detecting…</span></div>
           <div style="display:flex;align-items:center;gap:8px;">
-            <span id="engine-status" style="font-size:11px;color:var(--text3);">Checking…</span>
+            <span id="engine-status" style="font-size:13px;color:var(--text3);">Checking…</span>
             <button class="btn btn-sm" onclick="AIEngine.detect(true)">↺ Detect</button>
           </div>
         </div>
 
         <!-- Tier indicators -->
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
-          <div id="tier-ollama" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;border:1px solid var(--border);font-size:11px;color:var(--text3);">
+          <div id="tier-ollama" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;border:1px solid var(--border);font-size:13px;color:var(--text3);">
             <span id="tier-ollama-dot" style="width:6px;height:6px;border-radius:50%;background:var(--text3);flex-shrink:0;"></span>
             Ollama (local)
           </div>
-          <div id="tier-transformers" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;border:1px solid var(--border);font-size:11px;color:var(--text3);">
+          <div id="tier-transformers" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;border:1px solid var(--border);font-size:13px;color:var(--text3);">
             <span id="tier-transformers-dot" style="width:6px;height:6px;border-radius:50%;background:var(--text3);flex-shrink:0;"></span>
             Transformers.js (browser)
           </div>
-          <div id="tier-mock" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;border:1px solid var(--border);font-size:11px;color:var(--text3);">
+          <div id="tier-mock" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;border:1px solid var(--border);font-size:13px;color:var(--text3);">
             <span id="tier-mock-dot" style="width:6px;height:6px;border-radius:50%;background:var(--text3);flex-shrink:0;"></span>
             Smart Builder (offline)
           </div>
@@ -653,15 +653,15 @@ body {
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-shrink:0;">
             <div style="display:flex;gap:0;border:1px solid rgba(255,255,255,0.07);border-radius:6px;overflow:hidden;">
               <button id="stage-blueprint-btn" onclick="StudioEngine.showStage('blueprint')"
-                style="padding:5px 14px;font-size:11px;font-weight:700;background:var(--accent);color:#fff;border:none;cursor:pointer;">
+                style="padding:5px 14px;font-size:13px;font-weight:700;background:var(--accent);color:#fff;border:none;cursor:pointer;">
                 1 · Blueprint
               </button>
               <button id="stage-code-btn" onclick="StudioEngine.showStage('code')"
-                style="padding:5px 14px;font-size:11px;font-weight:600;background:transparent;color:#9999b5;border:none;cursor:pointer;">
+                style="padding:5px 14px;font-size:13px;font-weight:600;background:transparent;color:#b8b8d0;border:none;cursor:pointer;">
                 2 · Code
               </button>
               <button id="stage-preview-btn" onclick="StudioEngine.showStage('preview')"
-                style="padding:5px 14px;font-size:11px;font-weight:600;background:transparent;color:#9999b5;border:none;cursor:pointer;">
+                style="padding:5px 14px;font-size:13px;font-weight:600;background:transparent;color:#b8b8d0;border:none;cursor:pointer;">
                 3 · Preview
               </button>
             </div>
@@ -675,7 +675,7 @@ body {
           <!-- Stage 1: Blueprint JSON -->
           <div id="stage-blueprint" style="flex:1;display:flex;flex-direction:column;min-height:0;">
             <pre class="manifest-pre" id="blueprint-output" style="flex:1;min-height:0;overflow-y:auto;">Describe your app above and click Build…</pre>
-            <div style="margin-top:8px;font-size:10px;color:#55556a;flex-shrink:0;">
+            <div style="margin-top:8px;font-size:12px;color:#b8b8d0;flex-shrink:0;">
               ↑ Architecture spec. Click <strong style="color:var(--accent);">⚡ Generate Code</strong> to produce a real app.
             </div>
           </div>
@@ -683,20 +683,20 @@ body {
           <!-- Stage 2: Generated Code -->
           <div id="stage-code" style="flex:1;display:none;flex-direction:column;min-height:0;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-shrink:0;">
-              <span style="font-size:11px;color:#9999b5;">Generated HTML App — ready to open &amp; share</span>
+              <span style="font-size:13px;color:#b8b8d0;">Generated HTML App — ready to open &amp; share</span>
               <div style="display:flex;gap:6px;">
                 <button class="btn btn-sm" onclick="StudioEngine.copyCode()">Copy</button>
                 <button class="btn btn-sm btn-success" onclick="StudioEngine.downloadApp()">⬇ Download .html</button>
               </div>
             </div>
-            <pre class="manifest-pre" id="code-output" style="flex:1;min-height:0;overflow-y:auto;font-size:10px;line-height:1.5;">// Code will appear here</pre>
-            <div id="code-gen-status" style="margin-top:6px;font-size:10px;color:var(--green);flex-shrink:0;min-height:14px;"></div>
+            <pre class="manifest-pre" id="code-output" style="flex:1;min-height:0;overflow-y:auto;font-size:12px;line-height:1.5;">// Code will appear here</pre>
+            <div id="code-gen-status" style="margin-top:6px;font-size:12px;color:var(--green);flex-shrink:0;min-height:14px;"></div>
           </div>
 
           <!-- Stage 3: Preview -->
           <div id="stage-preview" style="flex:1;display:none;flex-direction:column;min-height:0;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-shrink:0;">
-              <span style="font-size:11px;color:#9999b5;">Live Preview</span>
+              <span style="font-size:13px;color:#b8b8d0;">Live Preview</span>
               <button class="btn btn-sm" onclick="StudioEngine.refreshPreview()">↺ Refresh</button>
             </div>
             <iframe id="app-preview-frame"
@@ -931,7 +931,7 @@ body {
             </div>
             <div class="field"><label>Policy Rule / Notes</label><input id="capsule-rule" placeholder="e.g. Refundable within 7 days"></div>
             <button class="btn btn-sm btn-success" onclick="MonetizeEngine.createCapsule()">Create Capsule Policy</button>
-            <div id="capsule-result" style="font-size:10px;font-family:var(--mono);color:var(--text3);word-break:break-all;"></div>
+            <div id="capsule-result" style="font-size:12px;font-family:var(--mono);color:var(--text3);word-break:break-all;"></div>
           </div>
         </div>
       </div>
@@ -950,7 +950,7 @@ body {
           <div style="font-size:12px;color:var(--text3);margin-bottom:16px;line-height:1.6;">
             Studio auto-detects the best available engine at startup. Fallback order: <strong style="color:var(--accent2);">Ollama → Transformers.js → Smart Builder</strong>.
           </div>
-          <div style="display:flex;flex-direction:column;gap:8px;font-size:11px;color:var(--text3);">
+          <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;color:var(--text3);">
             <div style="display:flex;justify-content:space-between;align-items:center;">
               <span>🖥 Ollama (local LLM)</span>
               <span id="settings-ollama-status" style="font-family:var(--mono);">—</span>
@@ -1011,7 +1011,7 @@ body {
         <div style="font-size:12px;color:var(--text3);margin-bottom:16px;line-height:1.6;">
           Studio connects to <code style="font-family:var(--mono);color:var(--accent2);">window.sovereign</code> for identity and signing. Standalone mode uses a local mock.
         </div>
-        <div style="display:flex;flex-direction:column;gap:8px;font-family:var(--mono);font-size:11px;color:var(--text3);">
+        <div style="display:flex;flex-direction:column;gap:8px;font-family:var(--mono);font-size:13px;color:var(--text3);">
           <div style="display:flex;justify-content:space-between;"><span>Core API</span><span id="core-api-status" style="color:var(--amber);">Checking…</span></div>
           <div style="display:flex;justify-content:space-between;"><span>Identity</span><span id="core-id-status">—</span></div>
           <div style="display:flex;justify-content:space-between;"><span>Signing</span><span id="core-sign-status">—</span></div>
@@ -1479,7 +1479,7 @@ Return ONLY valid JSON with this structure:
       if(el) el.style.display = s===name ? 'flex' : 'none';
       if(btn) {
         btn.style.background = s===name ? 'var(--accent)' : 'transparent';
-        btn.style.color = s===name ? '#fff' : '#9999b5';
+        btn.style.color = s===name ? '#fff' : '#b8b8d0';
       }
     });
   }
@@ -1528,7 +1528,7 @@ Return ONLY valid JSON with this structure:
 
 
   // ── Sovereign design system — single source of truth ─────────────
-  var SOV_CSS = ':root{--bg:#060d06;--s:#0d0d12;--s2:#12121a;--b:#1a1a28;--b2:#242438;--g:#00ff88;--c:#00d4ff;--p:#a855f7;--y:#fbbf24;--r:#ff3366;--t:#f1f5f9;--t2:#cbd5e1;--t3:#94a3b8;--mono:"Courier New",Courier,monospace;--ui:system-ui,sans-serif;}*{margin:0;padding:0;box-sizing:border-box;}html{height:100%;}body{background:var(--bg);color:var(--t);font-family:var(--ui);min-height:100vh;background-image:radial-gradient(ellipse 80% 50% at 20% 20%,rgba(0,212,255,.03),transparent),radial-gradient(ellipse 60% 80% at 80% 80%,rgba(168,85,247,.03),transparent),repeating-linear-gradient(0deg,transparent,transparent 40px,rgba(255,255,255,.005) 40px,rgba(255,255,255,.005) 41px),repeating-linear-gradient(90deg,transparent,transparent 40px,rgba(255,255,255,.005) 40px,rgba(255,255,255,.005) 41px);}#topnav{position:fixed;top:0;left:0;right:0;height:52px;z-index:200;background:rgba(6,6,8,.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--b2);display:flex;align-items:center;padding:0 20px;}.nav-back{font-family:var(--mono);font-size:10px;color:var(--t3);text-decoration:none;padding:6px 10px;border:1px solid var(--b2);border-radius:3px;transition:.2s;margin-right:12px;}.nav-back:hover{color:var(--c);border-color:var(--c);}.nav-logo{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--c);letter-spacing:2px;}.nav-logo em{color:var(--g);font-style:normal;}.nav-id{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--t3);display:flex;align-items:center;gap:8px;}.dot{width:6px;height:6px;border-radius:50%;background:var(--g);box-shadow:0 0 8px rgba(0,255,136,.6);animation:pulse 2s infinite;}@keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.5;transform:scale(.8);}}.wrap{padding-top:52px;}.page{padding:24px 20px 60px;max-width:1100px;margin:0 auto;}.panel{background:var(--s);border:1px solid var(--b);border-radius:10px;padding:20px;margin-bottom:16px;position:relative;overflow:hidden;}.panel::before{content:"";position:absolute;top:0;left:0;width:3px;height:100%;background:linear-gradient(180deg,var(--pc,var(--b2)),transparent);}.c{--pc:var(--c);}.g{--pc:var(--g);}.p{--pc:var(--p);}.y{--pc:var(--y);}.r{--pc:var(--r);}.pt{font-size:12px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--pc,var(--t2));margin-bottom:14px;}.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;}.ga{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;}@media(max-width:768px){.g2,.g3{grid-template-columns:1fr;}}.metric{background:var(--s2);border:1px solid var(--b2);border-radius:8px;padding:16px;text-align:center;}.mv{font-size:28px;font-weight:800;font-family:var(--mono);margin-bottom:4px;}.ml{font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:1px;}.metric.c{border-color:rgba(0,212,255,.3);}.metric.c .mv{color:var(--c);}.metric.g{border-color:rgba(0,255,136,.3);}.metric.g .mv{color:var(--g);}.metric.y{border-color:rgba(251,191,36,.3);}.metric.y .mv{color:var(--y);}input,textarea,select{background:var(--bg);border:1px solid var(--b2);color:var(--t);font-family:var(--mono);font-size:11px;padding:8px 12px;border-radius:4px;width:100%;outline:none;transition:.2s;}input:focus,textarea:focus{border-color:var(--c);box-shadow:0 0 0 2px rgba(0,212,255,.1);}label{font-size:9px;color:var(--t2);display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.8px;}.f{margin-bottom:12px;}.btn{font-family:var(--ui);font-size:11px;font-weight:600;padding:8px 16px;border-radius:4px;border:1px solid var(--b2);background:transparent;color:var(--t);cursor:pointer;transition:.2s;letter-spacing:.5px;text-transform:uppercase;}.btn:hover{background:rgba(255,255,255,.04);}.btn.c{border-color:var(--c);color:var(--c);}.btn.c:hover{background:rgba(0,212,255,.08);}.btn.g{border-color:var(--g);color:var(--g);}.btn.g:hover{background:rgba(0,255,136,.08);}.btn.p{border-color:var(--p);color:var(--p);}.btn.y{border-color:var(--y);color:var(--y);}.btn.r{border-color:var(--r);color:var(--r);}.br{display:flex;gap:8px;flex-wrap:wrap;}.card{background:var(--s2);border:1px solid var(--b2);border-radius:6px;padding:12px;margin-bottom:8px;cursor:pointer;transition:border-color .2s;}.card:hover{border-color:var(--c);}.hash{font-family:var(--mono);font-size:9px;color:var(--t3);word-break:break-all;}.badge{display:inline-block;padding:2px 8px;border-radius:3px;font-size:9px;font-weight:700;letter-spacing:.5px;font-family:var(--mono);margin-right:4px;}.badge.g{background:rgba(0,255,136,.1);color:var(--g);}.badge.c{background:rgba(0,212,255,.1);color:var(--c);}.badge.p{background:rgba(168,85,247,.1);color:var(--p);}.badge.y{background:rgba(251,191,36,.1);color:var(--y);}.empty{text-align:center;padding:40px;color:var(--t3);font-size:12px;font-family:var(--mono);}.log{background:var(--bg);border:1px solid var(--b2);border-radius:4px;padding:10px;font-family:var(--mono);font-size:10px;overflow-y:auto;max-height:200px;}.ll{padding:1px 0;}.ok{color:var(--g);}.err{color:var(--r);}.warn{color:var(--y);}.info{color:var(--c);}.toast{position:fixed;bottom:24px;right:24px;background:var(--s);border:1px solid var(--g);color:var(--g);font-family:var(--mono);font-size:11px;padding:10px 16px;z-index:9999;animation:fi .3s ease;pointer-events:none;}@keyframes fi{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}';
+  var SOV_CSS = ':root{--bg:#060d06;--s:#0d0d12;--s2:#12121a;--b:#1a1a28;--b2:#242438;--g:#00ff88;--c:#00d4ff;--p:#a855f7;--y:#fbbf24;--r:#ff3366;--t:#f1f5f9;--t2:#cbd5e1;--t3:#94a3b8;--mono:"Courier New",Courier,monospace;--ui:system-ui,sans-serif;}*{margin:0;padding:0;box-sizing:border-box;}html{height:100%;}body{background:var(--bg);color:var(--t);font-family:var(--ui);min-height:100vh;background-image:radial-gradient(ellipse 80% 50% at 20% 20%,rgba(0,212,255,.03),transparent),radial-gradient(ellipse 60% 80% at 80% 80%,rgba(168,85,247,.03),transparent),repeating-linear-gradient(0deg,transparent,transparent 40px,rgba(255,255,255,.005) 40px,rgba(255,255,255,.005) 41px),repeating-linear-gradient(90deg,transparent,transparent 40px,rgba(255,255,255,.005) 40px,rgba(255,255,255,.005) 41px);}#topnav{position:fixed;top:0;left:0;right:0;height:52px;z-index:200;background:rgba(6,6,8,.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--b2);display:flex;align-items:center;padding:0 20px;}.nav-back{font-family:var(--mono);font-size:12px;color:var(--t3);text-decoration:none;padding:6px 10px;border:1px solid var(--b2);border-radius:3px;transition:.2s;margin-right:12px;}.nav-back:hover{color:var(--c);border-color:var(--c);}.nav-logo{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--c);letter-spacing:2px;}.nav-logo em{color:var(--g);font-style:normal;}.nav-id{margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--t3);display:flex;align-items:center;gap:8px;}.dot{width:6px;height:6px;border-radius:50%;background:var(--g);box-shadow:0 0 8px rgba(0,255,136,.6);animation:pulse 2s infinite;}@keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.5;transform:scale(.8);}}.wrap{padding-top:52px;}.page{padding:24px 20px 60px;max-width:1100px;margin:0 auto;}.panel{background:var(--s);border:1px solid var(--b);border-radius:10px;padding:20px;margin-bottom:16px;position:relative;overflow:hidden;}.panel::before{content:"";position:absolute;top:0;left:0;width:3px;height:100%;background:linear-gradient(180deg,var(--pc,var(--b2)),transparent);}.c{--pc:var(--c);}.g{--pc:var(--g);}.p{--pc:var(--p);}.y{--pc:var(--y);}.r{--pc:var(--r);}.pt{font-size:12px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--pc,var(--t2));margin-bottom:14px;}.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;}.ga{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;}@media(max-width:768px){.g2,.g3{grid-template-columns:1fr;}}.metric{background:var(--s2);border:1px solid var(--b2);border-radius:8px;padding:16px;text-align:center;}.mv{font-size:28px;font-weight:800;font-family:var(--mono);margin-bottom:4px;}.ml{font-size:12px;color:var(--t3);text-transform:uppercase;letter-spacing:1px;}.metric.c{border-color:rgba(0,212,255,.3);}.metric.c .mv{color:var(--c);}.metric.g{border-color:rgba(0,255,136,.3);}.metric.g .mv{color:var(--g);}.metric.y{border-color:rgba(251,191,36,.3);}.metric.y .mv{color:var(--y);}input,textarea,select{background:var(--bg);border:1px solid var(--b2);color:var(--t);font-family:var(--mono);font-size:13px;padding:8px 12px;border-radius:4px;width:100%;outline:none;transition:.2s;}input:focus,textarea:focus{border-color:var(--c);box-shadow:0 0 0 2px rgba(0,212,255,.1);}label{font-size:12px;color:var(--t2);display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.8px;}.f{margin-bottom:12px;}.btn{font-family:var(--ui);font-size:13px;font-weight:600;padding:8px 16px;border-radius:4px;border:1px solid var(--b2);background:transparent;color:var(--t);cursor:pointer;transition:.2s;letter-spacing:.5px;text-transform:uppercase;}.btn:hover{background:rgba(255,255,255,.04);}.btn.c{border-color:var(--c);color:var(--c);}.btn.c:hover{background:rgba(0,212,255,.08);}.btn.g{border-color:var(--g);color:var(--g);}.btn.g:hover{background:rgba(0,255,136,.08);}.btn.p{border-color:var(--p);color:var(--p);}.btn.y{border-color:var(--y);color:var(--y);}.btn.r{border-color:var(--r);color:var(--r);}.br{display:flex;gap:8px;flex-wrap:wrap;}.card{background:var(--s2);border:1px solid var(--b2);border-radius:6px;padding:12px;margin-bottom:8px;cursor:pointer;transition:border-color .2s;}.card:hover{border-color:var(--c);}.hash{font-family:var(--mono);font-size:12px;color:var(--t3);word-break:break-all;}.badge{display:inline-block;padding:2px 8px;border-radius:3px;font-size:12px;font-weight:700;letter-spacing:.5px;font-family:var(--mono);margin-right:4px;}.badge.g{background:rgba(0,255,136,.1);color:var(--g);}.badge.c{background:rgba(0,212,255,.1);color:var(--c);}.badge.p{background:rgba(168,85,247,.1);color:var(--p);}.badge.y{background:rgba(251,191,36,.1);color:var(--y);}.empty{text-align:center;padding:40px;color:var(--t3);font-size:12px;font-family:var(--mono);}.log{background:var(--bg);border:1px solid var(--b2);border-radius:4px;padding:10px;font-family:var(--mono);font-size:12px;overflow-y:auto;max-height:200px;}.ll{padding:1px 0;}.ok{color:var(--g);}.err{color:var(--r);}.warn{color:var(--y);}.info{color:var(--c);}.toast{position:fixed;bottom:24px;right:24px;background:var(--s);border:1px solid var(--g);color:var(--g);font-family:var(--mono);font-size:13px;padding:10px 16px;z-index:9999;animation:fi .3s ease;pointer-events:none;}@keyframes fi{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}';
 
   var SOV_JS = [
     'function _id(){try{return JSON.parse(localStorage.getItem("sovereign_identity"));}catch(e){return null;}}',
@@ -1550,8 +1550,8 @@ Return ONLY valid JSON with this structure:
   }
 
   function _sovShell(appName, cat, bodyHTML, scriptCode) {
-    return '<!DOCTYPE html>\n<html lang="en"><head>
-<script src="sovereign_security.js"></script>\n'
+    return '<!DOCTYPE html>\n<html lang="en"><head>\n'
+      + '<script src="sovereign_security.js"><' + '/script>\n'
       + '<meta charset="UTF-8">\n'
       + '<meta name="viewport" content="width=device-width,initial-scale=1.0">\n'
       + '<title>' + String(appName) + '</title>\n'
@@ -1596,21 +1596,21 @@ Return ONLY valid JSON with this structure:
       + '<button class="btn g" style="width:100%;margin-bottom:10px;" onclick="W.init()">Initialize Wallet (1,000 ' + sym + ')</button>'
       + '<div id="w-ranges" class="hash" style="min-height:16px;"></div></div>'
       + '<div class="panel c"><div class="pt">&#x27A4; Send ' + sym + '</div>'
-      + '<div id="w-peers" style="margin-bottom:10px;min-height:20px;font-size:10px;font-family:var(--mono);color:var(--t3);">scanning peers...</div>'
+      + '<div id="w-peers" style="margin-bottom:10px;min-height:20px;font-size:12px;font-family:var(--mono);color:var(--t3);">scanning peers...</div>'
       + '<div class="f"><label>To (@username or DID)</label><input id="w-to" placeholder="@username or did:sovereign:..."></div>'
       + '<div class="f"><label>Amount</label><input id="w-amt" type="number" min="1" value="10"></div>'
       + '<div class="f"><label>Memo</label><input id="w-memo" placeholder="optional..."></div>'
       + '<div class="br"><button class="btn c" style="flex:1;" onclick="W.send()">Send ' + sym + '</button>'
       + '<button class="btn p" onclick="W.doStake()">+ Stake</button></div>'
-      + '<div id="w-status" style="margin-top:8px;font-size:10px;color:var(--g);font-family:var(--mono);min-height:14px;"></div></div>'
+      + '<div id="w-status" style="margin-top:8px;font-size:12px;color:var(--g);font-family:var(--mono);min-height:14px;"></div></div>'
       + '<div class="panel y"><div class="pt">&#x26A1; Staking 5% APY</div>'
       + '<div class="f"><label>Stake Amount</label><input id="w-stkamt" type="number" min="1" value="100"></div>'
       + '<div class="br"><button class="btn y" style="flex:1;" onclick="W.doStake()">Stake ' + sym + '</button>'
       + '<button class="btn g" onclick="W.claim()">Claim Rewards</button></div>'
-      + '<div id="w-stkinfo" style="margin-top:8px;font-size:10px;color:var(--t3);font-family:var(--mono);"></div></div>'
+      + '<div id="w-stkinfo" style="margin-top:8px;font-size:12px;color:var(--t3);font-family:var(--mono);"></div></div>'
       + '</div>'
       + '<div class="panel" style="--pc:var(--p);">'
-      + '<div class="pt">&#x26D3; Ledger <span id="w-ledlen" style="color:var(--t3);font-size:10px;font-weight:400;"></span></div>'
+      + '<div class="pt">&#x26D3; Ledger <span id="w-ledlen" style="color:var(--t3);font-size:12px;font-weight:400;"></span></div>'
       + '<div id="w-led" class="log" style="max-height:500px;"></div></div>'
       + '</div>';
 
@@ -1713,9 +1713,9 @@ Return ONLY valid JSON with this structure:
     var body = '<div class="panel c"><div class="pt">Compose</div>'
       + '<div class="f"><textarea id="pt" rows="3" placeholder="What\'s on your mind?"></textarea></div>'
       + '<div class="br"><button class="btn c" onclick="Feed.post()">Publish to Mesh</button>'
-      + '<span id="ps" style="font-size:10px;color:var(--g);font-family:var(--mono);margin-left:10px;"></span></div>'
+      + '<span id="ps" style="font-size:12px;color:var(--g);font-family:var(--mono);margin-left:10px;"></span></div>'
       + '</div>'
-      + '<div class="panel"><div class="pt">Feed <span id="fc" style="color:var(--t3);font-size:10px;font-weight:400;"></span></div>'
+      + '<div class="panel"><div class="pt">Feed <span id="fc" style="color:var(--t3);font-size:12px;font-weight:400;"></span></div>'
       + '<div id="feed"></div></div>';
     var script = 'var posts=[];try{posts=JSON.parse(localStorage.getItem("' + sk + '")||"[]");}catch(e){}'
       + 'function fRender(){var el=document.getElementById("feed");var cnt=document.getElementById("fc");'
@@ -1724,7 +1724,7 @@ Return ONLY valid JSON with this structure:
       + 'el.innerHTML=posts.slice().reverse().map(function(p){'
       + 'return "<div class=\\"card\\"><div style=\\"display:flex;justify-content:space-between;margin-bottom:8px;\\">"'
       + '+"<span style=\\"color:var(--c);font-family:var(--mono);font-weight:700;\\">@"+p.author+"</span>"'
-      + '+"<span style=\\"font-size:9px;color:var(--t3);\\">"+(new Date(p.ts).toLocaleString())+"</span></div>"'
+      + '+"<span style=\\"font-size:12px;color:var(--t3);\\">"+(new Date(p.ts).toLocaleString())+"</span></div>"'
       + '+"<div style=\\"font-size:13px;line-height:1.6;\\">"+(p.text||"").replace(/</g,"&lt;")+"</div></div>";'
       + '}).join("");}'
       + 'var Feed={post:function(){var t=document.getElementById("pt").value.trim();if(!t){toast("Write something");return;}'
@@ -1748,7 +1748,7 @@ Return ONLY valid JSON with this structure:
     var body = '<div class="panel c" style="text-align:center;">'
       + '<div class="pt" style="justify-content:center;">' + name + '</div>'
       + '<div id="sc-disp" style="font-size:56px;font-weight:800;color:var(--y);font-family:var(--mono);margin:12px 0;text-shadow:0 0 30px rgba(251,191,36,.5);">0</div>'
-      + '<div style="font-size:11px;color:var(--t3);font-family:var(--mono);margin-bottom:16px;">// press SPACE or tap to jump</div>'
+      + '<div style="font-size:13px;color:var(--t3);font-family:var(--mono);margin-bottom:16px;">// press SPACE or tap to jump</div>'
       + '<canvas id="gc" width="640" height="240" style="background:var(--s2);border:1px solid var(--b2);border-radius:4px;max-width:100%;cursor:pointer;display:block;margin:0 auto;"></canvas>'
       + '<div class="br" style="justify-content:center;margin-top:12px;">'
       + '<button class="btn g" onclick="G.start()">&#x25B6; Start</button>'
@@ -1796,11 +1796,11 @@ Return ONLY valid JSON with this structure:
       + '<div class="f"><label>Description</label><textarea id="ld" rows="3" placeholder="Details..."></textarea></div>'
       + '<div class="f"><label>Price (CST)</label><input id="lp" type="number" min="1" value="10"></div>'
       + '<button class="btn g" style="width:100%;" onclick="M.create()">List Item</button></div>'
-      + '<div class="panel y"><div class="pt">&#x1F6D2; Cart <span id="cc" style="color:var(--y);font-size:10px;font-weight:400;"></span></div>'
-      + '<div id="cart" style="margin-bottom:12px;font-size:11px;color:var(--t3);">empty</div>'
+      + '<div class="panel y"><div class="pt">&#x1F6D2; Cart <span id="cc" style="color:var(--y);font-size:12px;font-weight:400;"></span></div>'
+      + '<div id="cart" style="margin-bottom:12px;font-size:13px;color:var(--t3);">empty</div>'
       + '<button class="btn y" style="width:100%;" onclick="M.checkout()">Checkout with CST</button></div>'
       + '</div>'
-      + '<div class="panel"><div class="pt">Listings <span id="mc" style="color:var(--t3);font-size:10px;font-weight:400;"></span></div>'
+      + '<div class="panel"><div class="pt">Listings <span id="mc" style="color:var(--t3);font-size:12px;font-weight:400;"></span></div>'
       + '<div class="f"><input id="ms" placeholder="Search..." oninput="M.search(this.value)"></div>'
       + '<div id="listings" class="ga"></div></div>';
     var script = 'var listings=[],cart=[];try{listings=JSON.parse(localStorage.getItem("' + sk + '")||"[]");}catch(e){}'
@@ -1809,18 +1809,18 @@ Return ONLY valid JSON with this structure:
       + 'if(!list.length){el.innerHTML="<div class=\\"empty\\">// no listings</div>";return;}'
       + 'el.innerHTML=list.map(function(l){'
       + 'return "<div class=\\"card\\"><div style=\\"font-weight:700;margin-bottom:4px;\\">"+l.title.replace(/</g,"&lt;")+"</div>"'
-      + '+"<div style=\\"font-size:11px;color:var(--t2);margin-bottom:10px;\\">"+(l.desc||"").substring(0,80)+"</div>"'
+      + '+"<div style=\\"font-size:13px;color:var(--t2);margin-bottom:10px;\\">"+(l.desc||"").substring(0,80)+"</div>"'
       + '+"<div style=\\"display:flex;justify-content:space-between;align-items:center;\\">"'
       + '+"<span style=\\"color:var(--y);font-weight:700;font-family:var(--mono);\\"">&#x2B21; "+l.price+" CST</span>"'
-      + '+"<span style=\\"font-size:9px;color:var(--t3);\\">@"+l.seller+"</span>"'
-      + '+"<button class=\\"btn g\\" style=\\"font-size:10px;padding:4px 10px;\\" onclick=\\"M.addCart(\'"+l.id+"\')\\" >Add</button>"'
+      + '+"<span style=\\"font-size:12px;color:var(--t3);\\">@"+l.seller+"</span>"'
+      + '+"<button class=\\"btn g\\" style=\\"font-size:12px;padding:4px 10px;\\" onclick=\\"M.addCart(\'"+l.id+"\')\\" >Add</button>"'
       + '+"</div></div>";'
       + '}).join("");}'
       + 'function cRender(){var el=document.getElementById("cart");var cnt=document.getElementById("cc");'
       + 'if(cnt)cnt.textContent=cart.length?"("+cart.length+")":"";'
       + 'if(!cart.length){el.textContent="empty";return;}'
       + 'var tot=cart.reduce(function(s,i){return s+i.price;},0);'
-      + 'el.innerHTML=cart.map(function(i){return "<div style=\\"padding:4px 0;border-bottom:1px solid var(--b);font-size:11px;\\">"+i.title+" - "+i.price+" CST</div>";}).join("")'
+      + 'el.innerHTML=cart.map(function(i){return "<div style=\\"padding:4px 0;border-bottom:1px solid var(--b);font-size:13px;\\">"+i.title+" - "+i.price+" CST</div>";}).join("")'
       + '+"<div style=\\"font-weight:800;color:var(--y);font-family:var(--mono);margin-top:8px;\\">Total: "+tot+" CST</div>";}'
       + 'var M={'
       + 'create:function(){var t=document.getElementById("lt").value.trim();if(!t){toast("Enter a title");return;}'
@@ -1851,9 +1851,9 @@ Return ONLY valid JSON with this structure:
       + '<div class="br"><button class="btn g" onclick="A.create()">+ Save</button><button class="btn" onclick="A.clear()">Clear</button></div></div>'
       + '<div class="panel">'
       + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">'
-      + '<div class="pt" style="margin-bottom:0;">Entries <span id="ac" style="color:var(--t3);font-size:10px;font-weight:400;"></span></div>'
+      + '<div class="pt" style="margin-bottom:0;">Entries <span id="ac" style="color:var(--t3);font-size:12px;font-weight:400;"></span></div>'
       + '<div class="br"><input id="aq" style="width:140px;" placeholder="Search..." oninput="A.search(this.value)">'
-      + '<button class="btn" style="font-size:10px;" onclick="A.exp()">Export</button></div></div>'
+      + '<button class="btn" style="font-size:12px;" onclick="A.exp()">Export</button></div></div>'
       + '<div id="entries" class="ga"></div></div></div>';
     var script = 'var DATA=[],SQ="";try{DATA=JSON.parse(localStorage.getItem("' + sk + '")||"[]");}catch(e){}'
       + 'function aRender(){var list=SQ?DATA.filter(function(e){return(e.t+e.c).toLowerCase().indexOf(SQ)>=0;}):DATA;'
@@ -1863,9 +1863,9 @@ Return ONLY valid JSON with this structure:
       + 'el.innerHTML=list.map(function(e){'
       + 'return "<div class=\\"card\\" onclick=\\"A.open(\'"+e.id+"\')\\">"'
       + '+"<div style=\\"font-weight:700;margin-bottom:6px;font-size:13px;\\">"+e.t.replace(/</g,"&lt;")+"</div>"'
-      + '+"<div style=\\"font-size:11px;color:var(--t2);overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;\\">"'
+      + '+"<div style=\\"font-size:13px;color:var(--t2);overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;\\">"'
       + '+(e.c||"(empty)").substring(0,120)+"</div>"'
-      + '+"<div style=\\"display:flex;justify-content:space-between;margin-top:10px;font-size:9px;color:var(--t3);font-family:var(--mono);\\">"'
+      + '+"<div style=\\"display:flex;justify-content:space-between;margin-top:10px;font-size:12px;color:var(--t3);font-family:var(--mono);\\">"'
       + '+"<span>@"+e.a+"</span><span>"+(new Date(e.ts).toLocaleDateString())+"</span></div></div>";'
       + '}).join("");}'
       + 'var A={'
@@ -1888,7 +1888,7 @@ Return ONLY valid JSON with this structure:
     return 'Build a Sovereign platform app from this blueprint:\n\n'
       + JSON.stringify(bp, null, 2) + '\n\n'
       + 'Output ONE complete HTML file. Requirements:\n'
-      + '1. CSS must use these exact vars: --bg:#060d06
+      + '1. CSS must use these exact vars: --bg:#060d06\n'
       + '2. topnav: id="topnav", back link class="nav-back" href="genesis_node.html"\n'
       + '3. Content in: <div class="wrap"><div class="page">\n'
       + '4. Classes: .panel .g2 .g3 .metric .btn .card .badge .log .br .f\n'
@@ -2032,8 +2032,8 @@ Return ONLY valid JSON with this structure:
   // ── helpers ──────────────────────────────────────────────────────
   // All generated apps use SOV_CSS/SOV_JS/_sovNav for a consistent look across the whole network
   function _appShell(name, cat, body, scriptBody) {
-    return '<!DOCTYPE html>\n<html lang="en"><head>
-<script src="sovereign_security.js"></script>\n'
+    return '<!DOCTYPE html>\n<html lang="en"><head>\n'
+      + '<script src="sovereign_security.js"><' + '/script>\n'
       + '<meta charset="UTF-8">\n'
       + '<meta name="viewport" content="width=device-width,initial-scale=1.0">\n'
       + '<title>' + String(name) + '</title>\n'
@@ -2078,11 +2078,11 @@ Return ONLY valid JSON with this structure:
       '<div class="card">',
       '  <div class="ct">&#x2B21; Wallet</div>',
       '  <button class="btn p" style="width:100%;margin-bottom:8px;" onclick="Wallet.init()">Initialize Wallet (1000 ' + sym + ')</button>',
-      '  <div id="wallet-ranges" style="font-size:10px;color:var(--t3);font-family:monospace;min-height:20px;"></div>',
+      '  <div id="wallet-ranges" style="font-size:12px;color:var(--t3);font-family:monospace;min-height:20px;"></div>',
       '</div>',
       '<div class="card">',
       '  <div class="ct">&#x27A4; Send ' + sym + '</div>',
-      '  <div id="peer-list" style="margin-bottom:10px;min-height:24px;font-size:10px;color:var(--t3);">Open in another tab to see online peers</div>',
+      '  <div id="peer-list" style="margin-bottom:10px;min-height:24px;font-size:12px;color:var(--t3);">Open in another tab to see online peers</div>',
       '  <div class="f"><label>Recipient (@username or DID)</label><input id="to-addr" placeholder="@username or did:sovereign:..."></div>',
       '  <div class="f"><label>Amount (' + sym + ')</label><input id="send-amt" type="number" min="1" value="10"></div>',
       '  <div class="f"><label>Memo (optional)</label><input id="send-memo" placeholder="e.g. payment for..."></div>',
@@ -2090,12 +2090,12 @@ Return ONLY valid JSON with this structure:
       '    <button class="btn p" style="flex:1;" onclick="Wallet.send()">Send</button>',
       '    <button class="btn g" onclick="Wallet.stake()">+ Stake</button>',
       '  </div>',
-      '  <div id="send-status" style="margin-top:8px;font-size:10px;color:var(--g);min-height:14px;"></div>',
+      '  <div id="send-status" style="margin-top:8px;font-size:12px;color:var(--g);min-height:14px;"></div>',
       '</div>',
       '</div>',
       '<div>',
       '<div class="card">',
-      '  <div class="ct">&#x26D3; Transaction Ledger <span id="ledger-len" style="font-size:10px;color:var(--t3);"></span></div>',
+      '  <div class="ct">&#x26D3; Transaction Ledger <span id="ledger-len" style="font-size:12px;color:var(--t3);"></span></div>',
       '  <div id="ledger" style="max-height:300px;overflow-y:auto;"></div>',
       '</div>',
       '<div class="card">',
@@ -2106,7 +2106,7 @@ Return ONLY valid JSON with this structure:
       '    <button class="btn y" style="flex:1;" onclick="Wallet.doStake()">Stake ' + sym + '</button>',
       '    <button class="btn" onclick="Wallet.claimRewards()">Claim Rewards</button>',
       '  </div>',
-      '  <div id="stake-info" style="margin-top:8px;font-size:10px;color:var(--t3);font-family:monospace;"></div>',
+      '  <div id="stake-info" style="margin-top:8px;font-size:12px;color:var(--t3);font-family:monospace;"></div>',
       '</div>',
       '</div>',
       '</div>'
@@ -2146,12 +2146,12 @@ Return ONLY valid JSON with this structure:
       '  if(!wallet.ledger.length){el.innerHTML=\'<div class="empty">No transactions yet</div>\';return;}',
       '  el.innerHTML=wallet.ledger.slice().reverse().slice(0,30).map(function(e){',
       '    var col=e.type==="SEND"?"var(--red)":e.type==="RECEIVE"?"var(--g)":e.type==="STAKE"?"var(--a)":"var(--y)";',
-      '    return \'<div style="padding:8px;border-bottom:1px solid var(--b);font-size:10px;">\'+',
+      '    return \'<div style="padding:8px;border-bottom:1px solid var(--b);font-size:12px;">\'+',
       '      \'<div class="row"><span style="color:\'+col+\';font-weight:700;">\'+e.type+\'</span>\'+',
       '      \'<span style="color:var(--y);font-weight:600;">\'+((e.data&&e.data.amount)||"")+\' \'+SYM+\'</span>\'+',
       '      \'<span style="color:var(--t3);">\'+new Date(e.ts).toLocaleTimeString()+\'</span></div>\'+',
       '      \'<div class="hash" style="margin-top:3px;">\'+e.hash.substring(0,24)+"...</div>"+',
-      '      ((e.data&&e.data.memo)?\'<div style="color:var(--t2);font-size:9px;">&quot;\'+e.data.memo+\'&quot;</div>\':"")+',
+      '      ((e.data&&e.data.memo)?\'<div style="color:var(--t2);font-size:12px;">&quot;\'+e.data.memo+\'&quot;</div>\':"")+',
       '      \'</div>\';',
       '  }).join("");}',
       '',
@@ -2262,10 +2262,10 @@ Return ONLY valid JSON with this structure:
       '<div class="card">',
       '  <div class="ct">Compose</div>',
       '  <div class="f"><textarea id="post-text" rows="3" placeholder="What\'s on your mind?"></textarea></div>',
-      '  <div class="row"><button class="btn p" onclick="Feed.post()">Publish</button><span id="post-status" style="font-size:11px;color:var(--g);"></span></div>',
+      '  <div class="row"><button class="btn p" onclick="Feed.post()">Publish</button><span id="post-status" style="font-size:13px;color:var(--g);"></span></div>',
       '</div>',
       '<div class="card">',
-      '  <div class="ct">Feed <span id="feed-count" style="font-size:10px;color:var(--t3);"></span></div>',
+      '  <div class="ct">Feed <span id="feed-count" style="font-size:12px;color:var(--t3);"></span></div>',
       '  <div id="feed"></div>',
       '</div>'
     ].join('\n');
@@ -2278,7 +2278,7 @@ Return ONLY valid JSON with this structure:
       '  el.innerHTML=posts.slice().reverse().map(function(p){',
       '    return \'<div style="padding:12px;border-bottom:1px solid var(--b);">\'+',
       '      \'<div class="row" style="margin-bottom:6px;"><span style="color:var(--a);font-weight:600;">@\'+p.author+\'</span>\'+',
-      '      \'<span style="font-size:9px;color:var(--t3);">\'+new Date(p.ts).toLocaleString()+\'</span></div>\'+',
+      '      \'<span style="font-size:12px;color:var(--t3);">\'+new Date(p.ts).toLocaleString()+\'</span></div>\'+',
       '      \'<div style="font-size:13px;line-height:1.6;">\'+p.text.replace(/</g,"&lt;")+\'</div></div>\';',
       '  }).join("");}',
       'var Feed={post:function(){var id=_id();var t=document.getElementById("post-text").value.trim();',
@@ -2385,7 +2385,7 @@ Return ONLY valid JSON with this structure:
       '  <div id="cart"></div>',
       '  <button class="btn g" style="width:100%;margin-top:8px;" onclick="Market.checkout()">Checkout with CST</button>',
       '</div></div>',
-      '<div class="card"><div class="ct">Listings <span id="mkt-count" style="font-size:10px;color:var(--t3);"></span></div>',
+      '<div class="card"><div class="ct">Listings <span id="mkt-count" style="font-size:12px;color:var(--t3);"></span></div>',
       '  <input id="mkt-search" style="margin-bottom:12px;" placeholder="Search listings..." oninput="Market.search(this.value)">',
       '  <div id="listings" class="grid"></div>',
       '</div>'
@@ -2400,17 +2400,17 @@ Return ONLY valid JSON with this structure:
       '  el.innerHTML=list.map(function(l){',
       '    return \'<div style="background:var(--r);border:1px solid var(--b);border-radius:8px;padding:14px;">\'+',
       '      \'<div style="font-weight:700;margin-bottom:4px;">\'+l.title.replace(/</g,"&lt;")+\'</div>\'+',
-      '      \'<div style="font-size:11px;color:var(--t2);margin-bottom:8px;">\'+((l.desc||"").substring(0,80))+\'</div>\'+',
+      '      \'<div style="font-size:13px;color:var(--t2);margin-bottom:8px;">\'+((l.desc||"").substring(0,80))+\'</div>\'+',
       '      \'<div class="row"><span style="color:var(--y);font-weight:700;">&#x2B21; \'+l.price+\' CST</span>\'+',
-      '      \'<span style="font-size:9px;color:var(--t3);">@\'+l.seller+\'</span>\'+',
-      '      \'<button class="btn g" style="font-size:10px;padding:4px 10px;" onclick="Market.addCart(\\\'"+l.id+\'\\\')\">Add to Cart</button></div>\'+',
+      '      \'<span style="font-size:12px;color:var(--t3);">@\'+l.seller+\'</span>\'+',
+      '      \'<button class="btn g" style="font-size:12px;padding:4px 10px;" onclick="Market.addCart(\\\'"+l.id+\'\\\')\">Add to Cart</button></div>\'+',
       '      \'</div>\';',
       '  }).join("");}',
       'function renderCart(){var el=document.getElementById("cart");var cnt=document.getElementById("cart-count");',
       '  if(cnt)cnt.textContent=cart.length?"("+cart.length+")":"";',
-      '  if(!cart.length){el.innerHTML=\'<div style="font-size:11px;color:var(--t3);">Cart is empty</div>\';return;}',
+      '  if(!cart.length){el.innerHTML=\'<div style="font-size:13px;color:var(--t3);">Cart is empty</div>\';return;}',
       '  var total=cart.reduce(function(s,i){return s+i.price;},0);',
-      '  el.innerHTML=cart.map(function(i){return \'<div style="font-size:11px;padding:4px 0;border-bottom:1px solid var(--b);">\'+i.title+\' — \'+i.price+\' CST</div>\';}).join("")+',
+      '  el.innerHTML=cart.map(function(i){return \'<div style="font-size:13px;padding:4px 0;border-bottom:1px solid var(--b);">\'+i.title+\' — \'+i.price+\' CST</div>\';}).join("")+',
       '    \'<div style="font-weight:700;margin-top:8px;color:var(--y);">Total: \'+total+\' CST</div>\';}',
       'var Market={',
       '  create:function(){var id=_id();if(!id){toast("Generate identity first");return;}',
@@ -2450,9 +2450,9 @@ Return ONLY valid JSON with this structure:
       '</div>',
       '<div class="card">',
       '  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">',
-      '    <div class="ct" style="margin-bottom:0;">Entries <span id="ec2" style="font-size:10px;color:var(--t3);"></span></div>',
-      '    <div class="row"><input id="sq" style="width:150px;font-size:11px;" placeholder="Search..." oninput="App.search(this.value)">',
-      '    <button class="btn" style="font-size:11px;" onclick="App.exp()">Export</button></div>',
+      '    <div class="ct" style="margin-bottom:0;">Entries <span id="ec2" style="font-size:12px;color:var(--t3);"></span></div>',
+      '    <div class="row"><input id="sq" style="width:150px;font-size:13px;" placeholder="Search..." oninput="App.search(this.value)">',
+      '    <button class="btn" style="font-size:13px;" onclick="App.exp()">Export</button></div>',
       '  </div>',
       '  <div id="entries" class="grid"></div>',
       '</div>'
@@ -2468,9 +2468,9 @@ Return ONLY valid JSON with this structure:
       '  el.innerHTML=list.map(function(e){',
       '    return \'<div style="background:var(--r);border:1px solid var(--b);border-radius:8px;padding:14px;cursor:pointer;" onclick="App.open(\\\'"+e.id+\'\\\')">\'+',
       '      \'<div style="font-weight:700;margin-bottom:6px;">\'+e.t.replace(/</g,"&lt;")+\'</div>\'+',
-      '      \'<div style="font-size:11px;color:var(--t2);overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;">\'+',
+      '      \'<div style="font-size:13px;color:var(--t2);overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;">\'+',
       '      (e.c||"(empty)").substring(0,120)+\'</div>\'+',
-      '      \'<div style="font-size:9px;color:var(--t3);margin-top:8px;">@\'+e.a+" · "+new Date(e.ts).toLocaleDateString()+\'</div></div>\';',
+      '      \'<div style="font-size:12px;color:var(--t3);margin-top:8px;">@\'+e.a+" · "+new Date(e.ts).toLocaleDateString()+\'</div></div>\';',
       '  }).join("");}',
       'var App={',
       '  create:function(){var id=_id();var t=document.getElementById("et").value.trim();var c=document.getElementById("ec").value.trim();',
