@@ -24,20 +24,27 @@ The name is not branding. It is a statement of intent.
 
 ```
 1. Download and unzip the package
-2. Open index.html in Chrome, Brave, Firefox, or Edge
-3. Identity tab → set a passphrase → Generate Identity
-4. Connect tab → share a handshake packet with a peer
-5. You're on the network
+2. Serve the folder over HTTP (required — Service Worker does not run on file://)
+3. Open index.html in Chrome, Brave, Firefox, or Edge
+4. Identity tab → set a passphrase → Generate Identity
+5. Connect tab → the public relay connects automatically
+6. Share your DID or use the QR code to invite a peer
 ```
 
-For connections across different networks, both peers enter the same relay URL in the Connect tab. You can self-host a relay using `relay.html`.
+The included public relay (`wss://sovereign-relay.fly.dev`) connects automatically.
+No configuration needed for same-network or cross-internet peer discovery.
 
-> **Service Worker note:** The Security Kernel (`genesis_sw.js`) requires HTTP — not `file://`. Run a local server for full functionality:
-> ```bash
-> npx serve .
-> # or
-> python3 -m http.server 8080
-> ```
+### Serving locally
+
+```bash
+npx serve .
+# or
+python3 -m http.server 8080
+# or
+php -S localhost:8080
+```
+
+> **Service Worker note:** `genesis_sw.js` (the Security Kernel) requires HTTP — not `file://`. All local server options above work. Opening `index.html` directly from a file manager will run the UI but skip key isolation.
 
 ---
 
@@ -45,23 +52,58 @@ For connections across different networks, both peers enter the same relay URL i
 
 ```
 sovereign/
-├── index.html       ← Genesis Node        Identity, peers, messages, network map
-├── os.html          ← Sovereign OS        Kernel, governance, trust graph, asset layer
-├── forge.html       ← Forge Platform      Social feed, AI Studio, marketplace, app builder
-├── square.html      ← Forge Square        Community hub, DMs, channels
-├── studio.html      ← Forge Studio        Build, publish, and monetize sovereign apps
-├── mail.html        ← Sovereign Mail      Layered encrypted mail — inbox, feed, archive
-├── messenger.html   ← Messenger           Real-time P2P encrypted chat
-├── attack.html      ← Attack Command      Adversarial security and audit platform
-├── search.html      ← Sovereign Search    Network-wide distributed search
-├── portal.html      ← Sovereign Portal    Onboarding gateway and personal profile hub
-├── relay.html       ← Sovereign Relay     WebSocket relay with live admin UI
-├── bridge.html      ← Protocol Bridge     Nostr, Matrix, RSS, ActivityPub gateway
-├── transport.js     ← Transport Layer     WebRTC + mesh + blockchain RPC module
-└── genesis_sw.js    ← Security Kernel     15-pattern cryptographic service worker
+├── index.html          ← Genesis Node        Identity, peers, messages, network map
+├── os.html             ← Sovereign OS        Kernel, governance, trust graph, asset layer
+├── forge.html          ← Forge Platform      Social feed, AI Studio, marketplace, app builder
+├── square.html         ← Forge Square        Community hub, DMs, channels
+├── studio.html         ← Forge Studio        Build, publish, and monetize sovereign apps
+├── mail.html           ← Sovereign Mail      Layered encrypted mail — inbox, feed, archive
+├── messenger.html      ← Messenger           Real-time P2P encrypted chat
+├── attack.html         ← Attack Command      Adversarial security and audit platform
+├── search.html         ← Sovereign Search    Network-wide distributed search
+├── portal.html         ← Sovereign Portal    Onboarding gateway and personal profile hub
+├── relay.html          ← Sovereign Relay     WebSocket relay with live admin UI
+├── bridge.html         ← Protocol Bridge     Nostr, Matrix, RSS, ActivityPub gateway
+├── transport.js        ← Transport Layer     WebRTC + mesh + blockchain RPC module
+├── sovereign_fsm.js    ← FSM Kernel          State machine — 5 machines, 5 invariants
+├── sovereign_security.js ← Security Utils    Sanitize, persist, self-hash, Worker keygen
+└── genesis_sw.js       ← Security Kernel     15-pattern cryptographic service worker
 ```
 
 Everything starts at `index.html`. All other apps share the same identity layer.
+
+---
+
+## Connecting to Other Peers
+
+### Same device, multiple tabs
+Automatic via BroadcastChannel. Open any two Sovereign pages — they find each other instantly. No configuration.
+
+### Different devices, same local network
+WebRTC handshake. Both nodes connect to the same relay and exchange credentials, then go direct:
+1. Both peers open `index.html`
+2. Both enter the same relay URL in **Connect → Relay** (default: `wss://sovereign-relay.fly.dev`)
+3. Connection opens; relay exits the path after handshake
+
+### Different networks (internet peers)
+Same as above — the public relay at `wss://sovereign-relay.fly.dev` handles cross-network discovery automatically. Once the WebRTC connection is established, all traffic is direct P2P.
+
+### Manual handshake (fully offline, no relay)
+1. Connect → Generate Offer → copy packet or show QR
+2. Send to peer by any means (text, email, airdrop, printed paper)
+3. Peer pastes into Receive Handshake → copies back the Answer
+4. Paste the Answer → connection opens
+
+No server ever touched the exchange.
+
+### Public Space
+The default public relay is:
+```
+wss://sovereign-relay.fly.dev
+```
+All Sovereign nodes using this relay can discover and connect to each other. The relay **does not read, store, or log message content** — it only brokers the WebRTC handshake. Once two peers connect, they go direct and the relay is out of the path.
+
+To use your own relay instead, enter its WSS URL in **Connect → Relay** and press Connect.
 
 ---
 
@@ -93,18 +135,11 @@ The system kernel and control plane:
 
 ### ⬡ Forge — `forge.html`
 
-The decentralized social and creative platform:
-
-- **Square** — Community feed, posts, reactions, discovery
-- **AI Studio** — Local Ollama and compatible API integration
-- **Marketplace** — Peer-to-peer exchange for apps, assets, and services
-- **App Builder** — In-browser application construction
-- **Docs** — Integrated documentation and knowledge base
-- **Credits** — Reputation and contribution tracking
+The decentralized social and creative platform: Square, AI Studio, Marketplace, App Builder, Docs, Credits.
 
 ### ⬡ Forge Square — `square.html`
 
-Focused community hub: public feed, direct messages, topic channels, file sharing, contacts.
+Community hub: public feed, direct messages, topic channels, file sharing, contacts.
 
 ### ⬡ Forge Studio — `studio.html`
 
@@ -112,12 +147,7 @@ Creative workspace for building and shipping sovereign apps: editor, app manager
 
 ### ⬡ Sovereign Mail — `mail.html`
 
-Layered encrypted message system:
-
-- **Inbox** — Received messages across all connected peers
-- **Feed** — Subscribed network updates and announcements
-- **Frozen Archive** — Cryptographically sealed, tamper-evident message archive
-- **Drafts / Sent** — Full message lifecycle management
+Layered encrypted message system: Inbox, Feed, Frozen Archive, Drafts/Sent.
 
 ### ⬡ Messenger — `messenger.html`
 
@@ -125,16 +155,7 @@ Minimal, fast, real-time P2P encrypted chat. Messages are signed and delivered o
 
 ### ⬡ Attack Command — `attack.html`
 
-Adversarial security and audit platform:
-
-- **Overview** — System threat surface and audit dashboard
-- **Solidity Analyzer** — Static analysis for smart contracts
-- **RRTK** — Rapid Response Toolkit for live simulation and incident response
-- **Fuzzer** — Input fuzzing for contracts and protocol endpoints
-- **Invariant Checker** — Formal property verification
-- **Benchmark** — Performance and gas profiling
-- **Modules** — Pluggable security analysis extensions
-- **Log** — Full audit trail and event record
+Adversarial security and audit platform: Overview, Solidity Analyzer, RRTK, Fuzzer, Invariant Checker, Benchmark, Modules, Log.
 
 ### ⬡ Sovereign Search — `search.html`
 
@@ -142,36 +163,28 @@ Distributed search across your entire sovereign network — messages, peers, app
 
 ### ⬡ Sovereign Portal — `portal.html`
 
-First-run onboarding flow: username, keypair generation, Shamir share distribution, DID confirmation. After setup: personal profile hub, network status, peer directory, DMs, and settings.
+First-run onboarding flow and personal profile hub. Loads `sovereign_fsm.js` + `transport.js` for full identity state management.
 
 ### ⬡ Sovereign Relay — `relay.html`
 
-Optional WebSocket relay with live admin UI. Brokers WebRTC handshakes across networks — once two peers connect, the relay exits the path. It does not read, store, or log message content.
+Optional WebSocket relay with live admin UI. Sections: **Peers · Channel · Signal · Graph**
 
-Sections: **Peers** · **Channel** · **Signal** · **Graph**
+To self-host a relay, see the **Self-Hosting** section below.
 
 ### ⬡ Protocol Bridge — `bridge.html`
 
-Gateway to the open protocol ecosystem:
-
-- **Nostr** — Subscribe to relays, publish notes, read feeds, send encrypted DMs (NIP-04)
-- **Matrix** — Join rooms and send messages against any Matrix homeserver
-- **RSS / Atom** — Subscribe to any feed, with optional CORS proxy support
-- **WebFinger / ActivityPub** — Resolve any Fediverse handle to its full identity record
-
-The Bridge derives a Nostr (secp256k1) keypair deterministically from your Sovereign Ed25519 identity, maintaining cryptographic continuity across protocols.
+Gateway to the open protocol ecosystem: Nostr, Matrix, RSS/Atom, WebFinger/ActivityPub.
 
 ### ⬡ Transport Layer — `transport.js`
 
-Drop-in module for any Sovereign HTML file. Self-initializes on `DOMContentLoaded`, wiring up:
+Drop-in module. Self-initializes on `DOMContentLoaded`. Wires up:
 
-- WebRTC mesh transport
-- libp2p / gossipsub mesh node bridge (configurable)
-- Blockchain RPC polling (Solana-compatible, configurable)
+- WebRTC mesh transport (default: `wss://sovereign-relay.fly.dev`)
 - DHT-based message routing via `sha256(TOPIC_PREFIX + recipient_did)`
 - BroadcastChannel tab-to-tab fallback
+- Blockchain RPC polling (configurable; disabled by default)
 
-Include with a single `<script>` tag. Configure the top-level constants for your mesh node and RPC endpoint.
+Include with `<script src="transport.js"></script>` **after** `sovereign_fsm.js`.
 
 ---
 
@@ -179,7 +192,7 @@ Include with a single `<script>` tag. Configure the top-level constants for your
 
 ### The Security Kernel
 
-`genesis_sw.js` is not a standard service worker — it is the cryptographic heart of the system. It implements 15 security patterns across 5 tiers:
+`genesis_sw.js` implements 15 security patterns across 5 tiers:
 
 | Tier | Patterns | What it does |
 |---|---|---|
@@ -189,99 +202,37 @@ Include with a single `<script>` tag. Configure the top-level constants for your
 | IV — Resilience | 11–13 | Anomaly detector, panic / deadman switch, Byzantine fault detector |
 | V — Novel | 14–15 | PIR (Private Information Retrieval) fetch, threshold signing |
 
-**The critical isolation property:** The Service Worker does not share memory with any page. An XSS attacker who fully controls every active tab cannot read the Security Kernel heap. This is the most important isolation primitive in the browser, and the reason private keys never appear in tab memory.
+**Critical isolation:** The Service Worker does not share memory with any page. An XSS attacker who fully controls every active tab cannot read the Security Kernel heap.
+
+### The FSM Kernel — `sovereign_fsm.js`
+
+Five state machines enforce system invariants at runtime:
+
+| Machine | States |
+|---|---|
+| `vault` | LOCKED → UNLOCKING → UNLOCKED (+ CREATING, REKEYING, PANICKED) |
+| `identity` | NONE → GENERATING → READY → DESTROYED |
+| `transport` | OFFLINE → DISCOVERING → CONNECTED → DEGRADED |
+| `kdf` | IDLE → STRETCHING → READY → CONSUMED |
+| `ratchet` (per peer) | UNINIT → KEYED → ACTIVE → STALE |
+
+Five invariants are checked after every transition. Any violation emits `sovereign:fsm:INVARIANT_VIOLATION` and logs to the audit chain.
 
 ### Identity
 
-Each user generates an **Ed25519 keypair** using the Web Crypto API — entirely in-browser. The private key is protected by a user-chosen passphrase (PBKDF2-derived AES-256-GCM) and held exclusively in the Security Kernel Service Worker. It never surfaces to page memory.
+Ed25519 keypair, Web Crypto API, entirely in-browser. Private key protected by passphrase (PBKDF2-derived AES-256-GCM, 600,000 iterations), held exclusively in the Service Worker. Never in tab memory.
 
-Your public identity is a **DID** (`did:sovereign:<pubkey-hex>`) derived deterministically from your public key. Share it like a username. Anyone can verify your signatures without trusting any third party.
+**Key recovery:** Shamir 3-of-5 — any 3 of 5 shares reconstruct the key. Below 3 shares, information-theoretic security applies.
 
-**Key recovery** uses **Shamir 3-of-5 secret sharing** — your private key is split into 5 shares, any 3 of which reconstruct it. Distribute shares physically to trusted parties or storage locations. Below the 3-share threshold, information-theoretic security applies: an attacker with fewer than 3 shares learns nothing about the key.
+**Deniable vault:** Two passphrases open different key material (Pattern 03).
 
-The dual vault (Pattern 03) supports a **deniable/duress vault** — two passphrases open different key material, providing plausible deniability under coercion.
-
-### Messaging
-
-Messages are delivered over three transport layers in priority order:
+### Messaging transport priority
 
 | Layer | Scope | Security |
 |---|---|---|
-| BroadcastChannel | Same device, multiple tabs | Instant, zero configuration |
-| WebRTC DataChannel | Cross-device, direct P2P | DTLS + Double Ratchet forward secrecy |
-| WebSocket Relay | Cross-network, assisted discovery | Relay sees session tokens only, not content |
-
-**Double Ratchet** (Pattern 02) provides forward secrecy: each message uses a new ephemeral key derived from a ratcheting chain. Compromise of any session key does not expose past or future messages.
-
-### Entropy
-
-Key generation seeds from `crypto.getRandomValues()` combined with a continuously-refreshed 512-bit entropy pool (Pattern 04) that mixes high-resolution timing samples and optional mouse-movement entropy. Key generation is blocked until the pool reaches sufficient variance.
-
-### Storage
-
-All persistent data lives in **IndexedDB** — never `localStorage`:
-
-| Store | Contents |
-|---|---|
-| `identity` | Username, public key, DID, creation timestamp |
-| `keyvault` | Encrypted private key (AES-256-GCM, passphrase-derived key) |
-| `peers` | Known peer records — DID, name, last seen |
-| `messages` | Message history per peer DID |
-| `settings` | Relay URL, preferences, configuration |
-
-Nothing is sent to any external service unless you initiate a peer connection.
-
-> **Key responsibility:** Your identity lives in IndexedDB. Clearing browser site data deletes your keys permanently. Use **Identity → Backup** and keep your Shamir recovery shares before clearing browser data or switching devices.
-
----
-
-## Connecting Peers
-
-**Same device, multiple tabs** — automatic via BroadcastChannel. No configuration needed.
-
-**Different devices, same network** — WebRTC handshake, exchange packet by any channel.
-
-**Different devices, different networks:**
-1. Both peers enter the same relay URL in **Connect → Relay**
-2. Relay brokers the WebRTC negotiation
-3. Once connected, all traffic is direct — relay exits the path
-
-**Manual handshake (no relay, fully offline):**
-1. Connect → Generate Offer → copy packet or show QR
-2. Send to peer by any means (text, email, airdrop, printed paper)
-3. Peer pastes into Receive Handshake → copies back the Answer
-4. Paste the Answer → connection opens
-5. No server ever touched the exchange
-
----
-
-## Browser Compatibility
-
-| Browser | Status |
-|---|---|
-| Chrome / Chromium | ✅ Full support |
-| Brave | ✅ Full support |
-| Firefox | ✅ Full support |
-| Edge | ✅ Full support |
-| Safari | ⚠️ Partial — WebRTC may require flags |
-| Mobile Chrome / Firefox | ✅ Supported |
-
-**Required browser APIs:** Web Crypto API · IndexedDB · WebRTC · BroadcastChannel · Service Worker  
-**Optional:** BarcodeDetector (QR scanning — Chrome/Chromium only)
-
----
-
-## Running Offline
-
-`genesis_sw.js` registers a service worker that caches all assets on first load. After that, the full identity and local data stack runs without a network connection. Peer connections still require the network, but all UI, key management, and stored data work fully offline.
-
-The service worker requires HTTP (not `file://`). Any local server works:
-
-```bash
-npx serve .
-# or
-python3 -m http.server 8080
-```
+| BroadcastChannel | Same device | Instant, zero config |
+| WebRTC DataChannel | Cross-device direct | DTLS + Double Ratchet forward secrecy |
+| WebSocket Relay | Cross-network | Relay sees session tokens only, not content |
 
 ---
 
@@ -292,10 +243,10 @@ Sovereign is pure static HTML — no application server, no database, no runtime
 ### Option 1 — Local Machine
 
 ```bash
-npx serve .                     # Node
-python3 -m http.server 8080     # Python
-php -S localhost:8080            # PHP
-caddy file-server --browse       # Caddy (zero-config HTTPS)
+npx serve .
+python3 -m http.server 8080
+php -S localhost:8080
+caddy file-server --browse
 ```
 
 ### Option 2 — Static File Host (GitHub Pages, Netlify, Cloudflare Pages)
@@ -306,9 +257,7 @@ No build step. No configuration. Drag and drop or connect your repo.
 - **Netlify:** Drop the folder at netlify.com/drop. Build command: leave blank
 - **Cloudflare Pages:** Connect repo. Build command: blank. Output directory: `/`
 
-### Option 3 — VPS / Dedicated Server
-
-**Nginx:**
+### Option 3 — VPS / Dedicated Server (Nginx)
 
 ```nginx
 server {
@@ -329,20 +278,9 @@ server {
 
 Add HTTPS: `certbot --nginx -d your-domain.com`
 
-**Caddy:**
-
-```
-your-domain.com {
-    root * /var/www/sovereign
-    file_server
-    header Cross-Origin-Opener-Policy same-origin
-    header Cross-Origin-Embedder-Policy require-corp
-}
-```
-
 ### Option 4 — Self-Hosting the Relay
 
-The relay needs a persistent network presence. `relay.html` is an admin interface — the actual relay is a WebSocket server process.
+`relay.html` is the admin UI. The actual relay is a WebSocket server process.
 
 **Minimal Node.js relay:**
 
@@ -350,7 +288,7 @@ The relay needs a persistent network presence. `relay.html` is an admin interfac
 const { WebSocketServer } = require('ws');
 const PORT = process.env.PORT || 8765;
 const wss  = new WebSocketServer({ port: PORT });
-const peers = new Map(); // sessionToken → socket
+const peers = new Map();
 
 wss.on('connection', (ws) => {
   let myToken = null;
@@ -393,12 +331,12 @@ console.log(`Sovereign relay listening on ws://0.0.0.0:${PORT}`);
 ```bash
 npm install ws && node relay-server.js
 
-# Keep alive:
+# Keep alive with pm2:
 npm install -g pm2
 pm2 start relay-server.js --name sovereign-relay && pm2 save && pm2 startup
 ```
 
-**For HTTPS-served nodes, proxy the relay through Nginx (`wss://`):**
+**Nginx WebSocket proxy (for HTTPS/WSS):**
 
 ```nginx
 location /relay {
@@ -424,41 +362,59 @@ Other devices open `http://192.168.x.x:8080/index.html`. Run the relay on the sa
 
 ## STUN / TURN Configuration
 
-Default STUN servers:
+Default STUN servers (privacy-respecting community servers, not Google):
 
 ```
-stun:stun.l.google.com:19302
-stun:stun1.l.google.com:19302
-stun:stun.cloudflare.com:3478
+stun:openrelay.metered.ca:80
+stun:stun.relay.metered.ca:80
 ```
 
-For symmetric NAT (common in corporate networks), add a TURN server to `ICE_SERVERS` in `index.html`:
+For symmetric NAT (common in corporate networks), add a TURN server to `SOVEREIGN_ICE_SERVERS` in `sovereign_security.js`:
 
 ```javascript
-const ICE_SERVERS = [
-  { urls: 'stun:stun.l.google.com:19302' },
+window.SOVEREIGN_ICE_SERVERS = [
+  { urls: 'stun:openrelay.metered.ca:80' },
   { urls: 'turn:your-domain.com:3478', username: 'sovereign', credential: 'your-password' }
 ];
 ```
 
-Self-host with coturn: `apt install coturn` — see full config in the coturn documentation.
+Or set `sovereign_custom_stun` in localStorage at runtime — `sovereign_security.js` reads it automatically on load.
 
 ---
 
-## Content Security Policy
+## Correct Script Loading Order
 
-Inline CSP on all files:
+Every HTML file that uses transport or FSM features must load scripts in this order:
 
-```
-default-src 'none';
-script-src 'self' 'unsafe-inline';
-style-src 'self' 'unsafe-inline';
-connect-src 'self' http://localhost:11434 ws: wss: https:;
-img-src 'self' data: blob:;
-worker-src blob:;
+```html
+<script src="sovereign_security.js"></script>  <!-- must be first -->
+<script src="sovereign_fsm.js"></script>        <!-- must come before transport.js -->
+<script src="transport.js"></script>            <!-- initializes on DOMContentLoaded -->
 ```
 
-`http://localhost:11434` is the local Ollama AI endpoint. Remove it if unused. Tighten `connect-src` to specific relay domains in production.
+`sovereign_security.js` must be loaded first — it defines `sanitize()`, `sovereignEphemeralToken()`, `SOVEREIGN_ICE_SERVERS`, and `SovereignSessionStore`, all of which `transport.js` and `sovereign_fsm.js` depend on.
+
+---
+
+## Browser Compatibility
+
+| Browser | Status |
+|---|---|
+| Chrome / Chromium | ✅ Full support |
+| Brave | ✅ Full support |
+| Firefox | ✅ Full support |
+| Edge | ✅ Full support |
+| Safari | ⚠️ Partial — WebRTC may require flags |
+| Mobile Chrome / Firefox | ✅ Supported |
+
+**Required APIs:** Web Crypto · IndexedDB · WebRTC · BroadcastChannel · Service Worker
+**Optional:** BarcodeDetector (QR scanning — Chrome/Chromium only)
+
+---
+
+## Running Offline
+
+`genesis_sw.js` registers a service worker that caches all assets on first load. After that, the full identity and local data stack runs without a network connection. Peer connections still require the network, but all UI, key management, and stored data work fully offline.
 
 ---
 
@@ -466,19 +422,18 @@ worker-src blob:;
 
 | Property | Status |
 |---|---|
-| Private key never in tab memory | ✅ Enforced — lives in Service Worker heap only |
-| Key encrypted at rest | ✅ AES-256-GCM, passphrase-derived key (PBKDF2) |
-| Key recovery without single point of failure | ✅ Shamir 3-of-5 secret sharing |
+| Private key never in tab memory | ✅ Enforced — Service Worker heap only |
+| Key encrypted at rest | ✅ AES-256-GCM, PBKDF2 600k iterations |
+| Key recovery without single point of failure | ✅ Shamir 3-of-5 |
 | Deniable vault under duress | ✅ Dual vault keys (Pattern 03) |
-| Forward secrecy for messaging | ✅ Double Ratchet per peer session (Pattern 02) |
-| No external network requests | ✅ CSP enforced + Security Kernel firewall (Pattern 05) |
-| XSS isolation for key material | ✅ Service Worker memory inaccessible from page context |
-| Entropy quality gate | ✅ 512-bit pool, generation blocked below variance threshold |
-| Hash-chained audit log | ✅ Pattern 09 — tamper-evident audit chain |
-| Supply chain integrity | ⚠️ SHA-256 self-hash at load time planned — verify file hash against published releases |
+| Forward secrecy for messaging | ✅ Double Ratchet per peer (Pattern 02) |
+| No external network requests | ✅ CSP + Security Kernel firewall (Pattern 05) |
+| XSS isolation for key material | ✅ Service Worker memory inaccessible from page |
+| Entropy quality gate | ✅ 512-bit pool, generation blocked below threshold |
+| Hash-chained audit log | ✅ Pattern 09 — tamper-evident |
+| FSM invariants enforced at runtime | ✅ 5 machines, 5 invariants checked every transition |
+| Relay privacy | ✅ Ephemeral daily HMAC tokens — relay sees tokens, not DIDs |
 | No account database to leak | ✅ No server, no database |
-
-**Accepted limitations:** A browser extension with JavaScript execution access can read page memory (not the Service Worker). An active browser session is accessible to anyone with physical device access. The OS layer is below this application's trust boundary.
 
 ---
 
@@ -486,14 +441,22 @@ worker-src blob:;
 
 A full formal threat model is published with this repository: `sovereign_os_threat_model_v7.docx`
 
-It covers all protected assets, adversary classes (including relay operator and passive network observer), trust boundaries, formal security guarantees, accepted limitations, and the complete v7 design directive set. Read it before deploying in a high-risk context.
+---
+
+## Changelog
+
+### v2.1 — Bug Fixes
+
+- **FSM ratchet transitions added** — `sovereign_fsm.js` TABLE was missing all per-peer ratchet machine transitions (UNINIT → KEYED → ACTIVE → STALE). Every `ratchet.send()` call was silently returning `false`. Transitions and FSM machine name resolution for `ratchet:*` prefixed machines are now correct.
+- **Public relay default** — `transport.js` and `index.html` inline transport both now default to `wss://sovereign-relay.fly.dev` instead of `ws://localhost:8765`. Nodes connect to the public space automatically out of the box.
+- **portal.html script order fixed** — `sovereign_fsm.js` was missing from `portal.html`'s script tags; `transport.js` depends on `window.SovereignFSM`. Load order is now: `sovereign_security.js` → `sovereign_fsm.js` → `transport.js`.
 
 ---
 
 ## Author
 
-**James Chapman** — XheCarpenXer  
-iconoclastdao@gmail.com  
+**James Chapman** — XheCarpenXer
+iconoclastdao@gmail.com
 An Iconoclast DAO project. Built by hand. Owned by no one except its creator and the people who use it.
 
 ---
@@ -502,11 +465,11 @@ An Iconoclast DAO project. Built by hand. Owned by no one except its creator and
 
 Sovereign is dual-licensed. See `LICENSE.md` for full terms.
 
-**License A — Personal & Open-Source (free):** For individuals, researchers, students, and open-source projects. Use it, fork it, build on it, share it. Attribution required.
+**License A — Personal & Open-Source (free):** For individuals, researchers, students, and open-source projects.
 
-**License B — Commercial & Institutional (paid or reciprocal):** Required for corporations, governments, military, law enforcement, and revenue-generating organizations. Two paths: pay for a commercial license, or open-source all code built on Sovereign under the same terms.
+**License B — Commercial & Institutional (paid or reciprocal):** Required for corporations, governments, military, law enforcement, and revenue-generating organizations.
 
-Regardless of license tier, Sovereign may not be used for mass surveillance, cryptographic backdooring, or targeting individuals based on protected characteristics.
+Sovereign may not be used for mass surveillance, cryptographic backdooring, or targeting individuals based on protected characteristics.
 
 Contact **iconoclastdao@gmail.com** for commercial licensing.
 

@@ -87,6 +87,18 @@ window.SovereignFSM = (() => {
     { m:'kdf', from:'CONSUMED',  on:'RESET',     to:'IDLE'       },
     { m:'kdf', from:'READY',     on:'RESET',     to:'IDLE'       },
 
+    // ── RATCHET (per-peer sessions) ──────────────────────────────────────
+    // States: UNINIT → KEYED → ACTIVE → STALE
+    // Guard: identity must be READY before any ratchet may advance
+    { m:'ratchet', from:'UNINIT',  on:'INIT',    to:'KEYED',   guard:'identityReady' },
+    { m:'ratchet', from:'KEYED',   on:'READY',   to:'ACTIVE'   },
+    { m:'ratchet', from:'ACTIVE',  on:'REKEY',   to:'KEYED'    },
+    { m:'ratchet', from:'ACTIVE',  on:'STALE',   to:'STALE'    },
+    { m:'ratchet', from:'STALE',   on:'REKEY',   to:'KEYED'    },
+    { m:'ratchet', from:'STALE',   on:'CLOSE',   to:'UNINIT'   },
+    { m:'ratchet', from:'KEYED',   on:'CLOSE',   to:'UNINIT'   },
+    { m:'ratchet', from:'ACTIVE',  on:'CLOSE',   to:'UNINIT'   },
+
     // ── PANIC — from any state in any machine ───────────────────────────
     { m:'*', from:'*', on:'PANIC', to:'PANICKED' },
   ];
@@ -166,8 +178,9 @@ window.SovereignFSM = (() => {
 
     /** Returns true if the event is valid from the current state */
     can(event) {
+      const machineName = this._name.startsWith('ratchet:') ? 'ratchet' : this._name;
       return TABLE.some(t =>
-        (t.m === this._name || t.m === '*') &&
+        (t.m === machineName || t.m === '*') &&
         (t.from === this._state || t.from === '*') &&
         t.on === event
       );
@@ -179,10 +192,11 @@ window.SovereignFSM = (() => {
      */
     send(event, payload = {}) {
       const K = this._kernel;
+      const machineName = this._name.startsWith('ratchet:') ? 'ratchet' : this._name;
 
       // Find matching transition for this machine
       const row = TABLE.find(t =>
-        (t.m === this._name || t.m === '*') &&
+        (t.m === machineName || t.m === '*') &&
         (t.from === this._state || t.from === '*') &&
         t.on === event
       );

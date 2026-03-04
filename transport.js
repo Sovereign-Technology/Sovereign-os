@@ -3,7 +3,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 const SOVEREIGN_CONFIG = {
-  MESH_WS_URL:           'ws://localhost:8765',
+  MESH_WS_URL:           'wss://sovereign-relay.fly.dev',
   CHAIN_RPC:             'http://localhost:8899',
   POLL_MS:               3000,
   TOPIC_PREFIX:          'sovereign:msg:',

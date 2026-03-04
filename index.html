@@ -1000,9 +1000,9 @@ function _installKernelShim() {
 //  CONFIG — edit these to match your nodes
 // ─────────────────────────────────────────────
 const SOVEREIGN_CONFIG = {
-  // Your local mesh node WebSocket (libp2p, gossipsub, etc.)
-  // Run: npx @libp2p/daemon or your custom node
-  MESH_WS_URL: 'ws://localhost:8765',
+  // Public Sovereign relay — enables cross-device connectivity out of the box.
+  // Override via Connect → Relay to use your own self-hosted relay.
+  MESH_WS_URL: 'wss://sovereign-relay.fly.dev',
 
   // Your blockchain RPC (Solana, custom chain, etc.)
   // Replace with your actual RPC endpoint
