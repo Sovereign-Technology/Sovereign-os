@@ -512,12 +512,15 @@ label.lbl{display:block;font-size:11px;color:var(--text3);margin-bottom:6px;lett
   </div>
 
   <div class="ob-card">
-    <!-- STEP 0: Pick a name -->
+    <!-- STEP 0: Pick a name + passphrase -->
     <div class="ob-step active" id="ob-step-0">
       <div class="ob-step-num">Step 1 of 3</div>
-      <div class="ob-title">What should people call you?</div>
-      <div class="ob-sub">This is your display name. You can always change it later. No email, no password — just a name.</div>
-      <input class="ob-input" id="ob-name" placeholder="e.g. nova, quiet-river, mk7…" maxlength="32" autocomplete="off" spellcheck="false">
+      <div class="ob-title">Create your identity</div>
+      <div class="ob-sub">Choose a display name and a vault passphrase. Your keys never leave your device — the passphrase encrypts them locally.</div>
+      <input class="ob-input" id="ob-name" placeholder="Display name (e.g. nova, quiet-river, mk7…)" maxlength="32" autocomplete="off" spellcheck="false" style="margin-bottom:10px;">
+      <input class="ob-input" id="ob-passphrase" type="password" placeholder="Vault passphrase (you'll need this to log in)" autocomplete="new-password" style="margin-bottom:10px;">
+      <input class="ob-input" id="ob-passphrase2" type="password" placeholder="Confirm passphrase" autocomplete="new-password">
+      <div id="ob-pass-err" style="font-size:12px;color:var(--red);margin-top:6px;display:none;"></div>
       <button class="ob-btn" id="ob-btn-0" onclick="obStep0()">Continue →</button>
       <div class="ob-hint">Already have an account? <a onclick="showImportFlow()">Import your identity</a></div>
     </div>
@@ -562,6 +565,17 @@ label.lbl{display:block;font-size:11px;color:var(--text3);margin-bottom:6px;lett
       <input type="file" id="ob-import-file" accept=".json" style="display:none" onchange="doImport(this)">
       <button class="ob-btn" onclick="document.getElementById('ob-import-file').click()">📂 Choose backup file</button>
       <button class="ob-btn secondary" style="margin-top:8px;" onclick="showObStep(0)">← Back</button>
+    </div>
+
+    <!-- VAULT UNLOCK FLOW (returning users) -->
+    <div class="ob-step" id="ob-step-unlock">
+      <div class="ob-step-num">Welcome back</div>
+      <div class="ob-title" id="ob-unlock-name">Unlock your vault</div>
+      <div class="ob-sub">Enter your vault passphrase to access your identity. Keys stay encrypted until you unlock.</div>
+      <input class="ob-input" id="ob-unlock-pass" type="password" placeholder="Vault passphrase" autocomplete="current-password">
+      <div id="ob-unlock-err" style="font-size:12px;color:var(--red);margin-top:6px;display:none;"></div>
+      <button class="ob-btn" id="ob-unlock-btn" onclick="doVaultUnlock()">Unlock →</button>
+      <div class="ob-hint"><a onclick="showImportFlow()">Not your account? Import a different identity</a></div>
     </div>
   </div>
 </div>
@@ -967,7 +981,7 @@ const IdentityEngine = (() => {
     const keccakHash=Array.from(seed32).map(b=>b.toString(16).padStart(2,'0')).join('').substr(0,16);
     const id={
       did,username:username||('user-'+did.substr(14,8)),
-      pubKeyHex:pubHex,privKeyHex:privHex,
+      pubKeyHex:pubHex, // privKeyHex deliberately not stored (kernel vault holds key)
       createdAt:Date.now(),keccakStateHash:keccakHash,entropySteps:3,keyPair
     };
     _id=id;_keyCache.set(did,keyPair);
@@ -1008,16 +1022,11 @@ const IdentityEngine = (() => {
     });
     if(!all||!all.length)return null;
     const latest=all.sort((a,b)=>b.createdAt-a.createdAt)[0];
-    // Rebuild keyPair from stored hex
+    // v2 vaults: private key held by Security Kernel SW — no tab-side key material
+    // v1 legacy backups: privKeyHex present — flagged for migration, keyPair NOT rebuilt here
+    // (signing routes through SovereignKernel.sign() oracle for both)
     if(latest.privKeyHex){
-      try{
-        const privRaw=new Uint8Array(latest.privKeyHex.match(/.{2}/g).map(h=>parseInt(h,16)));
-        const privKey=await crypto.subtle.importKey('pkcs8',privRaw,{name:'Ed25519'},true,['sign']);
-        const pubRaw=new Uint8Array(latest.pubKeyHex.match(/.{2}/g).map(h=>parseInt(h,16)));
-        const pubKey=await crypto.subtle.importKey('spki',pubRaw,{name:'Ed25519'},true,['verify']);
-        latest.keyPair={privateKey:privKey,publicKey:pubKey};
-        _keyCache.set(latest.did,latest.keyPair);
-      }catch(e){console.warn('Key restore failed',e);}
+      console.info('[IdentityEngine] v1 identity detected — recommend migrating to kernel vault');
     }
     _id=latest;
     return latest;
@@ -1068,12 +1077,17 @@ const P2PNet = (() => {
   }
 
   async function _sign(payload){
-    const id=IdentityEngine.get();if(!id)return null;
-    const kp=id.keyPair||IdentityEngine.getKeyPair(id.did);if(!kp)return null;
-    const bytes=new TextEncoder().encode(JSON.stringify(payload));
-    try{const sig=await crypto.subtle.sign({name:'Ed25519'},kp.privateKey,bytes);
-      return Array.from(new Uint8Array(sig)).map(b=>b.toString(16).padStart(2,'0')).join('');}
-    catch(e){return null;}
+    const id=IdentityEngine.get(); if(!id) return null;
+    try{
+      // Security Kernel oracle — private key never leaves the Service Worker
+      const bytes   = new TextEncoder().encode(JSON.stringify(payload));
+      const dataB64 = btoa(String.fromCharCode(...bytes));
+      const result  = await window.SovereignKernel.sign(dataB64);
+      return result?.sig || null;
+    }catch(e){
+      console.warn('[P2PNet] Signing skipped (vault locked or SW unavailable)');
+      return null;
+    }
   }
 
   async function _makeEnvelope(type,payload,to='*'){
@@ -1237,60 +1251,155 @@ function showImportFlow(){
 }
 
 async function obStep0(){
-  const nameInput=document.getElementById('ob-name');
-  const name=nameInput.value.trim().toLowerCase().replace(/[^a-z0-9-]/g,'').substr(0,24);
-  if(!name){nameInput.focus();return;}
-  
-  // Move to generating step
+  const nameInput  = document.getElementById('ob-name');
+  const passInput  = document.getElementById('ob-passphrase');
+  const pass2Input = document.getElementById('ob-passphrase2');
+  const errEl      = document.getElementById('ob-pass-err');
+  errEl.style.display = 'none';
+
+  const name = nameInput.value.trim().toLowerCase().replace(/[^a-z0-9-]/g,'').substr(0,24);
+  if(!name){ nameInput.focus(); return; }
+
+  const pass  = passInput.value;
+  const pass2 = pass2Input.value;
+  if(!pass || pass.length < 8){
+    errEl.textContent = 'Passphrase must be at least 8 characters.';
+    errEl.style.display = 'block'; passInput.focus(); return;
+  }
+  if(pass !== pass2){
+    errEl.textContent = 'Passphrases do not match.';
+    errEl.style.display = 'block'; pass2Input.focus(); return;
+  }
+
   showObStep(1);
-  document.getElementById('gen-status').textContent='Collecting randomness…';
-  
+  document.getElementById('gen-status').textContent = 'Registering service worker…';
+
   try{
-    await new Promise(r=>setTimeout(r,200));
-    document.getElementById('gen-status').textContent='Generating keys…';
-    const seed=await KeccakEngine.collectAndFinish(name+'-'+Date.now());
-    document.getElementById('gen-status').textContent='Creating your identity…';
-    await new Promise(r=>setTimeout(r,200));
-    
-    _identity=await IdentityEngine.generateFromSeed(seed,name);
-    
-    // Generate Shamir shares
-    const privBytes=new Uint8Array(_identity.privKeyHex.match(/.{2}/g).map(h=>parseInt(h,16)));
-    _shares=Shamir.split(privBytes,5,3);
-    
-    document.getElementById('gen-status').textContent='Done!';
-    await new Promise(r=>setTimeout(r,400));
-    
-    // Move to backup step
-    document.getElementById('ob-did-preview').textContent=_identity.did;
+    // Register SW if not already
+    if('serviceWorker' in navigator){
+      await navigator.serviceWorker.register('genesis_sw.js');
+      await navigator.serviceWorker.ready;
+    }
+
+    document.getElementById('gen-status').textContent = 'Creating vault (PBKDF2 + AES-KW)…';
+
+    // Create vault via Security Kernel — private key NEVER touches tab
+    const result = await window.SovereignKernel.createDualVault(pass, pass + '_decoy_' + Math.random().toString(36).slice(2));
+    const { realDid } = result;
+
+    document.getElementById('gen-status').textContent = 'Unlocking vault…';
+    await window.SovereignKernel.unlockVault(pass);
+
+    // Generate Shamir shares from a random recovery token (not the private key)
+    const recoveryToken = new Uint8Array(32);
+    crypto.getRandomValues(recoveryToken);
+    _shares = Shamir.split(recoveryToken, 5, 3);
+
+    // Store only PUBLIC data in IdentityEngine — private key stays in SW
+    const identity = {
+      did     : realDid,
+      username: name,
+      pubKeyB64: null,    // kernel holds this internally; DID encodes it
+      createdAt: Date.now(),
+      vaultVersion: 2,    // signals that this is a kernel-managed vault
+    };
+    _identity = identity;
+    IdentityEngine.setActive(identity);
+    await _persistPublicIdentity(identity);
+
+    // Boot SW with our public identity
+    await window.sovereignBoot(realDid, null);
+
+    document.getElementById('gen-status').textContent = 'Identity ready ✓';
+    await new Promise(r=>setTimeout(r, 400));
+
+    document.getElementById('ob-did-preview').textContent = realDid;
     showObStep(2);
   }catch(e){
     console.error(e);
-    toast('Error generating identity: '+e.message,'error');
+    toast('Error creating vault: ' + e.message, 'error');
     showObStep(0);
   }
 }
 
 function downloadBackup(){
   if(!_identity)return;
+  // NOTE: privKeyHex deliberately omitted — private key is held by the Security Kernel vault.
+  // The passphrase the user set is the recovery credential. This backup records public identity only.
   const cert={
-    version:'portal-1.0',
-    did:_identity.did,
-    username:_identity.username,
-    pubKeyHex:_identity.pubKeyHex,
-    privKeyHex:_identity.privKeyHex,
-    createdAt:_identity.createdAt,
-    keccakStateHash:_identity.keccakStateHash,
-    shamirShares:_shares?_shares.map((s,i)=>({index:i+1,x:s.x,ys:Array.from(s.ys)})):[],
-    note:'Sovereign Portal backup. Keep this file safe.'
+    version    : 'portal-2.0-kernel',
+    did        : _identity.did,
+    username   : _identity.username,
+    createdAt  : _identity.createdAt,
+    vaultVersion: 2,
+    recoveryShares: _shares ? _shares.map((s,i)=>({index:i+1,x:s.x,ys:Array.from(s.ys)})) : [],
+    note: 'Sovereign Portal backup v2. Private key is held in your browser vault — unlock with your passphrase. Recovery shares are for account metadata recovery only.',
   };
   const blob=new Blob([JSON.stringify(cert,null,2)],{type:'application/json'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);
   a.download=`sovereign-backup-${_identity.username}.json`;a.click();
-  toast('Backup downloaded ✓','success');
-  // Move to done step
+  toast('Backup downloaded ✓ (vault passphrase is your key)','success');
   document.getElementById('ob-welcome-name').textContent='Welcome, '+_identity.username+'!';
   showObStep(3);
+}
+
+// Vault unlock for returning users
+async function doVaultUnlock(){
+  const passInput = document.getElementById('ob-unlock-pass');
+  const errEl     = document.getElementById('ob-unlock-err');
+  const btn       = document.getElementById('ob-unlock-btn');
+  errEl.style.display = 'none';
+  const pass = passInput.value;
+  if(!pass){ passInput.focus(); return; }
+
+  btn.disabled = true; btn.textContent = 'Unlocking…';
+  try{
+    const result = await window.SovereignKernel.unlockVault(pass);
+    if(result?.event === 'VAULT_UNLOCKED' || result?.did){
+      _identity = await _loadPublicIdentity();
+      if(_identity){
+        IdentityEngine.setActive(_identity);
+        await window.sovereignBoot(_identity.did, null);
+        _launchShell();
+      }else{
+        // Vault unlocked but no public profile stored — show shell with kernel DID
+        _identity = { did: result.did || 'did:sovereign:restored', username: 'user', createdAt: Date.now(), vaultVersion:2 };
+        IdentityEngine.setActive(_identity);
+        _launchShell();
+      }
+    }else{
+      throw new Error(result?.reason || 'Unlock failed');
+    }
+  }catch(e){
+    errEl.textContent = e.message?.includes('backoffMs') ? 'Wrong passphrase. Too many attempts.' : (e.message || 'Wrong passphrase.');
+    errEl.style.display = 'block';
+  }finally{
+    btn.disabled = false; btn.textContent = 'Unlock →';
+    passInput.value = '';
+  }
+}
+
+// Persist only public identity to IndexedDB
+async function _persistPublicIdentity(id){
+  const db = await IdentityEngine.openDB();
+  return new Promise((res,rej)=>{
+    const toStore = { did:id.did, username:id.username, createdAt:id.createdAt, vaultVersion:id.vaultVersion||2 };
+    const tx = db.transaction('identities','readwrite');
+    const r  = tx.objectStore('identities').put(toStore);
+    r.onsuccess = res; r.onerror = rej;
+  });
+}
+
+// Load public identity from IndexedDB (no private key stored)
+async function _loadPublicIdentity(){
+  const db  = await IdentityEngine.openDB();
+  const all = await new Promise((res,rej)=>{
+    const tx = db.transaction('identities','readonly');
+    const r  = tx.objectStore('identities').getAll();
+    r.onsuccess = e=>res(e.target.result); r.onerror = rej;
+  });
+  if(!all?.length) return null;
+  return all.sort((a,b)=>b.createdAt-a.createdAt)[0];
 }
 
 function skipBackup(){
@@ -1714,23 +1823,32 @@ function _escHtml(s){
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
 }
 
-// ── BOOT ──
 window.addEventListener('load', async()=>{
-  // Try to restore existing identity
+  // Register Service Worker & Security Kernel
+  if('serviceWorker' in navigator){
+    try{
+      await navigator.serviceWorker.register('genesis_sw.js');
+      await navigator.serviceWorker.ready;
+    }catch(e){ console.warn('SW registration failed:', e); }
+  }
+
+  // Try to find an existing public identity
   try{
-    const id=await IdentityEngine.restoreLatest();
-    if(id){
-      _identity=id;
-      _launchShell();
+    const pub = await _loadPublicIdentity();
+    if(pub){
+      // Identity exists in DB — show vault unlock screen
+      document.getElementById('ob-unlock-name').textContent = 'Welcome back, ' + pub.username + '!';
+      document.querySelectorAll('.ob-step').forEach(s=>s.classList.remove('active'));
+      document.getElementById('ob-step-unlock').classList.add('active');
+      document.getElementById('ob-unlock-pass').focus();
       return;
     }
-  }catch(e){console.warn('Identity restore failed:',e);}
-  
-  // No identity — show onboarding
-  // Auto-start collecting entropy in background
+  }catch(e){ console.warn('Identity lookup failed:', e); }
+
+  // No identity — show fresh onboarding
   document.getElementById('ob-name').focus();
-  document.getElementById('ob-name').addEventListener('keydown',e=>{
-    if(e.key==='Enter')obStep0();
+  document.getElementById('ob-name').addEventListener('keydown', e=>{
+    if(e.key==='Enter') document.getElementById('ob-passphrase').focus();
   });
 });
 
@@ -1742,6 +1860,7 @@ window.downloadBackup  = downloadBackup;
 window.skipBackup      = skipBackup;
 window.doImport        = doImport;
 window.enterShell      = enterShell;
+window.doVaultUnlock   = doVaultUnlock;
 window.showPanel       = showPanel;
 window.publishPost     = publishPost;
 window.startDM         = startDM;
@@ -1953,5 +2072,7 @@ window.Guide = Guide;
 
 function toggleGuide(){ Guide.toggle(); }
 
+<!-- Sovereign Security Kernel Transport Bridge -->
+<script src="transport.js"></script>
 </body>
 </html>

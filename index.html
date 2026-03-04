@@ -553,7 +553,9 @@ textarea.field-input { resize:vertical; min-height:72px; font-size:11px; line-he
         <div class="step-num">3</div>
         <div class="step-body">
           <div class="step-title">Generate your identity</div>
-          <div class="step-desc">Creates an Ed25519 keypair encrypted with AES-256-GCM in IndexedDB.</div>
+          <div class="step-desc">Creates a cryptographic keypair secured by your vault passphrase. Keys are held by the Security Kernel — they never appear in tab memory.</div>
+          <input type="password" id="create-passphrase" class="field-input" placeholder="Vault passphrase (8+ chars)" style="margin-bottom:6px;font-size:13px;" autocomplete="new-password">
+          <input type="password" id="create-passphrase2" class="field-input" placeholder="Confirm passphrase" style="margin-bottom:8px;font-size:13px;" autocomplete="new-password">
           <button class="btn btn-primary" id="btn-generate" disabled onclick="generateIdentity()">Generate Identity</button>
           <div id="generate-status" style="margin-top:8px;font-size:11px;color:var(--text3);font-family:var(--mono);"></div>
         </div>
@@ -885,62 +887,57 @@ async function sha256hex(str) {
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
 }
 
-async function generateEd25519() {
-  const key = await crypto.subtle.generateKey({ name:'Ed25519' }, true, ['sign','verify']).catch(async () => {
-    // Fallback: ECDSA P-256
-    return crypto.subtle.generateKey({ name:'ECDSA', namedCurve:'P-256' }, true, ['sign','verify']);
-  });
-  const pubRaw = await crypto.subtle.exportKey('raw', key.publicKey || key);
-  const pubHex = Array.from(new Uint8Array(pubRaw)).map(b => b.toString(16).padStart(2,'0')).join('');
-  return { keyPair: key, pubHex };
-}
-
-async function encryptPrivKey(keyPair) {
-  const privRaw = await crypto.subtle.exportKey('pkcs8', keyPair.privateKey || keyPair).catch(() => new Uint8Array(32));
-  const aesKey = await crypto.subtle.generateKey({ name:'AES-GCM', length:256 }, true, ['encrypt','decrypt']);
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const enc = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, aesKey, privRaw);
-  const rawAes = await crypto.subtle.exportKey('raw', aesKey);
-  return {
-    iv: Array.from(iv),
-    enc: Array.from(new Uint8Array(enc)),
-    aes: Array.from(new Uint8Array(rawAes)),
-  };
-}
+// ── CRYPTO HELPERS (key operations routed through Security Kernel) ──
+// generateEd25519 and encryptPrivKey are replaced by SovereignKernel.createDualVault()
+// Private key material never enters tab memory (Pattern 01 — Key Oracle)
 
 // ══════════════════════════════════════════
 // IDENTITY ENGINE
 // ══════════════════════════════════════════
 async function generateIdentity() {
-  const username = document.getElementById('create-username').value.trim();
+  const username   = document.getElementById('create-username').value.trim();
+  const passEl     = document.getElementById('create-passphrase');
+  const pass2El    = document.getElementById('create-passphrase2');
+  const pass       = passEl?.value || '';
+  const pass2      = pass2El?.value || '';
+
   if (!username) { toast('Choose a display name first', 'error'); return; }
+  if (!pass || pass.length < 8) { toast('Passphrase must be at least 8 characters', 'error'); passEl?.focus(); return; }
+  if (pass !== pass2) { toast('Passphrases do not match', 'error'); pass2El?.focus(); return; }
+
   const btn = document.getElementById('btn-generate');
   btn.disabled = true; btn.textContent = 'Generating…';
   const status = document.getElementById('generate-status');
-  status.textContent = '> Generating Ed25519 keypair…';
+  status.textContent = '> Registering Security Kernel…';
 
   try {
-    const { keyPair, pubHex } = await generateEd25519();
-    status.textContent = '> Deriving DID…';
-    const seed = squeeze32();
-    const seedHex = Array.from(seed).map(b => b.toString(16).padStart(2,'0')).join('');
-    const did = `did:sovereign:${pubHex.slice(0,32)}${seedHex.slice(0,8)}`;
-    status.textContent = '> Encrypting private key…';
-    const vault = await encryptPrivKey(keyPair);
+    // Register SW if not already
+    if ('serviceWorker' in navigator) {
+      await navigator.serviceWorker.register('genesis_sw.js');
+      await navigator.serviceWorker.ready;
+    }
 
-    const identity = {
-      did, username,
-      pubKeyHex: pubHex,
-      createdAt: Date.now(),
-    };
+    status.textContent = '> Creating vault (PBKDF2 + AES-KW)…';
+    // Pattern 01, 03: Create dual vault — private key held by SW, never in tab
+    const result = await window.SovereignKernel.createDualVault(pass, pass + '_decoy_' + Math.random().toString(36).slice(2));
+    const did    = result.realDid;
+
+    status.textContent = '> Unlocking vault…';
+    await window.SovereignKernel.unlockVault(pass);
+
+    // Store only PUBLIC identity in IndexedDB — no private key exposure
+    const identity = { did, username, pubKeyB64: null, createdAt: Date.now(), vaultVersion: 2 };
     await dbPut('identity', identity);
-    await dbPut('keyvault', { did, ...vault });
-    // Only save relay_url setting if not already set
     const existingRelay = await dbGet('settings', 'relay_url');
     if (!existingRelay) await dbPut('settings', { key:'relay_url', value:'' });
 
+    // Boot kernel with our public identity
+    await window.sovereignBoot(did, null);
+
     SYS.identity = identity;
-    status.textContent = '> Identity saved to IndexedDB ✓';
+    status.textContent = '> Identity secured by Security Kernel ✓';
+    if (passEl) passEl.value = '';
+    if (pass2El) pass2El.value = '';
     setTimeout(() => {
       loadIdentityUI();
       toast(`Identity created: ${username}`, 'success');
@@ -949,7 +946,7 @@ async function generateIdentity() {
     console.error(err);
     btn.disabled = false; btn.textContent = 'Generate Identity';
     status.textContent = '> Error: ' + err.message;
-    toast('Failed to generate identity', 'error');
+    toast('Failed to generate identity: ' + err.message, 'error');
   }
 }
 
@@ -1739,7 +1736,7 @@ const GUIDES = {
       { h:'Share your handshake', p:'Go to Connect → copy your handshake packet and send it to your peer via any channel (email, text, etc).' },
       { h:'Receive their handshake', p:'Ask them to share their handshake packet. Paste it in the "Receive Handshake" field and click Connect.' },
       { h:'Open Messages', p:'Go to the Messages tab, select their name from the sidebar, and start typing.' },
-      { h:'Hit Enter to send', p:'Your message is signed with your private key, routed through any available channel (direct P2P, relay, or local broadcast).' },
+      { h:'Hit Enter to send', p:'Your message is signed via the Security Kernel oracle — the private key never leaves the Service Worker. Routed through any available channel (P2P, relay, or local broadcast).' },
     ]
   },
   backup: {
@@ -1747,9 +1744,9 @@ const GUIDES = {
     sub: 'Your identity is stored in IndexedDB. Here\'s how to preserve it.',
     steps: [
       { h:'Export your DID', p:'Your DID is public — copy it from the Identity tab. You can always share this.' },
-      { h:'Export private key (advanced)', p:'Open browser DevTools → Application → IndexedDB → sovereign_genesis_v2 → keyvault to view your encrypted key vault.' },
+      { h:'Security Kernel vault', p:'Your private key is held inside the Service Worker (genesis_sw.js) and encrypted with your passphrase via PBKDF2+AES-KW. The kernel implements 15 security patterns from the Sovereign IP Registry.' },
       { h:'Write down your DID', p:'At minimum, save your DID string. Other nodes can look you up by it even if you regenerate.' },
-      { h:'Same-device safety', p:'Your keys survive page refreshes. They are lost if you clear site data or use a private/incognito window.' },
+      { h:'Same-device safety', p:'Your vault survives page refreshes. Vault passphrase required to unlock after reload. Keys are lost if you clear site data — use the backup file to recover your DID.' },
     ]
   },
   connect: {
@@ -1842,6 +1839,14 @@ async function boot() {
     bar.style.width = ((i+1)/BOOT_LINES.length*100)+'%';
   }
 
+  // Register Security Kernel SW
+  if ('serviceWorker' in navigator) {
+    try {
+      await navigator.serviceWorker.register('genesis_sw.js');
+      await navigator.serviceWorker.ready;
+    } catch(swErr) { console.warn('SW registration failed:', swErr); }
+  }
+
   // Load identity
   try {
     const db = await openDB();
@@ -1849,6 +1854,10 @@ async function boot() {
     if (ids.length) {
       SYS.identity = ids[0];
       await loadIdentityUI();
+      // If vault v2, show unlock prompt in status area
+      if (ids[0].vaultVersion === 2) {
+        showVaultUnlockPrompt(ids[0].did);
+      }
     }
     const contacts = await dbGetAll('contacts');
     contacts.forEach(c => { if (!SYS.peers.has(c.did)) SYS.peers.set(c.did, { did:c.did, name:c.name, state:'offline' }); });
@@ -2031,8 +2040,91 @@ function _startQRScan() {
   }, 400);
 }
 
+
+// ══════════════════════════════════════════
+// SECURITY KERNEL — VAULT UNLOCK (Pattern 01, 12)
+// Shows a non-blocking unlock banner when a v2 vault identity is found on boot.
+// Private key never enters tab memory — all crypto stays in genesis_sw.js
+// ══════════════════════════════════════════
+function showVaultUnlockPrompt(did) {
+  // Don't show if already unlocked this session
+  if (window._vaultUnlocked) return;
+
+  // Build a subtle banner at the bottom of the generate-status area
+  const statusEl = document.getElementById('generate-status');
+  if (!statusEl) return;
+
+  const banner = document.createElement('div');
+  banner.id = 'vault-unlock-banner';
+  banner.style.cssText = [
+    'margin-top:12px;padding:12px 14px;',
+    'background:rgba(124,111,255,0.08);border:1px solid rgba(124,111,255,0.25);',
+    'border-radius:8px;font-size:12px;color:var(--text2);line-height:1.5;',
+  ].join('');
+  banner.innerHTML = [
+    '<div style="color:var(--accent);font-weight:600;margin-bottom:6px;">⬡ Vault locked</div>',
+    '<div style="margin-bottom:8px;">Enter your passphrase to unlock signing for this session.</div>',
+    '<div style="display:flex;gap:8px;align-items:center;">',
+    '  <input type="password" id="vault-pass-input" placeholder="Vault passphrase"',
+    '    style="flex:1;padding:8px 10px;background:var(--bg2);border:1px solid var(--border2);',
+    '           border-radius:6px;color:var(--text);font-size:12px;outline:none;"',
+    '    onkeydown="if(event.key==='Enter')unlockVaultFromBanner()">',
+    '  <button onclick="unlockVaultFromBanner()" id="vault-unlock-btn"',
+    '    style="padding:8px 14px;background:var(--accent);border:none;border-radius:6px;',
+    '           color:#fff;font-size:12px;font-weight:600;cursor:pointer;">Unlock</button>',
+    '</div>',
+    '<div id="vault-unlock-err" style="color:var(--red);font-size:11px;margin-top:6px;display:none;"></div>',
+  ].join('');
+
+  statusEl.parentNode.appendChild(banner);
+  document.getElementById('vault-pass-input')?.focus();
+}
+
+async function unlockVaultFromBanner() {
+  const passEl = document.getElementById('vault-pass-input');
+  const errEl  = document.getElementById('vault-unlock-err');
+  const btn    = document.getElementById('vault-unlock-btn');
+  if (!passEl) return;
+
+  const pass = passEl.value;
+  if (!pass) { passEl.focus(); return; }
+
+  btn.disabled = true; btn.textContent = '…';
+  errEl.style.display = 'none';
+
+  try {
+    const result = await window.SovereignKernel.unlockVault(pass);
+    if (result?.event === 'VAULT_UNLOCKED' || result?.did) {
+      window._vaultUnlocked = true;
+      const banner = document.getElementById('vault-unlock-banner');
+      if (banner) {
+        banner.style.background = 'rgba(0,232,122,0.06)';
+        banner.style.borderColor = 'rgba(0,232,122,0.2)';
+        banner.innerHTML = '<div style="color:var(--green);font-weight:600;">⬡ Vault unlocked — Security Kernel active</div>';
+        setTimeout(() => banner.remove(), 3000);
+      }
+      // Boot kernel with our DID
+      if (SYS.identity?.did) await window.sovereignBoot(SYS.identity.did, null);
+      toast('Vault unlocked ✓ — 15 security patterns active', 'success');
+    } else {
+      throw new Error(result?.reason || 'Unlock failed');
+    }
+  } catch(e) {
+    errEl.textContent = e.message?.includes('backoffMs')
+      ? 'Too many failed attempts — backing off.'
+      : 'Wrong passphrase. Try again.';
+    errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Unlock';
+    passEl.value = '';
+  }
+}
+window.unlockVaultFromBanner = unlockVaultFromBanner;
+
 boot();
 </script>
+<!-- Sovereign Security Kernel Transport Bridge -->
+<script src="transport.js"></script>
 </body>
 </html>
 

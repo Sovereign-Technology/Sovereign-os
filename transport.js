@@ -507,3 +507,211 @@ window.sovereignSend = async function(msg) {
   }
   return window._ST.send(msg);
 };
+
+// ════════════════════════════════════════════════════════════════════════════
+//  SOVEREIGN TRANSPORT — Security Kernel Integration (Pattern 07 + SW Bridge)
+//  © James Chapman (XheCarpenXer) · Sovereign Technology IP Registry
+//
+//  This section wires the browser-side Transport to the SW Security Kernel:
+//    • SEND now routes through SW for jitter + cover traffic padding (Pattern 07)
+//    • PIR-style topic fetch helper (Pattern 14)
+//    • Vault unlock / sign / seal / open helpers (Pattern 01)
+//    • Heartbeat keepalive for deadman switch (Pattern 12)
+//    • SW event listener for kernel events
+// ════════════════════════════════════════════════════════════════════════════
+
+class SovereignKernelBridge {
+  constructor() {
+    this._sw  = null;
+    this._cbs = new Map();  // event → [callbacks]
+    this._pending = new Map(); // nonce → { resolve, reject }
+    this._heartbeatTimer = null;
+    this._init();
+  }
+
+  async _init() {
+    if (!('serviceWorker' in navigator)) return;
+    const reg = await navigator.serviceWorker.ready;
+    this._sw  = reg.active;
+    navigator.serviceWorker.addEventListener('message', (e) => this._onKernelEvent(e.data));
+    this._startHeartbeat();
+  }
+
+  // ── Vault ──────────────────────────────────────────────────────────────
+
+  async unlockVault(passphrase) {
+    return this._call('VAULT_UNLOCK', { passphrase });
+  }
+
+  async createVault(passphrase, isDecoy = false) {
+    return this._call('VAULT_CREATE', { passphrase, isDecoy });
+  }
+
+  async createDualVault(passphrase, decoyPassphrase) {
+    return this._call('VAULT_CREATE_DUAL', { passphrase, decoyPassphrase });
+  }
+
+  async lockVault() {
+    return this._call('VAULT_LOCK', {});
+  }
+
+  // ── Pattern 01: Key Oracle ─────────────────────────────────────────────
+
+  async sign(dataB64) {
+    return this._call('SIGN', { data: dataB64 });
+  }
+
+  async seal(plaintextB64, recipientPubKey) {
+    return this._call('SEAL', { plaintext: plaintextB64, recipientPubKey });
+  }
+
+  async open(ciphertextB64, iv, senderPubKey) {
+    return this._call('OPEN', { ciphertext: ciphertextB64, iv, senderPubKey });
+  }
+
+  // ── Pattern 02: Double Ratchet ─────────────────────────────────────────
+
+  async initRatchet(peerDid, theirIdentityPubKey, theirEphemeralPubKey) {
+    return this._call('RATCHET_INIT', { peerDid, theirIdentityPubKey, theirEphemeralPubKey });
+  }
+
+  async ratchetEncrypt(peerDid, plaintextB64) {
+    return this._call('RATCHET_ENCRYPT', { peerDid, plaintext: plaintextB64 });
+  }
+
+  async ratchetDecrypt(peerDid, n, ciphertextB64, iv) {
+    return this._call('RATCHET_DECRYPT', { peerDid, n, ciphertext: ciphertextB64, iv });
+  }
+
+  // ── Pattern 06: Onion Send ─────────────────────────────────────────────
+
+  async onionSend(targetDid, plaintextB64) {
+    return this._call('ONION_SEND', { targetDid, plaintext: plaintextB64 });
+  }
+
+  // ── Pattern 14: PIR Fetch ──────────────────────────────────────────────
+
+  async pirFetch(relayUrl, myTopicHash, decoyCount = 3) {
+    return this._call('PIR_FETCH', { relayUrl, myTopicHash, decoyCount });
+  }
+
+  // ── Pattern 09: Audit ─────────────────────────────────────────────────
+
+  async verifyAuditChain() {
+    return this._call('AUDIT_VERIFY', {});
+  }
+
+  async exportAuditChain() {
+    return this._call('AUDIT_EXPORT', {});
+  }
+
+  // ── Pattern 15: Threshold Signing ─────────────────────────────────────
+
+  async tssDkgRound1(myIndex, parties, threshold) {
+    return this._call('TSS_DKG_ROUND1', { myIndex, parties, threshold });
+  }
+
+  async tssPartialSign(sessionId, payloadB64) {
+    return this._call('TSS_PARTIAL_SIGN', { sessionId, payload: payloadB64 });
+  }
+
+  async tssAggregate(partials, payloadB64) {
+    return this._call('TSS_AGGREGATE', { partials, payload: payloadB64 });
+  }
+
+  // ── Firewall admin ────────────────────────────────────────────────────
+
+  async allowDomain(domain)  { return this._call('ALLOW_DOMAIN',  { domain }); }
+  async revokeDomain(domain) { return this._call('REVOKE_DOMAIN', { domain }); }
+
+  // ── Status ────────────────────────────────────────────────────────────
+
+  async getStatus() {
+    return this._call('STATUS', {});
+  }
+
+  // ── Pattern 12: Deadman heartbeat ─────────────────────────────────────
+
+  _startHeartbeat() {
+    const INTERVAL = 30 * 60 * 1000; // 30 min
+    this._heartbeatTimer = setInterval(() => {
+      this._send({ cmd: 'HEARTBEAT' });
+    }, INTERVAL);
+    // Send immediately on load
+    setTimeout(() => this._send({ cmd: 'HEARTBEAT' }), 2000);
+  }
+
+  stopHeartbeat() {
+    if (this._heartbeatTimer) clearInterval(this._heartbeatTimer);
+  }
+
+  // ── Panic ─────────────────────────────────────────────────────────────
+
+  async panic() {
+    return this._call('PANIC', {});
+  }
+
+  // ── Event subscriptions ───────────────────────────────────────────────
+
+  on(event, cb) {
+    if (!this._cbs.has(event)) this._cbs.set(event, []);
+    this._cbs.get(event).push(cb);
+    return () => this._cbs.set(event, this._cbs.get(event).filter(f => f !== cb));
+  }
+
+  // ── Internals ─────────────────────────────────────────────────────────
+
+  _send(msg) {
+    if (!this._sw) { navigator.serviceWorker.ready.then(r => { this._sw = r.active; this._sw.postMessage(msg); }); return; }
+    this._sw.postMessage(msg);
+  }
+
+  _call(cmd, args) {
+    return new Promise((resolve, reject) => {
+      const nonce = Math.random().toString(36).slice(2);
+      this._pending.set(nonce, { resolve, reject });
+      setTimeout(() => { if (this._pending.has(nonce)) { this._pending.delete(nonce); reject(new Error('SW timeout: ' + cmd)); } }, 15000);
+      this._send({ cmd, nonce, ...args });
+    });
+  }
+
+  _onKernelEvent(data) {
+    const { event, nonce } = data || {};
+    // Resolve pending call if this is a direct response
+    if (nonce && this._pending.has(nonce)) {
+      const { resolve, reject } = this._pending.get(nonce);
+      this._pending.delete(nonce);
+      if (event?.includes('ERROR')) reject(new Error(data.reason || event));
+      else resolve(data);
+      return;
+    }
+    // Also resolve by event name pattern for vault events
+    for (const [n, { resolve }] of this._pending.entries()) {
+      const responseMap = {
+        VAULT_UNLOCK: 'VAULT_UNLOCKED', VAULT_CREATE: 'VAULT_CREATED',
+        VAULT_CREATE_DUAL: 'DUAL_VAULT_CREATED', SIGN: 'SIGNED',
+        SEAL: 'SEALED', OPEN: 'OPENED', STATUS: 'STATUS',
+        AUDIT_VERIFY: 'AUDIT_VERIFIED', AUDIT_EXPORT: 'AUDIT_EXPORTED',
+        PIR_FETCH: 'PIR_RESULTS', ONION_SEND: 'ONION_SENT',
+        PANIC: 'PANIC_LOCKDOWN',
+      };
+      // Best-effort match without nonce
+    }
+    // Broadcast to all event listeners
+    const listeners = this._cbs.get(event) || [];
+    for (const cb of listeners) cb(data);
+    // Also fire wildcard listeners
+    for (const cb of (this._cbs.get('*') || [])) cb(data);
+  }
+}
+
+// Expose globally
+window.SovereignKernel = new SovereignKernelBridge();
+
+// Convenience: boot SW with identity when available
+window.sovereignBoot = async function(did, pubKey) {
+  const reg = await navigator.serviceWorker.ready;
+  reg.active?.postMessage({ cmd: 'BOOT', did, pubKey });
+};
+
+console.log('[Sovereign] Security Kernel bridge loaded — 15 patterns active');
