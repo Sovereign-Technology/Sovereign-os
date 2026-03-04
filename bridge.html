@@ -11,7 +11,7 @@
   --bg2:   #0b160b;
   --bg3:   #101e10;
   --bg4:   #162016;
-  --border: rgba(80, 230, 130, 0.18);
+  --border: rgba(80, 230, 130, 0.28);
   --border2:rgba(80, 230, 130, 0.32);
   --accent: #4eff91;
   --cyan:   #00ffd5;
@@ -21,7 +21,7 @@
   --wf:     #38bdf8;
   --text:   #f4fff0;
   --text2:  #b8f5a0;
-  --text3:  #72c97a;
+  --text3:  #9de89a;
   --danger: #f43f5e;
   --warn:   #fbbf24;
   --mono:   'Courier New', monospace;
@@ -69,7 +69,7 @@ body::before { content:''; position:fixed; inset:0; pointer-events:none; z-index
 /* ── SIDEBAR ── */
 .sidebar { width:220px; flex-shrink:0; background:var(--bg2); border-right:1px solid var(--border); display:flex; flex-direction:column; overflow:hidden; }
 .main { flex:1; display:flex; flex-direction:column; overflow:hidden; }
-.stitle { font-size: 16px; letter-spacing:2.5px; text-transform:uppercase; color:var(--text3); padding:10px 14px 7px; border-bottom:1px solid var(--border); flex-shrink:0; }
+.stitle { font-size: 13px; letter-spacing:1px; text-transform:uppercase; color:var(--text3); padding:10px 14px 7px; border-bottom:1px solid var(--border); flex-shrink:0; }
 .sbody { flex:1; overflow-y:auto; padding:10px; scrollbar-width:thin; scrollbar-color:var(--bg4) transparent; }
 
 /* ── INPUTS ── */
@@ -111,7 +111,7 @@ button:disabled { opacity:.35; cursor:not-allowed; }
 .ecard { border:1px solid var(--border); margin-bottom:8px; padding:12px; background:var(--bg2); animation:si .2s ease; }
 @keyframes si { from{opacity:0;transform:translateY(-3px)} to{opacity:1} }
 .ehead { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px; }
-.eauthor { font-size: 14px; color:var(--nostr); word-break:break-all; font-family:var(--mono); }
+.eauthor { font-size: 15px; color:var(--nostr); word-break:break-all; font-family:var(--mono); }
 .etime   { font-size: 16px; color:var(--text3); white-space:nowrap; margin-left:8px; flex-shrink:0; }
 .ebody   { font-size: 15px; color:var(--text); white-space:pre-wrap; word-break:break-word; line-height:1.6; }
 .eacts   { display:flex; gap:6px; margin-top:8px; }
@@ -219,8 +219,8 @@ hr { border:none; border-top:1px solid var(--border); margin:10px 0; }
       <div class="main">
         <div class="toolbar">
           <span class="toolbar-label" id="feed-lbl">GLOBAL FEED</span>
-          <button style="font-size:9px;padding:5px 10px" id="btn-global">↺ Global</button>
-          <button style="font-size:9px;padding:5px 10px" id="btn-myfeed">My Feed</button>
+          <button style="font-size:13px;padding:5px 10px" id="btn-global">↺ Global</button>
+          <button style="font-size:13px;padding:5px 10px" id="btn-myfeed">My Feed</button>
         </div>
         <div class="feed" id="nostr-feed"><div class="notice info">Connect a relay to see events. Ctrl+Enter to publish.</div></div>
         <div class="cbar">
@@ -253,7 +253,7 @@ hr { border:none; border-top:1px solid var(--border); margin:10px 0; }
           </div>
         </div>
         <div class="stitle">Rooms</div>
-        <div class="sbody" id="mx-rooms"><div style="font-size:11px;color:var(--text3)">Not connected.</div></div>
+        <div class="sbody" id="mx-rooms"><div style="font-size:13px;color:var(--text3)">Not connected.</div></div>
       </div>
       <div class="main">
         <div class="toolbar"><span class="toolbar-label" id="mx-rtitle">Select a room →</span></div>
@@ -277,7 +277,7 @@ hr { border:none; border-top:1px solid var(--border); margin:10px 0; }
           <div class="col">
             <input id="feed-url" placeholder="https://example.com/feed.xml" />
             <div class="row">
-              <label style="font-size:9px;color:var(--text3);display:flex;align-items:center;gap:4px;cursor:pointer">
+              <label style="font-size:13px;color:var(--text3);display:flex;align-items:center;gap:4px;cursor:pointer">
                 <input type="checkbox" id="feed-proxy" style="width:auto"> CORS proxy
               </label>
               <div style="flex:1"></div>
@@ -290,7 +290,7 @@ hr { border:none; border-top:1px solid var(--border); margin:10px 0; }
       <div class="main">
         <div class="toolbar">
           <span class="toolbar-label">ALL FEEDS</span>
-          <button class="rb" style="font-size:9px;padding:5px 10px" id="btn-refreshfeeds">↺ Refresh All</button>
+          <button class="rb" style="font-size:13px;padding:5px 10px" id="btn-refreshfeeds">↺ Refresh All</button>
         </div>
         <div class="feed" id="feed-panel"><div class="notice info">Add a feed URL to subscribe.</div></div>
       </div>
@@ -950,7 +950,7 @@ const UI = {
     const list = document.getElementById('relay-list');
     list.innerHTML = '';
     if (!bridge.nostr.relays.size) {
-      list.innerHTML='<div style="font-size:9px;color:var(--text3);padding:4px">No relays.</div>';
+      list.innerHTML='<div style="font-size:13px;color:var(--text3);padding:4px">No relays.</div>';
       return;
     }
     for (const [url,{status}] of bridge.nostr.relays) {
@@ -1020,8 +1020,8 @@ const UI = {
       </div>
       <div class="ebody">${esc(ev.content||'').slice(0,600)}</div>
       <div class="eacts">
-        <button style="font-size:9px;padding:3px 8px" data-pk="${esc(ev.pubkey)}">↳ DM</button>
-        <button style="font-size:9px;padding:3px 8px" data-id="${esc(ev.id)}">⧉ COPY ID</button>
+        <button style="font-size:13px;padding:3px 8px" data-pk="${esc(ev.pubkey)}">↳ DM</button>
+        <button style="font-size:13px;padding:3px 8px" data-id="${esc(ev.id)}">⧉ COPY ID</button>
       </div>`;
     div.querySelector('[data-pk]').addEventListener('click', e => this.openDM(e.target.dataset.pk));
     div.querySelector('[data-id]').addEventListener('click', e => { navigator.clipboard.writeText(e.target.dataset.id); this.toast('Copied','ok'); });
@@ -1043,7 +1043,7 @@ const UI = {
     $('btn-mxout').addEventListener('click', () => {
       bridge.matrix.logout();
       $('mx-login').style.display=''; $('mx-conn').style.display='none';
-      $('mx-rooms').innerHTML='<div style="font-size:10px;color:var(--text3)">Not connected.</div>';
+      $('mx-rooms').innerHTML='<div style="font-size:13px;color:var(--text3)">Not connected.</div>';
       $('mx-feed').innerHTML='<div class="notice info">Connect to Matrix and select a room.</div>';
       $('mx-rtitle').textContent='Select a room →';
     });
@@ -1069,7 +1069,7 @@ const UI = {
       if (rid===this.mxRoom) this.renderMxMsg(ev);
       else {
         const el=document.querySelector(`.ritem[data-id="${rid}"]`);
-        if (el && !el.querySelector('.badge')) el.insertAdjacentHTML('beforeend','<span class="badge" style="background:var(--matrix);color:#000;font-size:8px;padding:0 4px;margin-left:4px">·</span>');
+        if (el && !el.querySelector('.badge')) el.insertAdjacentHTML('beforeend','<span class="badge" style="background:var(--matrix);color:#000;font-size:13px;padding:0 4px;margin-left:4px">·</span>');
       }
     });
   },
@@ -1082,7 +1082,7 @@ const UI = {
       el.classList.toggle('on', el.dataset.id===id);
       el.querySelector('.badge')?.remove();
     });
-    const feed=$('mx-feed'); feed.innerHTML='<div style="font-size:9px;color:var(--text3);text-align:center;padding:10px">Loading…</div>';
+    const feed=$('mx-feed'); feed.innerHTML='<div style="font-size:13px;color:var(--text3);text-align:center;padding:10px">Loading…</div>';
     try {
       const msgs = await bridge.matrix.msgs(id,40);
       feed.innerHTML='';
@@ -1204,16 +1204,16 @@ const UI = {
   async wfResolve() {
     const v=document.getElementById('wf-in').value.trim(); if(!v)return;
     const out=document.getElementById('wf-out');
-    out.innerHTML='<div style="font-size:10px;color:var(--text3);padding:10px">Resolving…</div>';
+    out.innerHTML='<div style="font-size:13px;color:var(--text3);padding:10px">Resolving…</div>';
     try {
       const {wf,profile} = await bridge.wf.fetchAP(v);
       const nl = bridge.wf.nostrLink(wf);
       let html=`<div class="wfcard"><div class="wn">${esc(profile.name||profile.preferredUsername||v)}</div>`;
       if(profile.summary) html+=`<div class="wr" style="margin-bottom:10px">${esc(strip(profile.summary).slice(0,200))}</div>`;
       html+=`<div class="wr"><span class="k">handle</span>${esc(v)}</div>`;
-      if(profile.id)  html+=`<div class="wr"><span class="k">AP id</span><span style="font-size:9px">${esc(profile.id)}</span></div>`;
+      if(profile.id)  html+=`<div class="wr"><span class="k">AP id</span><span style="font-size:13px">${esc(profile.id)}</span></div>`;
       if(profile.url) html+=`<div class="wr"><span class="k">url</span><a href="${esc(profile.url)}" target="_blank" rel="noopener" style="color:var(--wf)">${esc(profile.url)}</a></div>`;
-      if(nl)          html+=`<div class="wr"><span class="k">nostr</span><span style="color:var(--nostr);font-size:9px">${esc(nl.href||'')}</span></div>`;
+      if(nl)          html+=`<div class="wr"><span class="k">nostr</span><span style="color:var(--nostr);font-size:13px">${esc(nl.href||'')}</span></div>`;
       html+='<div class="wf-links" style="margin-top:10px">';
       for(const l of wf.links||[]) if(l.href) html+=`<span class="wflink" title="${esc(l.href)}">${esc((l.rel||l.type||l.href).split('/').pop().slice(0,16))}</span>`;
       html+='</div></div>';
@@ -1240,7 +1240,7 @@ const UI = {
   toast(msg, lvl='info') {
     const el=document.createElement('div');
     el.className=`notice ${lvl}`;
-    el.style.cssText='position:fixed;bottom:16px;right:16px;z-index:10000;min-width:200px;max-width:360px;font-size:10px';
+    el.style.cssText='position:fixed;bottom:16px;right:16px;z-index:10000;min-width:200px;max-width:360px;font-size:13px';
     el.textContent=msg;
     document.body.appendChild(el);
     setTimeout(()=>el.remove(), 3200);
@@ -1291,7 +1291,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const banner = document.createElement('div');
         banner.className = 'notice info';
         banner.style.cssText = 'margin:8px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;';
-        banner.innerHTML = `<span>⬡ Sovereign identity detected: <strong>${esc(id.username)}</strong> — derive bridge keys?</span><button class="wb" style="padding:3px 10px;font-size:9px;" id="btn-auto-derive">DERIVE</button>`;
+        banner.innerHTML = `<span>⬡ Sovereign identity detected: <strong>${esc(id.username)}</strong> — derive bridge keys?</span><button class="wb" style="padding:3px 10px;font-size:13px;" id="btn-auto-derive">DERIVE</button>`;
         document.getElementById('content').prepend(banner);
         document.getElementById('btn-auto-derive').addEventListener('click', async () => {
           // Derive a deterministic secp256k1 key from the Sovereign pubkey hex
@@ -1316,4 +1316,3 @@ document.addEventListener('DOMContentLoaded', async () => {
 </script>
 </body>
 </html>
-
