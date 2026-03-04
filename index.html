@@ -418,7 +418,31 @@ textarea.field-input { resize:vertical; min-height:72px; font-size:11px; line-he
 ::-webkit-scrollbar-track { background:transparent; }
 ::-webkit-scrollbar-thumb { background:var(--border2); border-radius:2px; }
 
-/* ── RESPONSIVE ── */
+
+  /* ── PATCHED: Missing classes ── */
+  .status-badge { display:inline-flex; align-items:center; gap:5px; padding:3px 9px; border-radius:20px; font-size:10px; font-family:var(--mono); }
+  .status-badge.green { background:rgba(0,232,122,0.1); border:1px solid rgba(0,232,122,0.3); color:var(--green); }
+  .status-badge.gray  { background:var(--bg3); border:1px solid var(--border); color:var(--text3); }
+  .sb-dot { width:4px; height:4px; border-radius:50%; background:currentColor; }
+  .msg-empty { color:var(--text3); font-size:12px; text-align:center; padding:32px 16px; line-height:1.6; }
+  .peer-list-empty { color:var(--text3); font-size:12px; text-align:center; padding:24px 16px; line-height:1.6; }
+  .compose-status { font-family:var(--mono); font-size:9px; color:var(--text3); margin-top:4px; }
+  .peer-status-dot { width:7px; height:7px; border-radius:50%; background:var(--text3); }
+  .peer-status-dot.online  { background:var(--green); box-shadow:0 0 5px rgba(0,232,122,0.6); animation:pulse 2s infinite; }
+  .peer-status-dot.offline { background:var(--text3); }
+  .tag-row { display:flex; gap:5px; flex-wrap:wrap; margin-top:4px; }
+  /* Search results — JS uses .search-result-item, CSS had .result-item */
+  .search-result-item { padding:14px; background:var(--bg2); border:1px solid var(--border); border-radius:8px; margin-bottom:8px; cursor:pointer; transition:border-color 0.15s; }
+  .search-result-item:hover { border-color:var(--border2); }
+  /* Messages — JS uses .msg-bubble, CSS had .bubble */
+  .msg-bubble { max-width:72%; padding:9px 13px; border-radius:10px; font-size:13px; line-height:1.6; word-break:break-word; }
+  .msg-bubble.mine   { background:rgba(0,200,240,0.1); border:1px solid rgba(0,200,240,0.18); margin-left:auto; border-radius:10px 10px 2px 10px; }
+  .msg-bubble.theirs { background:var(--bg3); border:1px solid var(--border); margin-right:auto; border-radius:10px 10px 10px 2px; }
+  .msg-meta { font-size:9px; color:var(--text3); margin-top:3px; }
+  /* Convo avatar in conversation list */
+  .convo-av { width:32px; height:32px; border-radius:50%; background:var(--bg4); border:1px solid var(--border2); display:flex; align-items:center; justify-content:center; font-family:var(--mono); font-size:11px; color:var(--cyan); flex-shrink:0; }
+
+  /* ── RESPONSIVE ── */
 @media (max-width:600px) {
   .nav-tab span:not(.icon) { display:none; }
   .nav-tab { padding:0 10px; }
@@ -734,6 +758,832 @@ textarea.field-input { resize:vertical; min-height:72px; font-size:11px; line-he
 </div>
 
 <script>
+// ══════════════════════════════════════════════════════════
+// SOVEREIGN SECURITY KERNEL — SW Blob + In-Tab Shim
+// Loaded FIRST so SovereignKernel is available when boot() runs.
+// ══════════════════════════════════════════════════════════
+const _SW_SOURCE = '// ═══════════════════════════════════════════════════════════════════════════\n//  SOVEREIGN SERVICE WORKER SECURITY KERNEL — genesis_sw.js\n//  Version: 2.0.0 — Full 15-Pattern Security Architecture\n//\n//  © James Chapman (XheCarpenXer) · iconoclastdao@gmail.com\n//  Sovereign Technology Master IP Registry — March 2026\n//\n//  Dual License:\n//    License A — Personal / Open-Source  → FREE (attribution required)\n//    License B — Commercial / Institutional → Negotiated / Reciprocal OSS\n//  Prohibited: mass surveillance, cryptographic backdoors, human rights violations.\n//\n//  ┌─────────────────────────────────────────────────────────────────────┐\n//  │  TIER I   — Crypto Kernel     Patterns 01–04                       │\n//  │  TIER II  — Network Security  Patterns 05–07                       │\n//  │  TIER III — Integrity         Patterns 08–10                       │\n//  │  TIER IV  — Resilience        Patterns 11–13                       │\n//  │  TIER V   — Novel / Profound  Patterns 14–15                       │\n//  └─────────────────────────────────────────────────────────────────────┘\n//\n//  KEY INSIGHT: The Service Worker does not share memory with any page.\n//  An XSS attacker who owns every active tab cannot read the SW heap.\n//  This is the most important isolation primitive in the browser.\n// ═══════════════════════════════════════════════════════════════════════════\n\'use strict\';\n\nconst SW_VERSION = \'sovereign-sw-v2.0.0\';\nconst SW_BUILD   = \'2026-03\';\n\n// ════════════════════════════════════════════════════════════════════════════\n//  §0 — GLOBAL STATE\n// ════════════════════════════════════════════════════════════════════════════\n\n// Identity — held in SW memory, NEVER exposed to tabs (Pattern 01)\nlet _signingKey   = null;\nlet _verifyKey    = null;\nlet _exchangeKey  = null;\nlet _exchPubKey   = null;\nlet _wrappingKey  = null;\nlet _auditHmacKey = null;\nlet _myDid        = null;\nlet _myPubKeyB64  = null;\nlet _vaultLocked  = true;\nlet _lockTimer    = null;\nconst VAULT_TIMEOUT_MS = 30 * 60 * 1000;\n\n// Peer mesh\nconst _peers    = new Map();\nconst _registry = new Map();\nconst _queue    = new Map();\n\n// Pattern 02 — Double Ratchet sessions: did → RatchetSession\nconst _ratchetSessions = new Map();\n\n// Pattern 03 — Dual vault keys\nconst VAULT_STORE = \'sovereign_vault\';\nconst VAULT_KEY_A = \'vault_alpha\';\nconst VAULT_KEY_B = \'vault_beta\';\n\n// Pattern 04 — Entropy pool (512-bit, continuously refreshed)\nconst _entropyPool = new Uint8Array(64);\ncrypto.getRandomValues(_entropyPool);\nconst _beaconCommits = new Map();\nconst _beaconReveals = new Map();\nlet   _beaconRandom  = null;\n\n// Pattern 05 — Network firewall\nconst _networkPolicy = {\n  allowed: new Set([\'fonts.googleapis.com\',\'fonts.gstatic.com\',\'cdnjs.cloudflare.com\']),\n};\n\n// Pattern 07 — Cover traffic & jitter\nconst COVER_LAMBDA_MS = 45000;\nconst SIZE_BUCKETS    = [256, 512, 1024, 4096];\nconst MAX_JITTER_MS   = 800;\nlet   _coverTimer     = null;\n\n// Pattern 08 — Integrity manifest: resource → sha256hex\nlet _integrityManifest = null;\n\n// Pattern 09 — Audit chain\nconst _auditChain    = [];\nlet   _auditPrevHash = new Uint8Array(32);\n\n// Pattern 10 — Capability tokens: clientId → token\nconst _capabilities = new Map();\nconst CAP = {\n  READ_MESSAGES : 0b00000001,\n  SEND_MESSAGES : 0b00000010,\n  SIGN          : 0b00000100,\n  SEAL_OPEN     : 0b00001000,\n  MANAGE_PEERS  : 0b00010000,\n  ADMIN         : 0b10000000,\n};\n\n// Pattern 11 — Anomaly detector: clientId → counters\nconst _opCounters      = new Map();\nconst ANOMALY_WINDOW   = 10000;\nconst RATE_LIMITS      = { sign: 30, open: 60, send: 120, peerEnum: 10 };\n\n// Pattern 12 — Panic / deadman\nlet _failedUnlocks   = 0;\nconst MAX_UNLOCKS    = 5;\nlet _deadmanTimer    = null;\nconst DEADMAN_MS     = 4 * 60 * 60 * 1000;\n\n// Pattern 13 — Byzantine detector\nconst _peerTrust  = new Map();\nconst _msgIndex   = new Map();\nconst _seenNonces = new Set();\n\n// Pattern 15 — Threshold signing\nconst _tss = {\n  threshold: 2, parties: 3, myIndex: null,\n  shards: new Map(), commitments: new Map(), partials: new Map(),\n};\n\n// ════════════════════════════════════════════════════════════════════════════\n//  §1 — SW LIFECYCLE\n// ════════════════════════════════════════════════════════════════════════════\n\nself.addEventListener(\'install\', (e) => {\n  e.waitUntil((async () => {\n    await self.skipWaiting();\n    await _buildIntegrityManifest();\n    _mixEntropy(performance.now());\n    _startCoverTraffic();\n    await _auditInit();\n    _log(\'Security Kernel v2.0 installed — 15 patterns active\');\n  })());\n});\n\nself.addEventListener(\'activate\', (e) => {\n  e.waitUntil((async () => {\n    await self.clients.claim();\n    _resetDeadman();\n    _broadcast({ event: \'SW_READY\', version: SW_VERSION });\n  })());\n});\n\nself.addEventListener(\'push\',             () => _mixEntropy(performance.now()));\nself.addEventListener(\'sync\',             () => _mixEntropy(performance.now()));\nself.addEventListener(\'notificationclick\',() => _mixEntropy(performance.now()));\n\nfunction _mixEntropy(sample) {\n  const t = new Uint8Array(8);\n  new DataView(t.buffer).setFloat64(0, sample, false);\n  for (let i = 0; i < 8; i++) _entropyPool[i % 64] ^= t[i];\n  const fresh = new Uint8Array(32);\n  crypto.getRandomValues(fresh);\n  for (let i = 0; i < 32; i++) _entropyPool[32 + i] ^= fresh[i];\n}\n\n// ════════════════════════════════════════════════════════════════════════════\n//  §2 — FETCH INTERCEPT (Patterns 05, 08)\n// ════════════════════════════════════════════════════════════════════════════\n\nself.addEventListener(\'fetch\', (e) => {\n  _mixEntropy(performance.now());\n  const req = e.request;\n  const url = new URL(req.url);\n\n  // Same-origin: serve from integrity-verified cache\n  if (url.origin === self.location.origin) {\n    e.respondWith(_serveFromCache(req));\n    return;\n  }\n\n  // Pattern 05: Firewall — block non-allowlisted external domains\n  if (!_networkPolicy.allowed.has(url.hostname)) {\n    _auditLogSync(\'FIREWALL_BLOCK\', { url: url.hostname });\n    _broadcast({ event: \'FIREWALL_BLOCK\', url: url.hostname });\n    e.respondWith(new Response(\'Blocked by Sovereign Firewall\', { status: 403 }));\n    return;\n  }\n\n  // Strip tracking headers before external request\n  e.respondWith(_strippedFetch(req));\n});\n\nasync function _serveFromCache(req) {\n  const cache  = await caches.open(SW_VERSION);\n  const cached = await cache.match(req);\n  if (cached) return cached;\n  const resp = await fetch(req);\n  if (resp.ok) await cache.put(req, resp.clone());\n  return resp;\n}\n\nasync function _strippedFetch(req) {\n  const BLOCKED_HEADERS = new Set([\'referer\',\'cookie\',\'x-forwarded-for\',\'via\',\'origin\',\'authorization\']);\n  const headers = new Headers();\n  for (const [k, v] of req.headers.entries()) {\n    if (!BLOCKED_HEADERS.has(k.toLowerCase())) headers.set(k, v);\n  }\n  const stripped = new Request(req.url, {\n    method: req.method, headers,\n    body: (req.method !== \'GET\' && req.method !== \'HEAD\') ? await req.blob() : undefined,\n    mode: \'cors\', credentials: \'omit\', referrerPolicy: \'no-referrer\',\n  });\n  return fetch(stripped);\n}\n\n// ════════════════════════════════════════════════════════════════════════════\n//  §3 — TAB MESSAGE BUS\n// ════════════════════════════════════════════════════════════════════════════\n\nself.addEventListener(\'message\', async (e) => {\n  _mixEntropy(performance.now());\n  const { cmd, ...args } = e.data || {};\n  const client = e.source;\n  if (!client) return;\n\n  const openCmds = new Set([\n    \'BOOT\',\'VAULT_UNLOCK\',\'VAULT_CREATE\',\'VAULT_CREATE_DUAL\',\n    \'STATUS\',\'HEARTBEAT\',\'PANIC\',\'SW_VERSION\',\'AUDIT_VERIFY\',\'AUDIT_EXPORT\'\n  ]);\n\n  if (!openCmds.has(cmd)) {\n    const cap = _capabilities.get(client.id);\n    if (!cap && _vaultLocked) {\n      client.postMessage({ event: \'ERROR\', cmd, reason: \'Vault locked — please unlock first\' });\n      return;\n    }\n  }\n\n  // Anomaly tracking (Pattern 11)\n  _trackOp(client.id, cmd);\n\n  switch (cmd) {\n    // Vault & Identity\n    case \'BOOT\':             await _handleBoot(args, client);           break;\n    case \'VAULT_UNLOCK\':     await _handleVaultUnlock(args, client);    break;\n    case \'VAULT_LOCK\':       _vaultLock(); client.postMessage({ event: \'VAULT_LOCKED\' }); break;\n    case \'VAULT_CREATE\':     await _handleVaultCreate(args, client);    break;\n    case \'VAULT_CREATE_DUAL\':await _handleVaultCreateDual(args, client);break;\n    case \'HEARTBEAT\':        _resetDeadman(); client.postMessage({ event: \'HEARTBEAT_ACK\' }); break;\n\n    // Pattern 01: Key Oracle\n    case \'SIGN\':             await _handleSign(args, client);           break;\n    case \'SEAL\':             await _handleSeal(args, client);           break;\n    case \'OPEN\':             await _handleOpen(args, client);           break;\n\n    // Pattern 02: Double Ratchet\n    case \'RATCHET_INIT\':     await _handleRatchetInit(args, client);    break;\n    case \'RATCHET_ENCRYPT\':  await _handleRatchetEncrypt(args, client); break;\n    case \'RATCHET_DECRYPT\':  await _handleRatchetDecrypt(args, client); break;\n\n    // Peer Mesh\n    case \'CONNECT\':          await _handleConnect(args.did, client);    break;\n    case \'SEND\':             await _handleSend(args, client);           break;\n    case \'REGISTER_PEER\':    _handleRegisterPeer(args, client);         break;\n    case \'CHANNEL_OPEN\':     _handleChannelOpen(args);                  break;\n    case \'CHANNEL_CLOSED\':   _handleChannelClosed(args);                break;\n    case \'INCOMING_MSG\':     await _handleIncomingMsg(args, client);    break;\n    case \'OFFER_RECEIVED\':   _peers.set(args.peerId, { state:\'handshake\', did:args.peerId });\n                             _broadcast({ event:\'PEER_HANDSHAKE\', did:args.peerId }); break;\n\n    // Pattern 05: Firewall admin\n    case \'ALLOW_DOMAIN\':     _handleAllowDomain(args, client);          break;\n    case \'REVOKE_DOMAIN\':    _handleRevokeDomain(args, client);         break;\n\n    // Pattern 06: Onion routing\n    case \'ONION_SEND\':       await _handleOnionSend(args, client);      break;\n    case \'ONION_INCOMING\':   await _handleOnionIncoming(args, client);  break;\n\n    // Pattern 04: Entropy beacon\n    case \'BEACON_COMMIT\':    _beaconCommits.set(args.peerDid, args.commitment);\n                             _broadcast({ event:\'BEACON_COMMIT_RECEIVED\', peerDid: args.peerDid }); break;\n    case \'BEACON_REVEAL\':    await _handleBeaconReveal(args, client);   break;\n\n    // Pattern 09: Audit\n    case \'AUDIT_VERIFY\':     await _handleAuditVerify(client);          break;\n    case \'AUDIT_EXPORT\':     client.postMessage({ event:\'AUDIT_EXPORTED\', chain:[..._auditChain], tipHash:_b64(_auditPrevHash) }); break;\n\n    // Pattern 14: PIR fetch\n    case \'PIR_FETCH\':        await _handlePirFetch(args, client);       break;\n\n    // Pattern 12: Panic\n    case \'PANIC\':            await _panicDestroy(\'EXPLICIT_COMMAND\');   break;\n\n    // Pattern 15: TSS\n    case \'TSS_DKG_ROUND1\':   await _handleTssDkgRound1(args, client);  break;\n    case \'TSS_DKG_ROUND2\':   await _handleTssDkgRound2(args, client);  break;\n    case \'TSS_PARTIAL_SIGN\': await _handleTssPartialSign(args, client); break;\n    case \'TSS_AGGREGATE\':    await _handleTssAggregate(args, client);   break;\n\n    case \'STATUS\':           _handleStatus(client);                      break;\n    case \'SW_VERSION\':       client.postMessage({ event:\'SW_VERSION\', version:SW_VERSION, build:SW_BUILD }); break;\n    default:                 client.postMessage({ event:\'ERROR\', cmd, reason:\'Unknown command\' });\n  }\n});\n\n// ════════════════════════════════════════════════════════════════════════════\n//  §4 — BOOT & IDENTITY\n// ════════════════════════════════════════════════════════════════════════════\n\nasync function _handleBoot(args, client) {\n  _myDid       = args.did || _myDid;\n  _myPubKeyB64 = args.pubKey || _myPubKeyB64;\n  if (_myDid) _registry.set(_myDid, { pubKeyB64: _myPubKeyB64, ts: Date.now(), self: true });\n  await _issueCapability(client.id, CAP.READ_MESSAGES);\n  _broadcast({ event: \'SW_READY\', did: _myDid, version: SW_VERSION });\n  _auditLog(\'BOOT\', { did: _myDid, clientId: client.id });\n}\n\n// ════════════════════════════════════════════════════════════════════════════\n//  §5 — PATTERN 01 — CRYPTOGRAPHIC KEY ORACLE\n//  All private key operations run inside SW. Tabs receive results only.\n//  Keys never cross the SW boundary.\n// ════════════════════════════════════════════════════════════════════════════\n\nasync function _handleVaultUnlock(args, client) {\n  const { passphrase } = args;\n  if (!passphrase) { client.postMessage({ event:\'VAULT_ERROR\', reason:\'No passphrase\' }); return; }\n\n  // Pattern 12: Brute-force detection\n  if (_failedUnlocks >= MAX_UNLOCKS) {\n    await _panicDestroy(\'BRUTE_FORCE_DETECTED\');\n    return;\n  }\n\n  // Pattern 08: Integrity check before vault unlock\n  const ok = await _attestTabIntegrity();\n  if (!ok) {\n    client.postMessage({ event:\'VAULT_ERROR\', reason:\'INTEGRITY_VIOLATION\' });\n    _broadcast({ event:\'INTEGRITY_VIOLATION\' });\n    _auditLog(\'INTEGRITY_VIOLATION\', { clientId: client.id });\n    return;\n  }\n\n  // Pattern 03: Try both vault_alpha and vault_beta — do NOT reveal which succeeded\n  let unlocked = false;\n  for (const vaultKey of [VAULT_KEY_A, VAULT_KEY_B]) {\n    try {\n      const blob = await _idbGet(VAULT_STORE, vaultKey);\n      if (!blob) continue;\n      const keys = await _unwrapVault(blob, passphrase);\n      if (keys) {\n        _signingKey   = keys.signingKey;\n        _verifyKey    = keys.verifyKey;\n        _exchangeKey  = keys.exchangeKey;\n        _exchPubKey   = keys.exchPubKey;\n        _auditHmacKey = keys.auditKey;\n        _vaultLocked  = false;\n        _failedUnlocks = 0;\n        await _issueCapability(client.id,\n          CAP.READ_MESSAGES | CAP.SEND_MESSAGES | CAP.SIGN |\n          CAP.SEAL_OPEN | CAP.MANAGE_PEERS | CAP.ADMIN);\n        _resetDeadman();\n        _resetLockTimer();\n        client.postMessage({ event:\'VAULT_UNLOCKED\', did: _myDid });\n        _auditLog(\'VAULT_UNLOCK\', { clientId: client.id });\n        unlocked = true;\n        break;\n      }\n    } catch (_) { /* try next vault */ }\n  }\n\n  if (!unlocked) {\n    _failedUnlocks++;\n    const backoffMs = Math.pow(2, _failedUnlocks) * 1000;\n    client.postMessage({ event:\'VAULT_ERROR\', reason:\'Bad passphrase\', backoffMs, attempts: _failedUnlocks });\n    _auditLog(\'VAULT_UNLOCK_FAIL\', { clientId: client.id, attempts: _failedUnlocks });\n  }\n}\n\nfunction _vaultLock() {\n  _signingKey = _verifyKey = _exchangeKey = _exchPubKey = _wrappingKey = _auditHmacKey = null;\n  _vaultLocked = true;\n  if (_lockTimer) clearTimeout(_lockTimer);\n  for (const [cid] of _capabilities) {\n    _capabilities.set(cid, { bitmask: CAP.READ_MESSAGES, expiresAt: Date.now() + 60000, clientId: cid, nonce: \'\', issuedAt: Date.now() });\n  }\n  _broadcast({ event:\'VAULT_LOCKED\' });\n  _auditLog(\'VAULT_LOCKED\', {});\n}\n\nfunction _resetLockTimer() {\n  if (_lockTimer) clearTimeout(_lockTimer);\n  _lockTimer = setTimeout(() => _vaultLock(), VAULT_TIMEOUT_MS);\n}\n\nasync function _handleVaultCreate(args, client) {\n  const { passphrase, isDecoy } = args;\n  if (!passphrase) { client.postMessage({ event:\'ERROR\', reason:\'No passphrase\' }); return; }\n  const keys  = await _generateKeys();\n  const blob  = await _wrapVault(keys, passphrase);\n  const vKey  = isDecoy ? VAULT_KEY_B : VAULT_KEY_A;\n  await _idbSet(VAULT_STORE, vKey, blob);\n  const verRaw = await crypto.subtle.exportKey(\'raw\', keys.verifyKey);\n  const pubB64 = _b64(verRaw);\n  const did    = \'did:sovereign:\' + pubB64.slice(0, 32);\n  client.postMessage({ event:\'VAULT_CREATED\', did, pubKey: pubB64, vaultKey: vKey });\n  _auditLog(\'VAULT_CREATE\', { did, isDecoy: !!isDecoy });\n}\n\n// Pattern 03 — Deniable/Duress Vault\nasync function _handleVaultCreateDual(args, client) {\n  const { passphrase, decoyPassphrase } = args;\n  if (!passphrase || !decoyPassphrase) {\n    client.postMessage({ event:\'ERROR\', reason:\'Both passphrases required for dual vault\' });\n    return;\n  }\n  const realKeys  = await _generateKeys();\n  const decoyKeys = await _generateKeys();\n  await _idbSet(VAULT_STORE, VAULT_KEY_A, await _wrapVault(realKeys,  passphrase));\n  await _idbSet(VAULT_STORE, VAULT_KEY_B, await _wrapVault(decoyKeys, decoyPassphrase));\n  const realPub  = _b64(await crypto.subtle.exportKey(\'raw\', realKeys.verifyKey));\n  const decoyPub = _b64(await crypto.subtle.exportKey(\'raw\', decoyKeys.verifyKey));\n  // No structural difference visible from outside SW — observer cannot determine which vault is real\n  client.postMessage({\n    event    : \'DUAL_VAULT_CREATED\',\n    realDid  : \'did:sovereign:\' + realPub.slice(0,32),\n    decoyDid : \'did:sovereign:\' + decoyPub.slice(0,32),\n  });\n  _auditLog(\'DUAL_VAULT_CREATE\', {});\n}\n\n// Pattern 01 — SIGN oracle. Key never leaves SW.\nasync function _handleSign(args, client) {\n  if (!_requireCap(client.id, CAP.SIGN, client)) return;\n  if (!_signingKey) { client.postMessage({ event:\'ERROR\', cmd:\'SIGN\', reason:\'Vault locked\' }); return; }\n  const data = _fromB64(args.data);\n  const sig  = await crypto.subtle.sign({ name:\'ECDSA\', hash:\'SHA-256\' }, _signingKey, data);\n  client.postMessage({ event:\'SIGNED\', sig: _b64(sig), nonce: args.nonce });\n  _auditLog(\'SIGN\', { clientId: client.id, dataLen: data.byteLength });\n}\n\n// Pattern 01 — SEAL oracle. Returns ciphertext only.\nasync function _handleSeal(args, client) {\n  if (!_requireCap(client.id, CAP.SEAL_OPEN, client)) return;\n  if (!_exchangeKey) { client.postMessage({ event:\'ERROR\', cmd:\'SEAL\', reason:\'Vault locked\' }); return; }\n  const theirKey = await crypto.subtle.importKey(\'raw\', _fromB64(args.recipientPubKey),\n    { name:\'ECDH\', namedCurve:\'P-256\' }, false, []);\n  const shared   = await crypto.subtle.deriveBits({ name:\'ECDH\', public: theirKey }, _exchangeKey, 256);\n  const aesKey   = await crypto.subtle.importKey(\'raw\', shared, \'AES-GCM\', false, [\'encrypt\']);\n  const iv       = crypto.getRandomValues(new Uint8Array(12));\n  const ct       = await crypto.subtle.encrypt({ name:\'AES-GCM\', iv }, aesKey, _fromB64(args.plaintext));\n  client.postMessage({ event:\'SEALED\', ciphertext: _b64(ct), iv: _b64(iv), nonce: args.nonce });\n  _auditLog(\'SEAL\', { clientId: client.id });\n}\n\n// Pattern 01 — OPEN oracle. Returns plaintext only.\nasync function _handleOpen(args, client) {\n  if (!_requireCap(client.id, CAP.SEAL_OPEN, client)) return;\n  if (!_exchangeKey) { client.postMessage({ event:\'ERROR\', cmd:\'OPEN\', reason:\'Vault locked\' }); return; }\n  try {\n    const senderKey = await crypto.subtle.importKey(\'raw\', _fromB64(args.senderPubKey),\n      { name:\'ECDH\', namedCurve:\'P-256\' }, false, []);\n    const shared    = await crypto.subtle.deriveBits({ name:\'ECDH\', public: senderKey }, _exchangeKey, 256);\n    const aesKey    = await crypto.subtle.importKey(\'raw\', shared, \'AES-GCM\', false, [\'decrypt\']);\n    const pt        = await crypto.subtle.decrypt({ name:\'AES-GCM\', iv: _fromB64(args.iv) }, aesKey, _fromB64(args.ciphertext));\n    client.postMessage({ event:\'OPENED\', plaintext: _b64(pt), nonce: args.nonce });\n    _auditLog(\'OPEN\', { clientId: client.id });\n  } catch {\n    client.postMessage({ event:\'ERROR\', cmd:\'OPEN\', reason:\'Decryption failed\' });\n  }\n}\n\n// ════════════════════════════════════════════════════════════════════════════\n//  §6 — PATTERN 02 — DOUBLE RATCHET FORWARD SECRECY ENGINE\n//  Per-session ratchet state. Past sessions mathematically irrecoverable.\n// ════════════════════════════════════════════════════════════════════════════\n\nasync function _handleRatchetInit(args, client) {\n  const { peerDid, theirIdentityPubKey, theirEphemeralPubKey } = args;\n  try {\n    const theirIdKey  = await crypto.subtle.importKey(\'raw\', _fromB64(theirIdentityPubKey),\n      { name:\'ECDH\', namedCurve:\'P-256\' }, false, []);\n    const theirEphKey = await crypto.subtle.importKey(\'raw\', _fromB64(theirEphemeralPubKey),\n      { name:\'ECDH\', namedCurve:\'P-256\' }, false, []);\n    const myEph    = await crypto.subtle.generateKey({ name:\'ECDH\', namedCurve:\'P-256\' }, true, [\'deriveBits\']);\n    const myEphPub = await crypto.subtle.exportKey(\'raw\', myEph.publicKey);\n\n    // X3DH: three DH operations, HKDF to derive root + chain key\n    const dh1 = await crypto.subtle.deriveBits({ name:\'ECDH\', public: theirEphKey }, _exchangeKey, 256);\n    const dh2 = await crypto.subtle.deriveBits({ name:\'ECDH\', public: theirIdKey  }, myEph.privateKey, 256);\n    const dh3 = await crypto.subtle.deriveBits({ name:\'ECDH\', public: theirEphKey }, myEph.privateKey, 256);\n\n    const ikm      = _concat(dh1, dh2, dh3);\n    const hkdfKey  = await crypto.subtle.importKey(\'raw\', ikm, \'HKDF\', false, [\'deriveBits\']);\n    const derived  = await crypto.subtle.deriveBits(\n      { name:\'HKDF\', hash:\'SHA-256\', salt: new Uint8Array(32), info: _str2b(\'sovereign-ratchet-v1\') },\n      hkdfKey, 512\n    );\n    const d = new Uint8Array(derived);\n    _ratchetSessions.set(peerDid, {\n      rootKey: d.slice(0,32), sendChain: d.slice(32,64), recvChain: d.slice(32,64),\n      sendN: 0, recvN: 0, skipped: new Map(),\n      myDHPriv: myEph.privateKey, myDHPubB64: _b64(myEphPub),\n    });\n    client.postMessage({ event:\'RATCHET_INITIALIZED\', peerDid, myEphPubKey: _b64(myEphPub), nonce: args.nonce });\n    _auditLog(\'RATCHET_INIT\', { peerDid });\n  } catch (err) {\n    client.postMessage({ event:\'ERROR\', cmd:\'RATCHET_INIT\', reason: err.message });\n  }\n}\n\nasync function _handleRatchetEncrypt(args, client) {\n  const s = _ratchetSessions.get(args.peerDid);\n  if (!s) { client.postMessage({ event:\'ERROR\', cmd:\'RATCHET_ENCRYPT\', reason:\'No session\' }); return; }\n  const msgKey    = await _hkdfDerive(s.sendChain, \'sovereign-msg-key\');\n  const nextChain = await _hkdfDerive(s.sendChain, \'sovereign-chain-adv\');\n  s.sendChain = new Uint8Array(nextChain);  // advance and destroy previous\n  const n      = s.sendN++;\n  const aesKey = await crypto.subtle.importKey(\'raw\', msgKey.slice(0,32), \'AES-GCM\', false, [\'encrypt\']);\n  const iv     = crypto.getRandomValues(new Uint8Array(12));\n  const ct     = await crypto.subtle.encrypt({ name:\'AES-GCM\', iv }, aesKey, _fromB64(args.plaintext));\n  client.postMessage({\n    event:\'RATCHET_ENCRYPTED\', peerDid: args.peerDid, n,\n    myDHPubKey: s.myDHPubB64, ciphertext: _b64(ct), iv: _b64(iv), nonce: args.nonce,\n  });\n}\n\nasync function _handleRatchetDecrypt(args, client) {\n  const s = _ratchetSessions.get(args.peerDid);\n  if (!s) { client.postMessage({ event:\'ERROR\', cmd:\'RATCHET_DECRYPT\', reason:\'No session\' }); return; }\n  const n = args.n;\n  let msgKey;\n  if (s.skipped.has(n)) {\n    msgKey = s.skipped.get(n);\n    s.skipped.delete(n);\n  } else {\n    let chain = new Uint8Array(s.recvChain);\n    let cur   = s.recvN;\n    while (cur < n) {\n      s.skipped.set(cur, (await _hkdfDerive(chain, \'sovereign-msg-key\')).slice(0,32));\n      chain = new Uint8Array(await _hkdfDerive(chain, \'sovereign-chain-adv\'));\n      cur++;\n    }\n    msgKey = (await _hkdfDerive(chain, \'sovereign-msg-key\')).slice(0,32);\n    s.recvChain = new Uint8Array(await _hkdfDerive(chain, \'sovereign-chain-adv\'));\n    s.recvN = n + 1;\n  }\n  try {\n    const aesKey = await crypto.subtle.importKey(\'raw\', msgKey, \'AES-GCM\', false, [\'decrypt\']);\n    const pt     = await crypto.subtle.decrypt({ name:\'AES-GCM\', iv: _fromB64(args.iv) }, aesKey, _fromB64(args.ciphertext));\n    client.postMessage({ event:\'RATCHET_DECRYPTED\', peerDid: args.peerDid, plaintext: _b64(pt), nonce: args.nonce });\n  } catch {\n    client.postMessage({ event:\'ERROR\', cmd:\'RATCHET_DECRYPT\', reason:\'Decryption failed\' });\n  }\n}\n\n// ════════════════════════════════════════════════════════════════════════════\n//  §7 — PEER MESH\n// ════════════════════════════════════════════════════════════════════════════\n\nasync function _handleConnect(targetDid, client) {\n  if (!targetDid) return;\n  if (_peers.get(targetDid)?.state === \'open\') {\n    client.postMessage({ event:\'ALREADY_CONNECTED\', did: targetDid }); return;\n  }\n  _peers.set(targetDid, { state:\'handshake\', did: targetDid });\n  _broadcast({ event:\'PEER_HANDSHAKE\', did: targetDid });\n  client.postMessage({ event:\'INITIATE_WEBRTC\', did: targetDid });\n}\n\nasync function _handleSend(args, client) {\n  if (!_requireCap(client.id, CAP.SEND_MESSAGES, client)) return;\n  const { did, msg } = args;\n  // Pattern 07: Jitter\n  await _sleep(Math.floor(Math.random() * MAX_JITTER_MS));\n  const padded = _padToBucket(typeof msg === \'string\' ? msg : JSON.stringify(msg));\n  if (_peers.get(did)?.state === \'open\') {\n    _broadcast({ event:\'RELAY_SEND\', did, msg: padded });\n  } else {\n    if (!_queue.has(did)) _queue.set(did, []);\n    _queue.get(did).push(padded);\n    client.postMessage({ event:\'MSG_QUEUED\', did, queueLen: _queue.get(did).length });\n  }\n}\n\nfunction _handleRegisterPeer(args, client) {\n  if (!_requireCap(client.id, CAP.MANAGE_PEERS, client)) return;\n  _registry.set(args.did, { pubKeyB64: args.pubKey, exchPubKeyB64: args.exchPubKey, ts: Date.now() });\n  _peerTrust.set(args.did, 100);\n  _broadcast({ event:\'PEER_KNOWN\', did: args.did });\n  _auditLog(\'PEER_REGISTER\', { did: args.did });\n}\n\nfunction _handleChannelOpen(args) {\n  _peers.has(args.did) ? (_peers.get(args.did).state = \'open\') : _peers.set(args.did, { state:\'open\', did:args.did });\n  _broadcast({ event:\'PEER_CONNECTED\', did:args.did });\n  _flushQueue(args.did);\n}\n\nfunction _handleChannelClosed(args) {\n  if (_peers.has(args.did)) _peers.get(args.did).state = \'closed\';\n  _broadcast({ event:\'PEER_DISCONNECTED\', did:args.did });\n}\n\nasync function _handleIncomingMsg(args, client) {\n  if (!(await _validateIncomingMessage(args.did, args.msg, args.sig, args.seq, args.nonce))) return;\n  _broadcast({ event:\'MESSAGE\', from: args.did, msg: args.msg });\n}\n\nfunction _flushQueue(did) {\n  const q = _queue.get(did);\n  if (!q?.length) return;\n  _broadcast({ event:\'FLUSH_QUEUE\', did, messages: q });\n  _queue.delete(did);\n}\n\n// ════════════════════════════════════════════════════════════════════════════\n//  §8 — PATTERN 05 — NETWORK FIREWALL (admin)\n// ════════════════════════════════════════════════════════════════════════════\n\nfunction _handleAllowDomain(args, client) {\n  if (!_requireCap(client.id, CAP.ADMIN, client)) return;\n  _networkPolicy.allowed.add(args.domain);\n  _auditLog(\'ALLOW_DOMAIN\', { domain: args.domain });\n  client.postMessage({ event:\'DOMAIN_ALLOWED\', domain: args.domain });\n}\n\nfunction _handleRevokeDomain(args, client) {\n  if (!_requireCap(client.id, CAP.ADMIN, client)) return;\n  _networkPolicy.allowed.delete(args.domain);\n  _auditLog(\'REVOKE_DOMAIN\', { domain: args.domain });\n  client.postMessage({ event:\'DOMAIN_REVOKED\', domain: args.domain });\n}\n\n// ════════════════════════════════════════════════════════════════════════════\n//  §9 — PATTERN 06 — LAYERED ONION ROUTER\n//  N-layer encryption. No single peer knows both sender and recipient.\n// ════════════════════════════════════════════════════════════════════════════\n\nasync function _handleOnionSend(args, client) {\n  if (!_requireCap(client.id, CAP.SEND_MESSAGES, client)) return;\n  const { targetDid, plaintext } = args;\n  const relays = _selectRoute(targetDid, 2);\n  if (!relays.length) {\n    client.postMessage({ event:\'ERROR\', cmd:\'ONION_SEND\', reason:\'Insufficient peers\' }); return;\n  }\n  const route = [...relays, targetDid];\n  let payload = JSON.stringify({ type:\'FINAL\', content: plaintext, to: targetDid });\n\n  for (let i = route.length - 1; i >= 0; i--) {\n    const hopDid = route[i];\n    const peer   = _registry.get(hopDid);\n    if (!peer?.exchPubKeyB64) continue;\n    const nextHop = i < route.length - 1 ? route[i+1] : null;\n    const envelope = JSON.stringify({ type: nextHop ? \'RELAY\' : \'FINAL\', nextHop, payload });\n    const eph    = await crypto.subtle.generateKey({ name:\'ECDH\', namedCurve:\'P-256\' }, true, [\'deriveBits\']);\n    const ephPub = await crypto.subtle.exportKey(\'raw\', eph.publicKey);\n    const theirK = await crypto.subtle.importKey(\'raw\', _fromB64(peer.exchPubKeyB64),\n      { name:\'ECDH\', namedCurve:\'P-256\' }, false, []);\n    const shared = await crypto.subtle.deriveBits({ name:\'ECDH\', public: theirK }, eph.privateKey, 256);\n    const aesKey = await crypto.subtle.importKey(\'raw\', shared, \'AES-GCM\', false, [\'encrypt\']);\n    const iv     = crypto.getRandomValues(new Uint8Array(12));\n    const ct     = await crypto.subtle.encrypt({ name:\'AES-GCM\', iv }, aesKey, _str2b(envelope));\n    payload      = JSON.stringify({ ephPubKey: _b64(ephPub), iv: _b64(iv), ct: _b64(ct) });\n  }\n\n  _broadcast({ event:\'RELAY_SEND\', did: route[0], msg: { type:\'ONION\', payload } });\n  client.postMessage({ event:\'ONION_SENT\', hops: relays.length, nonce: args.nonce });\n  _auditLog(\'ONION_SEND\', { hops: relays.length });\n}\n\nasync function _handleOnionIncoming(args, client) {\n  try {\n    const parsed  = JSON.parse(args.payload);\n    const ephPub  = await crypto.subtle.importKey(\'raw\', _fromB64(parsed.ephPubKey),\n      { name:\'ECDH\', namedCurve:\'P-256\' }, false, []);\n    const shared  = await crypto.subtle.deriveBits({ name:\'ECDH\', public: ephPub }, _exchangeKey, 256);\n    const aesKey  = await crypto.subtle.importKey(\'raw\', shared, \'AES-GCM\', false, [\'decrypt\']);\n    const pt      = await crypto.subtle.decrypt({ name:\'AES-GCM\', iv: _fromB64(parsed.iv) }, aesKey, _fromB64(parsed.ct));\n    const env     = JSON.parse(_b2str(pt));\n    if (env.type === \'FINAL\') _broadcast({ event:\'ONION_MESSAGE\', content: env.content });\n    else _broadcast({ event:\'RELAY_SEND\', did: env.nextHop, msg: { type:\'ONION\', payload: env.payload } });\n  } catch { /* silently discard — hides routing info */ }\n}\n\nfunction _selectRoute(targetDid, n) {\n  const cands = [..._registry.keys()].filter(d => d !== _myDid && d !== targetDid);\n  for (let i = cands.length - 1; i > 0; i--) {\n    const j = Math.floor(Math.random() * (i+1));\n    [cands[i], cands[j]] = [cands[j], cands[i]];\n  }\n  return cands.slice(0, n);\n}\n\n// ════════════════════════════════════════════════════════════════════════════\n//  §10 — PATTERN 07 — COVER TRAFFIC & TIMING JITTER\n// ════════════════════════════════════════════════════════════════════════════\n\nfunction _startCoverTraffic() {\n  const scheduleNext = () => {\n    const ms = -Math.log(Math.random()) * COVER_LAMBDA_MS;\n    _coverTimer = setTimeout(() => { _sendCoverTraffic(); scheduleNext(); }, ms);\n  };\n  scheduleNext();\n}\n\nfunction _sendCoverTraffic() {\n  const peers = [..._registry.keys()].filter(d => d !== _myDid);\n  for (const did of peers.filter(() => Math.random() < 0.3)) {\n    const dummy = _padToBucket(JSON.stringify({\n      type:\'COVER\', ts: Date.now(), nonce: _b64(crypto.getRandomValues(new Uint8Array(16))),\n    }));\n    _broadcast({ event:\'RELAY_SEND\', did, msg: dummy });\n  }\n}\n\nfunction _padToBucket(msg) {\n  const bytes  = _str2b(msg);\n  const bucket = SIZE_BUCKETS.find(b => b >= bytes.length) || SIZE_BUCKETS[SIZE_BUCKETS.length-1];\n  if (bytes.length >= bucket) return msg;\n  const padded = new Uint8Array(bucket);\n  padded.set(bytes);\n  crypto.getRandomValues(padded.subarray(bytes.length));\n  return JSON.stringify({ _p:1, d: _b64(bytes), x: _b64(padded.subarray(bytes.length)) });\n}\n\n// ════════════════════════════════════════════════════════════════════════════\n//  §11 — PATTERN 08 — TAB CODE INTEGRITY ATTESTATION\n// ════════════════════════════════════════════════════════════════════════════\n\nconst APP_FILES = [\n  \'index.html\',\'os.html\',\'forge.html\',\'messenger.html\',\'mail.html\',\n  \'attack.html\',\'bridge.html\',\'search.html\',\'portal.html\',\'square.html\',\n  \'studio.html\',\'relay.html\',\'transport.js\',\n];\n\nasync function _buildIntegrityManifest() {\n  const m = new Map();\n  for (const f of APP_FILES) {\n    try {\n      const resp = await fetch(f);\n      if (resp.ok) m.set(f, _b64(await _sha256(await resp.arrayBuffer())));\n    } catch { /* offline — skip */ }\n  }\n  if (m.size) { _integrityManifest = m; _auditLog(\'MANIFEST_BUILD\', { files: m.size }); }\n}\n\nasync function _attestTabIntegrity() {\n  if (!_integrityManifest?.size) return true;\n  const cache = await caches.open(SW_VERSION);\n  for (const [f, expected] of _integrityManifest) {\n    const cached = await cache.match(f);\n    if (!cached) continue;\n    const got = _b64(await _sha256(await cached.clone().arrayBuffer()));\n    if (got !== expected) { _auditLog(\'INTEGRITY_MISMATCH\', { resource: f }); return false; }\n  }\n  return true;\n}\n\n// ════════════════════════════════════════════════════════════════════════════\n//  §12 — PATTERN 09 — CRYPTOGRAPHICALLY-CHAINED IMMUTABLE AUDIT LEDGER\n// ════════════════════════════════════════════════════════════════════════════\n\nasync function _auditInit() {\n  _auditHmacKey = await crypto.subtle.generateKey({ name:\'HMAC\', hash:\'SHA-256\' }, true, [\'sign\',\'verify\']);\n}\n\nasync function _auditLog(event, data) {\n  const entry  = { seq: _auditChain.length, event, data, ts: Date.now(), prevHash: _b64(_auditPrevHash) };\n  const eBytes = _str2b(JSON.stringify(entry));\n  const hash   = await _sha256(_concat(_auditPrevHash, eBytes));\n  let hmac = null;\n  if (_auditHmacKey) hmac = _b64(await crypto.subtle.sign(\'HMAC\', _auditHmacKey, eBytes));\n  const record = { ...entry, hash: _b64(hash), hmac };\n  _auditChain.push(record);\n  _auditPrevHash = new Uint8Array(hash);\n  _broadcast({ event:\'AUDIT_ENTRY\', record });\n}\n\n// Sync version for fetch handler (no await)\nfunction _auditLogSync(event, data) { _auditLog(event, data).catch(()=>{}); }\n\nasync function _handleAuditVerify(client) {\n  let prev = new Uint8Array(32), firstBroken = null;\n  for (const record of _auditChain) {\n    const { hash, hmac, ...entry } = record;\n    const eBytes   = _str2b(JSON.stringify(entry));\n    const computed = _b64(await _sha256(_concat(prev, eBytes)));\n    if (computed !== hash) { firstBroken = record.seq; break; }\n    prev = _fromB64(hash);\n  }\n  client.postMessage({ event:\'AUDIT_VERIFIED\', intact: !firstBroken, entries: _auditChain.length, firstBroken, tipHash: _b64(_auditPrevHash) });\n}\n\n// ════════════════════════════════════════════════════════════════════════════\n//  §13 — PATTERN 10 — CAPABILITY TOKEN ISSUER\n// ════════════════════════════════════════════════════════════════════════════\n\nasync function _issueCapability(clientId, bitmask) {\n  _capabilities.set(clientId, {\n    clientId, bitmask,\n    issuedAt : Date.now(),\n    expiresAt: Date.now() + 60 * 60 * 1000,\n    nonce    : _b64(crypto.getRandomValues(new Uint8Array(16))),\n  });\n}\n\nfunction _requireCap(clientId, required, client) {\n  const cap = _capabilities.get(clientId);\n  if (!cap) { client?.postMessage({ event:\'CAPABILITY_DENIED\', required }); return false; }\n  if (Date.now() > cap.expiresAt) { _capabilities.delete(clientId); client?.postMessage({ event:\'CAPABILITY_EXPIRED\' }); return false; }\n  if (!(cap.bitmask & required)) { client?.postMessage({ event:\'CAPABILITY_DENIED\', required }); return false; }\n  return true;\n}\n\nfunction _degradeCapabilities(clientId) {\n  const cap = _capabilities.get(clientId);\n  if (cap) {\n    cap.bitmask = CAP.READ_MESSAGES;\n    _broadcast({ event:\'CAPABILITIES_DEGRADED\', clientId });\n    _auditLog(\'CAP_DEGRADED\', { clientId });\n  }\n}\n\n// ════════════════════════════════════════════════════════════════════════════\n//  §14 — PATTERN 11 — BEHAVIORAL ANOMALY DETECTOR\n// ════════════════════════════════════════════════════════════════════════════\n\nfunction _trackOp(clientId, cmd) {\n  if (!_opCounters.has(clientId)) {\n    _opCounters.set(clientId, { sign:0, open:0, send:0, peerEnum:0, windowStart:Date.now(), baseline:null });\n  }\n  const c = _opCounters.get(clientId);\n  const now = Date.now();\n  if (now - c.windowStart > ANOMALY_WINDOW) {\n    if (!c.baseline) c.baseline = { sign:c.sign, open:c.open, send:c.send };\n    c.sign = c.open = c.send = c.peerEnum = 0;\n    c.windowStart = now;\n  }\n  if (cmd === \'SIGN\')          c.sign++;\n  if (cmd === \'OPEN\')          c.open++;\n  if (cmd === \'SEND\')          c.send++;\n  if (cmd === \'REGISTER_PEER\') c.peerEnum++;\n  _checkAnomaly(clientId, c);\n}\n\nfunction _checkAnomaly(clientId, c) {\n  let severity = null, rule = null;\n  if (c.open > 20)                              { severity=\'HIGH\';   rule=\'BULK_DECRYPT\'; }\n  else if (c.sign > 15 && c.send === 0)         { severity=\'HIGH\';   rule=\'SIGN_WITHOUT_SEND\'; }\n  else if (c.peerEnum > 10)                     { severity=\'MEDIUM\'; rule=\'PEER_ENUM_BURST\'; }\n  else if (c.baseline && c.sign > c.baseline.sign * 10) { severity=\'HIGH\'; rule=\'RATE_SPIKE\'; }\n  if (severity) {\n    if (severity === \'HIGH\') _degradeCapabilities(clientId);\n    _broadcast({ event:\'ANOMALY_DETECTED\', clientId, rule, severity });\n    _auditLog(\'ANOMALY\', { clientId, rule, severity });\n  }\n}\n\n// ════════════════════════════════════════════════════════════════════════════\n//  §15 — PATTERN 12 — PANIC HANDLER, DEADMAN SWITCH & KEY ZEROIZATION\n// ════════════════════════════════════════════════════════════════════════════\n\nasync function _panicDestroy(reason) {\n  _auditLog(\'PANIC\', { reason });\n  // Zero all key material\n  _signingKey = _verifyKey = _exchangeKey = _exchPubKey = _wrappingKey = _auditHmacKey = null;\n  _vaultLocked = true;\n  // Destroy ratchet sessions\n  _ratchetSessions.clear();\n  // Delete vault from IndexedDB\n  try { await _idbDelete(VAULT_STORE, VAULT_KEY_A); } catch {}\n  try { await _idbDelete(VAULT_STORE, VAULT_KEY_B); } catch {}\n  // Revoke all capabilities\n  _capabilities.clear();\n  // Clear peer state and TSS shards\n  _peers.clear(); _queue.clear(); _tss.shards.clear();\n  if (_deadmanTimer) clearTimeout(_deadmanTimer);\n  if (_lockTimer)    clearTimeout(_lockTimer);\n  if (_coverTimer)   clearTimeout(_coverTimer);\n  _broadcast({ event:\'PANIC_LOCKDOWN\', reason, ts: Date.now() });\n  _failedUnlocks = 0;\n}\n\nfunction _resetDeadman() {\n  if (_deadmanTimer) clearTimeout(_deadmanTimer);\n  _deadmanTimer = setTimeout(() => _panicDestroy(\'DEADMAN_HEARTBEAT_SILENCE\'), DEADMAN_MS);\n}\n\n// ════════════════════════════════════════════════════════════════════════════\n//  §16 — PATTERN 13 — BYZANTINE PEER FAULT DETECTOR\n// ════════════════════════════════════════════════════════════════════════════\n\nasync function _validateIncomingMessage(did, msg, sigB64, seq, nonce) {\n  // 1. Signature verification\n  if (sigB64 && _registry.get(did)?.pubKeyB64) {\n    try {\n      const pubKey = await crypto.subtle.importKey(\'raw\', _fromB64(_registry.get(did).pubKeyB64),\n        { name:\'ECDSA\', namedCurve:\'P-256\' }, false, [\'verify\']);\n      const msgB   = _str2b(typeof msg === \'string\' ? msg : JSON.stringify(msg));\n      if (!(await crypto.subtle.verify({ name:\'ECDSA\', hash:\'SHA-256\' }, pubKey, _fromB64(sigB64), msgB))) {\n        _recordPeerFault(did, \'INVALID_SIG\', 15); return false;\n      }\n    } catch {}\n  }\n  // 2. Timestamp window (±5 min)\n  if (typeof msg === \'object\' && msg?.ts && Math.abs(Date.now() - msg.ts) > 300000) {\n    _recordPeerFault(did, \'TIMESTAMP\', 15); return false;\n  }\n  // 3. Nonce dedup (replay prevention)\n  if (nonce) {\n    if (_seenNonces.has(nonce)) { _recordPeerFault(did, \'REPLAY\', 15); return false; }\n    _seenNonces.add(nonce);\n    if (_seenNonces.size > 10000) { const it = _seenNonces.values(); for (let i=0;i<1000;i++) _seenNonces.delete(it.next().value); }\n  }\n  // 4. Equivocation detection (same seq, different content)\n  if (seq !== undefined && did) {\n    if (!_msgIndex.has(did)) _msgIndex.set(did, new Map());\n    const idx = _msgIndex.get(did);\n    const h   = _b64(await _sha256(_str2b(typeof msg === \'string\' ? msg : JSON.stringify(msg))));\n    if (idx.has(seq) && idx.get(seq) !== h) {\n      _recordPeerFault(did, \'EQUIVOCATION\', 40);\n      _broadcast({ event:\'EQUIVOCATION_DETECTED\', did, seq });\n      return false;\n    }\n    idx.set(seq, h);\n  }\n  return true;\n}\n\nfunction _recordPeerFault(did, type, penalty) {\n  const score = Math.max(0, (_peerTrust.get(did) ?? 100) - penalty);\n  _peerTrust.set(did, score);\n  _auditLog(\'PEER_FAULT\', { did, type, penalty, score });\n  if (score <= 0) {\n    _broadcast({ event:\'PEER_BANNED\', did, reason: type });\n    _registry.delete(did); _peers.delete(did);\n    _auditLog(\'PEER_BANNED\', { did });\n  }\n}\n\n// ════════════════════════════════════════════════════════════════════════════\n//  §17 — PATTERN 04 — ENTROPY BEACON (Commit-Reveal)\n// ════════════════════════════════════════════════════════════════════════════\n\nasync function _handleBeaconReveal(args, client) {\n  const { peerDid, random } = args;\n  const check = _b64(await _sha256(_fromB64(random)));\n  if (check !== args.commitment || _beaconCommits.get(peerDid) !== args.commitment) {\n    _auditLog(\'BEACON_CHEAT\', { peerDid });\n    _broadcast({ event:\'BEACON_CHEAT_DETECTED\', peerDid }); return;\n  }\n  _beaconReveals.set(peerDid, _fromB64(random));\n  if (_beaconReveals.size >= _beaconCommits.size) {\n    let beacon = new Uint8Array(32);\n    for (const [, r] of _beaconReveals) for (let i=0;i<32;i++) beacon[i] ^= (r[i]||0);\n    for (let i=0;i<32;i++) _entropyPool[i] ^= beacon[i];\n    _broadcast({ event:\'BEACON_COMPLETE\', beacon: _b64(beacon) });\n    _beaconCommits.clear(); _beaconReveals.clear();\n  }\n}\n\n// ════════════════════════════════════════════════════════════════════════════\n//  §18 — PATTERN 14 — OBLIVIOUS MESSAGE RETRIEVAL (PIR-STYLE)\n//  Prefix bucketing + K-1 decoy queries. Relay sees a bucket, not the user.\n// ════════════════════════════════════════════════════════════════════════════\n\nasync function _handlePirFetch(args, client) {\n  if (!_requireCap(client.id, CAP.READ_MESSAGES, client)) return;\n  const { relayUrl, myTopicHash, decoyCount = 3 } = args;\n  if (!relayUrl || !myTopicHash) return;\n\n  const realPrefix = myTopicHash.slice(0, 2);\n  const queries    = [realPrefix];\n  while (queries.length < decoyCount + 1) {\n    const d = Math.floor(Math.random() * 256).toString(16).padStart(2,\'0\');\n    if (!queries.includes(d)) queries.push(d);\n  }\n  // Shuffle — relay cannot identify real query by position\n  for (let i = queries.length-1; i>0; i--) {\n    const j = Math.floor(Math.random()*(i+1));\n    [queries[i],queries[j]] = [queries[j],queries[i]];\n  }\n\n  const all = [];\n  for (const q of queries) {\n    try {\n      const resp = await fetch(`${relayUrl}/messages?prefix=${q}`);\n      if (resp.ok) all.push(...(await resp.json()));\n    } catch {}\n  }\n  // Return all — tab decrypts locally, silently discards non-matching\n  client.postMessage({ event:\'PIR_RESULTS\', messages: all, nonce: args.nonce });\n  _auditLog(\'PIR_FETCH\', { prefix: realPrefix, decoys: decoyCount, total: all.length });\n}\n\n// ════════════════════════════════════════════════════════════════════════════\n//  §19 — PATTERN 15 — THRESHOLD SIGNATURE SCHEME\n//  t-of-n Shamir Secret Sharing over GF(2^8). Key never in one place.\n// ════════════════════════════════════════════════════════════════════════════\n\n// GF(2^8) with AES irreducible polynomial\nfunction _gfMul(a, b) {\n  let p = 0;\n  for (let i=0;i<8;i++) {\n    if (b&1) p ^= a;\n    const hi = a & 0x80;\n    a = (a<<1)&0xff;\n    if (hi) a ^= 0x1b;\n    b >>= 1;\n  }\n  return p;\n}\nfunction _gfPow(x, e) {\n  let r = 1;\n  for (let i=0;i<e;i++) r = _gfMul(r,x);\n  return r;\n}\n\nfunction _shamirSplit(secret, t, n) {\n  const shares = Array.from({length:n}, (_,i) => ({ x:i+1, y:new Uint8Array(secret.length) }));\n  for (let b=0;b<secret.length;b++) {\n    const coeffs = new Uint8Array(t);\n    coeffs[0] = secret[b];\n    crypto.getRandomValues(coeffs.subarray(1));\n    for (let i=0;i<n;i++) {\n      let val = 0;\n      for (let j=t-1;j>=0;j--) val = _gfMul(val, i+1) ^ coeffs[j];\n      shares[i].y[b] = val;\n    }\n  }\n  return shares;\n}\n\nfunction _shamirCombine(shares) {\n  const out = new Uint8Array(shares[0].y.length);\n  for (let b=0;b<out.length;b++) {\n    let val = 0;\n    for (let i=0;i<shares.length;i++) {\n      let num = shares[i].y[b], den = 1;\n      for (let j=0;j<shares.length;j++) {\n        if (i!==j) { num = _gfMul(num, shares[j].x); den = _gfMul(den, shares[i].x ^ shares[j].x); }\n      }\n      val ^= _gfMul(num, _gfPow(den, 254)); // inverse = den^254 in GF(2^8)\n    }\n    out[b] = val;\n  }\n  return out;\n}\n\nasync function _handleTssDkgRound1(args, client) {\n  const { myIndex, parties, threshold } = args;\n  _tss.myIndex = myIndex; _tss.parties = parties; _tss.threshold = threshold;\n  const mySecret = crypto.getRandomValues(new Uint8Array(32));\n  _tss.shards.set(\'self\', mySecret);\n  const shares      = _shamirSplit(mySecret, threshold, parties);\n  const commitments = await Promise.all(shares.map(async s => ({ x:s.x, c: _b64(await _sha256(s.y)) })));\n  _tss.commitments.set(myIndex, commitments);\n  client.postMessage({\n    event:\'TSS_DKG_ROUND1\', myIndex, commitments,\n    sharesForPeers: shares.map(s => ({ x:s.x, y:_b64(s.y) })),\n    nonce: args.nonce,\n  });\n  _auditLog(\'TSS_DKG_ROUND1\', { myIndex, parties, threshold });\n}\n\nasync function _handleTssDkgRound2(args, client) {\n  const shareBytes = _fromB64(args.shareY);\n  if (_b64(await _sha256(shareBytes)) !== args.commitment) {\n    client.postMessage({ event:\'ERROR\', cmd:\'TSS_DKG_ROUND2\', reason:\'Commitment mismatch\' });\n    _recordPeerFault(`peer:${args.peerIndex}`, \'TSS_COMMIT_FAIL\', 40); return;\n  }\n  _tss.shards.set(args.peerIndex, shareBytes);\n  client.postMessage({ event:\'TSS_SHARD_ACCEPTED\', peerIndex: args.peerIndex, nonce: args.nonce });\n  _auditLog(\'TSS_DKG_ROUND2\', { peerIndex: args.peerIndex });\n}\n\nasync function _handleTssPartialSign(args, client) {\n  if (!_signingKey) { client.postMessage({ event:\'ERROR\', cmd:\'TSS_PARTIAL_SIGN\', reason:\'Vault locked\' }); return; }\n  const sig = await crypto.subtle.sign({ name:\'ECDSA\', hash:\'SHA-256\' }, _signingKey, _fromB64(args.payload));\n  client.postMessage({\n    event:\'TSS_PARTIAL_SIG\', sessionId: args.sessionId,\n    partial: _b64(sig), signerIndex: _tss.myIndex, nonce: args.nonce,\n  });\n  _auditLog(\'TSS_PARTIAL_SIGN\', { sessionId: args.sessionId });\n}\n\nasync function _handleTssAggregate(args, client) {\n  const { partials } = args;\n  if (partials.length < _tss.threshold) {\n    client.postMessage({ event:\'ERROR\', cmd:\'TSS_AGGREGATE\', reason:\'Insufficient partials\' }); return;\n  }\n  const shares = partials.slice(0, _tss.threshold).map(p => ({ x: p.signerIndex, y: _fromB64(p.partial) }));\n  const agg    = _shamirCombine(shares);\n  client.postMessage({\n    event:\'TSS_AGGREGATED\', aggregated: _b64(agg),\n    signers: partials.map(p=>p.signerIndex), nonce: args.nonce,\n  });\n  _auditLog(\'TSS_AGGREGATE\', { signers: partials.map(p=>p.signerIndex) });\n}\n\n// ════════════════════════════════════════════════════════════════════════════\n//  §20 — STATUS\n// ════════════════════════════════════════════════════════════════════════════\n\nfunction _handleStatus(client) {\n  const cap = _capabilities.get(client.id);\n  client.postMessage({\n    event        : \'STATUS\',\n    version      : SW_VERSION,\n    did          : _myDid,\n    vaultLocked  : _vaultLocked,\n    peers        : [..._peers.entries()].map(([did,p])=>({did,state:p.state})),\n    known        : _registry.size,\n    auditEntries : _auditChain.length,\n    allowedDomains: [..._networkPolicy.allowed],\n    tssReady     : _tss.shards.size >= _tss.threshold,\n    capabilities : cap ? Object.entries(CAP).filter(([,v])=>cap.bitmask&v).map(([k])=>k) : [],\n    patterns     : 15,\n  });\n}\n\n// ════════════════════════════════════════════════════════════════════════════\n//  §21 — VAULT CRYPTO (Key generation & wrap/unwrap)\n// ════════════════════════════════════════════════════════════════════════════\n\nasync function _generateKeys() {\n  const [sigPair, echPair, auditKey] = await Promise.all([\n    crypto.subtle.generateKey({ name:\'ECDSA\', namedCurve:\'P-256\' }, true, [\'sign\',\'verify\']),\n    crypto.subtle.generateKey({ name:\'ECDH\',  namedCurve:\'P-256\' }, true, [\'deriveBits\']),\n    crypto.subtle.generateKey({ name:\'HMAC\',  hash:\'SHA-256\'      }, true, [\'sign\',\'verify\']),\n  ]);\n  return { signingKey:sigPair.privateKey, verifyKey:sigPair.publicKey,\n           exchangeKey:echPair.privateKey, exchPubKey:echPair.publicKey, auditKey };\n}\n\nasync function _wrapVault(keys, passphrase) {\n  const salt    = crypto.getRandomValues(new Uint8Array(16));\n  const pbkdf   = await crypto.subtle.importKey(\'raw\', _str2b(passphrase), \'PBKDF2\', false, [\'deriveKey\']);\n  const wrapKey = await crypto.subtle.deriveKey(\n    { name:\'PBKDF2\', salt, iterations:310000, hash:\'SHA-256\' },\n    pbkdf, { name:\'AES-KW\', length:256 }, false, [\'wrapKey\',\'unwrapKey\']\n  );\n  const wSig  = await crypto.subtle.wrapKey(\'pkcs8\', keys.signingKey,  wrapKey, \'AES-KW\');\n  const wEch  = await crypto.subtle.wrapKey(\'pkcs8\', keys.exchangeKey, wrapKey, \'AES-KW\');\n  const verPub= await crypto.subtle.exportKey(\'raw\', keys.verifyKey);\n  const echPub= await crypto.subtle.exportKey(\'raw\', keys.exchPubKey);\n  const audRaw= await crypto.subtle.exportKey(\'raw\', keys.auditKey);\n  return { salt:_b64(salt), wSig:_b64(wSig), wEch:_b64(wEch),\n           verPub:_b64(verPub), echPub:_b64(echPub), audKey:_b64(audRaw), v:2 };\n}\n\nasync function _unwrapVault(blob, passphrase) {\n  const salt    = _fromB64(blob.salt);\n  const pbkdf   = await crypto.subtle.importKey(\'raw\', _str2b(passphrase), \'PBKDF2\', false, [\'deriveKey\']);\n  const wrapKey = await crypto.subtle.deriveKey(\n    { name:\'PBKDF2\', salt, iterations:310000, hash:\'SHA-256\' },\n    pbkdf, { name:\'AES-KW\', length:256 }, false, [\'wrapKey\',\'unwrapKey\']\n  );\n  const signingKey  = await crypto.subtle.unwrapKey(\'pkcs8\', _fromB64(blob.wSig), wrapKey, \'AES-KW\',\n    { name:\'ECDSA\', namedCurve:\'P-256\' }, false, [\'sign\']);\n  const exchangeKey = await crypto.subtle.unwrapKey(\'pkcs8\', _fromB64(blob.wEch), wrapKey, \'AES-KW\',\n    { name:\'ECDH\', namedCurve:\'P-256\' }, false, [\'deriveBits\']);\n  const verifyKey   = await crypto.subtle.importKey(\'raw\', _fromB64(blob.verPub),\n    { name:\'ECDSA\', namedCurve:\'P-256\' }, true, [\'verify\']);\n  const exchPubKey  = await crypto.subtle.importKey(\'raw\', _fromB64(blob.echPub),\n    { name:\'ECDH\', namedCurve:\'P-256\' }, true, []);\n  const auditKey    = await crypto.subtle.importKey(\'raw\', _fromB64(blob.audKey),\n    { name:\'HMAC\', hash:\'SHA-256\' }, true, [\'sign\',\'verify\']);\n  _myPubKeyB64 = blob.verPub;\n  _myDid       = \'did:sovereign:\' + blob.verPub.slice(0, 32);\n  return { signingKey, verifyKey, exchangeKey, exchPubKey, auditKey };\n}\n\n// ════════════════════════════════════════════════════════════════════════════\n//  §22 — INDEXEDDB\n// ════════════════════════════════════════════════════════════════════════════\n\nfunction _idbOpen() {\n  return new Promise((res, rej) => {\n    const req = indexedDB.open(\'sovereign_kernel\', 1);\n    req.onupgradeneeded = e => {\n      if (!e.target.result.objectStoreNames.contains(VAULT_STORE))\n        e.target.result.createObjectStore(VAULT_STORE);\n    };\n    req.onsuccess = () => res(req.result);\n    req.onerror   = () => rej(req.error);\n  });\n}\n\nasync function _idbGet(store, key) {\n  const db = await _idbOpen();\n  return new Promise((res, rej) => {\n    const r = db.transaction(store,\'readonly\').objectStore(store).get(key);\n    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);\n  });\n}\n\nasync function _idbSet(store, key, value) {\n  const db = await _idbOpen();\n  return new Promise((res, rej) => {\n    const r = db.transaction(store,\'readwrite\').objectStore(store).put(value, key);\n    r.onsuccess = () => res(); r.onerror = () => rej(r.error);\n  });\n}\n\nasync function _idbDelete(store, key) {\n  const db = await _idbOpen();\n  return new Promise((res, rej) => {\n    const r = db.transaction(store,\'readwrite\').objectStore(store).delete(key);\n    r.onsuccess = () => res(); r.onerror = () => rej(r.error);\n  });\n}\n\n// ════════════════════════════════════════════════════════════════════════════\n//  §23 — CRYPTO PRIMITIVES\n// ════════════════════════════════════════════════════════════════════════════\n\nasync function _sha256(data) {\n  return new Uint8Array(await crypto.subtle.digest(\'SHA-256\',\n    data instanceof Uint8Array ? data : new Uint8Array(data)));\n}\n\nasync function _hkdfDerive(ikm, info) {\n  const key = await crypto.subtle.importKey(\'raw\', ikm, \'HKDF\', false, [\'deriveBits\']);\n  return new Uint8Array(await crypto.subtle.deriveBits(\n    { name:\'HKDF\', hash:\'SHA-256\', salt:new Uint8Array(32), info:_str2b(info) }, key, 512\n  ));\n}\n\n// ════════════════════════════════════════════════════════════════════════════\n//  §24 — ENCODING UTILITIES\n// ════════════════════════════════════════════════════════════════════════════\n\nfunction _b64(buf) {\n  const b = buf instanceof ArrayBuffer ? new Uint8Array(buf) : buf;\n  let s = \'\';\n  for (const x of b) s += String.fromCharCode(x);\n  return btoa(s);\n}\n\nfunction _fromB64(s) {\n  if (!s) return new Uint8Array(0);\n  const d = atob(s), o = new Uint8Array(d.length);\n  for (let i=0;i<d.length;i++) o[i]=d.charCodeAt(i);\n  return o;\n}\n\nfunction _str2b(s) { return new TextEncoder().encode(s); }\nfunction _b2str(b) { return new TextDecoder().decode(b); }\n\nfunction _concat(...arrs) {\n  const total = arrs.reduce((s,a) => s + (a.byteLength ?? a.length), 0);\n  const out   = new Uint8Array(total);\n  let offset  = 0;\n  for (const a of arrs) {\n    const src = a instanceof ArrayBuffer ? new Uint8Array(a) : a;\n    out.set(src, offset);\n    offset += src.byteLength ?? src.length;\n  }\n  return out;\n}\n\nfunction _sleep(ms) { return new Promise(r => setTimeout(r, ms)); }\nfunction _log(msg)  { console.log(`[SOVEREIGN-KERNEL] ${msg}`); }\n\nfunction _broadcast(msg) {\n  self.clients.matchAll({ type:\'window\', includeUncontrolled:true })\n    .then(cs => cs.forEach(c => c.postMessage(msg)));\n}\n\n// ════════════════════════════════════════════════════════════════════════════\n//  END — Sovereign Service Worker Security Kernel v2.0\n//  © James Chapman (XheCarpenXer) · Sovereign Technology IP Registry\n//  "The tools of sovereignty should be sovereign themselves."\n// ════════════════════════════════════════════════════════════════════════════\n';
+
+async function _registerSWFromBlob() {
+  if (!('serviceWorker' in navigator)) { _installKernelShim(); return; }
+  // Try file-based first (when served from a real server with genesis_sw.js)
+  try {
+    const reg = await navigator.serviceWorker.register('genesis_sw.js');
+    await navigator.serviceWorker.ready;
+    window._sovereignSWMode = 'file';
+    return;
+  } catch (e) {
+    console.warn('[Sovereign] File-based SW unavailable, trying Blob URL:', e.message);
+  }
+  // Blob URL registration (works for standalone HTML file opened locally)
+  try {
+    const blob = new Blob([_SW_SOURCE], { type:'application/javascript' });
+    const url  = URL.createObjectURL(blob);
+    const reg  = await navigator.serviceWorker.register(url, { scope:'/' });
+    await navigator.serviceWorker.ready;
+    URL.revokeObjectURL(url);
+    window._sovereignSWMode = 'blob';
+    console.log('[Sovereign] SW registered via Blob URL');
+    return;
+  } catch (err) {
+    console.warn('[Sovereign] Blob SW failed, falling back to in-tab shim:', err.message);
+  }
+  _installKernelShim();
+}
+
+function _installKernelShim() {
+  window._sovereignSWMode = 'shim';
+  console.warn('[Sovereign] DEGRADED MODE — no SW isolation. Keys held in tab memory.');
+  let _shimKeys = null, _shimDid = null, _shimLocked = true;
+  const _b64s = buf => btoa(String.fromCharCode(...new Uint8Array(buf instanceof ArrayBuffer ? buf : (buf.buffer ?? buf))));
+  const _u8s  = s   => { const d=atob(s),a=new Uint8Array(d.length); for(let i=0;i<d.length;i++)a[i]=d.charCodeAt(i); return a; };
+  const _s2b  = s   => new TextEncoder().encode(s);
+
+  window.SovereignKernel = {
+    _sw: null, // signals shim mode to callers
+    async createDualVault(pass, decoyPass) {
+      const [sig, ech] = await Promise.all([
+        crypto.subtle.generateKey({name:'ECDSA',namedCurve:'P-256'}, true, ['sign','verify']),
+        crypto.subtle.generateKey({name:'ECDH', namedCurve:'P-256'}, true, ['deriveBits']),
+      ]);
+      const vPub = _b64s(await crypto.subtle.exportKey('raw', sig.publicKey));
+      const ePub = _b64s(await crypto.subtle.exportKey('raw', ech.publicKey));
+      const did  = 'did:sovereign:' + vPub.slice(0,32);
+      _shimKeys  = { signingKey:sig.privateKey, verifyKey:sig.publicKey, exchangeKey:ech.privateKey };
+      _shimDid   = did; _shimLocked = false;
+      // Persist wrapped vault in IndexedDB
+      try {
+        const salt = crypto.getRandomValues(new Uint8Array(16));
+        const pbk  = await crypto.subtle.importKey('raw', _s2b(pass), 'PBKDF2', false, ['deriveKey']);
+        const wk   = await crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:310000,hash:'SHA-256'}, pbk, {name:'AES-KW',length:256}, false, ['wrapKey','unwrapKey']);
+        const db   = await openDB();
+        const tx   = db.transaction('keyvault','readwrite');
+        tx.objectStore('keyvault').put({
+          did, salt:_b64s(salt),
+          wSig:_b64s(await crypto.subtle.wrapKey('pkcs8', sig.privateKey, wk, 'AES-KW')),
+          wEch:_b64s(await crypto.subtle.wrapKey('pkcs8', ech.privateKey, wk, 'AES-KW')),
+          verPub:vPub, echPub:ePub, v:2
+        });
+      } catch(e) { console.warn('[Shim] Vault persist failed:', e); }
+      return { realDid:did, decoyDid:'did:sovereign:decoy' };
+    },
+    async unlockVault(pass) {
+      try {
+        const all = await dbGetAll('keyvault');
+        if (!all.length) return { event:'VAULT_ERROR', reason:'No vault found' };
+        const blob = all[0];
+        const pbk  = await crypto.subtle.importKey('raw', _s2b(pass), 'PBKDF2', false, ['deriveKey']);
+        const wk   = await crypto.subtle.deriveKey({name:'PBKDF2',salt:_u8s(blob.salt),iterations:310000,hash:'SHA-256'}, pbk, {name:'AES-KW',length:256}, false, ['wrapKey','unwrapKey']);
+        _shimKeys  = {
+          signingKey : await crypto.subtle.unwrapKey('pkcs8',_u8s(blob.wSig),wk,'AES-KW',{name:'ECDSA',namedCurve:'P-256'},false,['sign']),
+          verifyKey  : await crypto.subtle.importKey('raw',_u8s(blob.verPub),{name:'ECDSA',namedCurve:'P-256'},true,['verify']),
+          exchangeKey: await crypto.subtle.unwrapKey('pkcs8',_u8s(blob.wEch),wk,'AES-KW',{name:'ECDH',namedCurve:'P-256'},false,['deriveBits']),
+        };
+        _shimDid = blob.did; _shimLocked = false;
+        return { event:'VAULT_UNLOCKED', did:blob.did };
+      } catch(e) {
+        return { event:'VAULT_ERROR', reason: e.message?.includes('OperationError')?'Bad passphrase':e.message };
+      }
+    },
+    async sign(dataB64) {
+      if (!_shimKeys||_shimLocked) return {event:'ERROR',reason:'Vault locked'};
+      const sig = await crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'},_shimKeys.signingKey,_u8s(dataB64));
+      return {event:'SIGNED',sig:_b64s(sig)};
+    },
+    async seal(p,r)   { return {event:'ERROR',reason:'Shim: SEAL unavailable'}; },
+    async open(c,i,s) { return {event:'ERROR',reason:'Shim: OPEN unavailable'}; },
+    async lockVault() { _shimLocked=true; _shimKeys=null; return {event:'VAULT_LOCKED'}; },
+    async getStatus() { return {event:'STATUS',vaultLocked:_shimLocked,did:_shimDid,patterns:0,mode:'shim'}; },
+    async allowDomain() { return {}; },
+    async revokeDomain() { return {}; },
+  };
+  window.sovereignBoot = async (did, pk) => console.log('[Shim] Boot:', did);
+}
+</script>
+<script>
+// ══════════════════════════════════════════════════════════
+// SOVEREIGN TRANSPORT LAYER (inlined from transport.js)
+// ══════════════════════════════════════════════════════════
+/**
+ * ╔══════════════════════════════════════════════════════════╗
+ * ║          SOVEREIGN TRANSPORT LAYER  v1.0                ║
+ * ║  Bridges your UI to: Blockchain Ledger + Mesh Network   ║
+ * ╚══════════════════════════════════════════════════════════╝
+ *
+ * DROP THIS SCRIPT INTO ANY SOVEREIGN HTML FILE.
+ * It wires itself in automatically on DOMContentLoaded.
+ *
+ * ARCHITECTURE:
+ *   Browser UI
+ *       │
+ *       ▼
+ *   SovereignTransport  ◄── YOU ARE HERE
+ *      ├── MeshChannel    (WebSocket → local mesh node)
+ *      ├── ChainChannel   (HTTP RPC → blockchain node)
+ *      └── BroadcastChannel (tab-to-tab, offline fallback)
+ *
+ * CONFIGURATION (edit the CONFIG block below):
+ *   MESH_WS_URL  → your libp2p/gossipsub node WebSocket
+ *   CHAIN_RPC    → your blockchain RPC endpoint
+ *   POLL_MS      → how often to check chain for incoming msgs
+ */
+
+// ─────────────────────────────────────────────
+//  CONFIG — edit these to match your nodes
+// ─────────────────────────────────────────────
+const SOVEREIGN_CONFIG = {
+  // Your local mesh node WebSocket (libp2p, gossipsub, etc.)
+  // Run: npx @libp2p/daemon or your custom node
+  MESH_WS_URL: 'ws://localhost:8765',
+
+  // Your blockchain RPC (Solana, custom chain, etc.)
+  // Replace with your actual RPC endpoint
+  CHAIN_RPC: 'http://localhost:8899',
+
+  // Polling interval for incoming chain messages (ms)
+  POLL_MS: 3000,
+
+  // Topic prefix for DHT routing
+  // Messages land at: sha256(TOPIC_PREFIX + recipient_did)
+  TOPIC_PREFIX: 'sovereign:msg:',
+
+  // Enable debug logs in console
+  DEBUG: true,
+
+  // Retry config
+  RECONNECT_DELAY_MS: 5000,
+  MAX_RECONNECT_ATTEMPTS: 10,
+};
+
+// ─────────────────────────────────────────────
+//  SOVEREIGN TRANSPORT — core class
+// ─────────────────────────────────────────────
+class SovereignTransport {
+  constructor(config = SOVEREIGN_CONFIG) {
+    this.cfg = config;
+    this._meshSocket = null;
+    this._meshReady = false;
+    this._reconnectCount = 0;
+    this._listeners = [];          // { did, callback }
+    this._pendingQueue = [];       // messages queued while offline
+    this._pollTimer = null;
+    this._myDid = null;
+    this._seenIds = new Set();     // dedup incoming
+
+    // Tab-to-tab fallback (works even with no network)
+    this._localBus = new BroadcastChannel('sovereign_transport');
+    this._localBus.onmessage = (e) => this._handleIncoming(e.data, 'local');
+
+    this.log('SovereignTransport initialized');
+  }
+
+  // ── PUBLIC API ─────────────────────────────
+
+  /**
+   * Call this once your identity is loaded.
+   * @param {string} did - your DID string
+   */
+  async connect(did) {
+    this._myDid = did;
+    this.log(`Connecting as ${did}`);
+
+    // Start mesh WebSocket
+    await this._connectMesh();
+
+    // Start chain polling for incoming messages
+    this._startChainPoll();
+
+    // Emit status
+    this._emit('transport:status', { mesh: this._meshReady, chain: true });
+  }
+
+  /**
+   * Send a message. Call this after your local dbPut().
+   * @param {object} msg - the signed message object from sendMsg()
+   * @returns {object} { mesh: bool, chain: bool, queued: bool }
+   */
+  async send(msg) {
+    const envelope = this._wrap(msg);
+    const result = { mesh: false, chain: false, queued: false };
+
+    // 1. Always broadcast to local tabs (instant, zero latency)
+    this._localBus.postMessage(envelope);
+    this.log(`[LOCAL BUS] broadcasted msg ${msg.id}`);
+
+    // 2. Send via mesh (fast propagation)
+    if (this._meshReady) {
+      result.mesh = await this._meshSend(envelope);
+    }
+
+    // 3. Anchor to chain (permanent record)
+    result.chain = await this._chainAppend(envelope);
+
+    // 4. If both failed, queue for retry
+    if (!result.mesh && !result.chain) {
+      this._pendingQueue.push(envelope);
+      result.queued = true;
+      this.log(`[QUEUE] msg ${msg.id} queued (${this._pendingQueue.length} pending)`);
+    }
+
+    return result;
+  }
+
+  /**
+   * Register a callback for incoming messages addressed to a DID.
+   * @param {string} did - DID to listen for
+   * @param {function} callback - called with (msg, source)
+   */
+  subscribe(did, callback) {
+    this._listeners.push({ did, callback });
+    this.log(`Subscribed to messages for ${did}`);
+
+    // Subscribe on mesh topic
+    if (this._meshReady) {
+      this._meshSubscribe(did);
+    }
+  }
+
+  /**
+   * Graceful shutdown.
+   */
+  disconnect() {
+    if (this._meshSocket) this._meshSocket.close();
+    if (this._pollTimer) clearInterval(this._pollTimer);
+    this._localBus.close();
+    this.log('Transport disconnected');
+  }
+
+  // ── MESH (WebSocket) ───────────────────────
+
+  async _connectMesh() {
+    return new Promise((resolve) => {
+      try {
+        this._meshSocket = new WebSocket(this.cfg.MESH_WS_URL);
+
+        this._meshSocket.onopen = () => {
+          this._meshReady = true;
+          this._reconnectCount = 0;
+          this.log(`[MESH] Connected to ${this.cfg.MESH_WS_URL}`);
+
+          // Re-subscribe all listeners after reconnect
+          this._listeners.forEach(l => this._meshSubscribe(l.did));
+
+          // Flush pending queue
+          this._flushQueue();
+
+          this._emit('transport:mesh', { status: 'connected' });
+          resolve(true);
+        };
+
+        this._meshSocket.onmessage = (e) => {
+          try {
+            const envelope = JSON.parse(e.data);
+            this._handleIncoming(envelope, 'mesh');
+          } catch (err) {
+            this.log('[MESH] Bad message format', err);
+          }
+        };
+
+        this._meshSocket.onclose = () => {
+          this._meshReady = false;
+          this.log('[MESH] Disconnected. Reconnecting...');
+          this._emit('transport:mesh', { status: 'disconnected' });
+          this._scheduleReconnect();
+          resolve(false);
+        };
+
+        this._meshSocket.onerror = (e) => {
+          this.log('[MESH] Error:', e.message || 'connection refused');
+          // Don't crash — fall back to chain-only
+          resolve(false);
+        };
+      } catch (err) {
+        this.log('[MESH] Could not connect:', err.message);
+        resolve(false);
+      }
+    });
+  }
+
+  _scheduleReconnect() {
+    if (this._reconnectCount >= this.cfg.MAX_RECONNECT_ATTEMPTS) {
+      this.log('[MESH] Max reconnect attempts reached. Running chain-only.');
+      return;
+    }
+    this._reconnectCount++;
+    setTimeout(() => this._connectMesh(), this.cfg.RECONNECT_DELAY_MS);
+  }
+
+  async _meshSend(envelope) {
+    if (!this._meshReady) return false;
+    try {
+      const topic = await this._topicFor(envelope.to);
+      this._meshSocket.send(JSON.stringify({
+        type: 'PUBLISH',
+        topic,
+        data: envelope,
+      }));
+      this.log(`[MESH] Sent to topic ${topic.slice(0, 16)}…`);
+      return true;
+    } catch (err) {
+      this.log('[MESH] Send failed:', err.message);
+      return false;
+    }
+  }
+
+  async _meshSubscribe(did) {
+    if (!this._meshReady) return;
+    const topic = await this._topicFor(did);
+    this._meshSocket.send(JSON.stringify({
+      type: 'SUBSCRIBE',
+      topic,
+    }));
+    this.log(`[MESH] Subscribed to topic for ${did.slice(0, 20)}…`);
+  }
+
+  // ── CHAIN (HTTP RPC) ───────────────────────
+
+  async _chainAppend(envelope) {
+    try {
+      const topic = await this._topicFor(envelope.to);
+
+      // ── ADAPT THIS TO YOUR CHAIN ──────────────────────────────
+      // This calls a generic JSON-RPC endpoint.
+      // Replace with your chain's actual method.
+      //
+      // Solana example:
+      //   method: 'sendTransaction', with memo instruction containing envelope
+      //
+      // Custom chain example:
+      //   method: 'sovereign_appendMessage'
+      //
+      // Ethereum example:
+      //   method: 'eth_sendRawTransaction'
+      // ─────────────────────────────────────────────────────────
+
+      const payload = {
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'sovereign_appendMessage',   // ← change to your chain method
+        params: {
+          topic,
+          blob: btoa(JSON.stringify(envelope)),  // base64 encoded encrypted blob
+          sender: this._myDid,
+        },
+      };
+
+      const res = await fetch(this.cfg.CHAIN_RPC, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(8000),
+      });
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+
+      if (data.error) throw new Error(data.error.message);
+
+      this.log(`[CHAIN] Appended: txid=${data.result?.txid || 'ok'}`);
+      return true;
+    } catch (err) {
+      this.log('[CHAIN] Append failed:', err.message);
+      return false;
+    }
+  }
+
+  _startChainPoll() {
+    if (this._pollTimer) clearInterval(this._pollTimer);
+    this._pollTimer = setInterval(() => this._pollChain(), this.cfg.POLL_MS);
+    this.log(`[CHAIN] Polling every ${this.cfg.POLL_MS}ms`);
+  }
+
+  async _pollChain() {
+    if (!this._myDid) return;
+    try {
+      const topic = await this._topicFor(this._myDid);
+
+      // ── ADAPT THIS TO YOUR CHAIN ──────────────────────────────
+      // Replace 'sovereign_getMessages' with your chain's read method
+      // ─────────────────────────────────────────────────────────
+
+      const res = await fetch(this.cfg.CHAIN_RPC, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'sovereign_getMessages',   // ← change to your chain method
+          params: { topic, since: this._lastPollTs || 0 },
+        }),
+        signal: AbortSignal.timeout(5000),
+      });
+
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.result?.messages) {
+        this._lastPollTs = Date.now();
+        data.result.messages.forEach(blob => {
+          try {
+            const envelope = JSON.parse(atob(blob));
+            this._handleIncoming(envelope, 'chain');
+          } catch {}
+        });
+      }
+    } catch (err) {
+      this.log('[CHAIN POLL] Error:', err.message);
+    }
+  }
+
+  // ── INCOMING MESSAGE HANDLER ───────────────
+
+  _handleIncoming(envelope, source) {
+    if (!envelope?.id) return;
+
+    // Dedup — same message can arrive via mesh + chain
+    if (this._seenIds.has(envelope.id)) return;
+    this._seenIds.add(envelope.id);
+    if (this._seenIds.size > 1000) {
+      // Prune oldest
+      const arr = [...this._seenIds];
+      arr.splice(0, 200).forEach(id => this._seenIds.delete(id));
+    }
+
+    this.log(`[INCOMING] msg ${envelope.id} via ${source}`);
+
+    // Notify matching listeners
+    this._listeners.forEach(({ did, callback }) => {
+      if (envelope.to === did || envelope.from === did) {
+        try { callback(this._unwrap(envelope), source); }
+        catch (err) { this.log('Listener error:', err); }
+      }
+    });
+
+    // Also fire a DOM event so any page can listen
+    window.dispatchEvent(new CustomEvent('sovereign:message', {
+      detail: { msg: this._unwrap(envelope), source },
+    }));
+  }
+
+  // ── HELPERS ────────────────────────────────
+
+  _wrap(msg) {
+    // In production: encrypt msg body with recipient pubkey before wrapping
+    // For now: structure the envelope
+    return {
+      id: msg.id,
+      from: msg.from,
+      to: msg.to,
+      ts: msg.ts,
+      hash: msg.hash,
+      sig: msg.sig,
+      // Production: replace body with encrypt(JSON.stringify(msg), recipientPubKey)
+      body: btoa(JSON.stringify(msg)),
+    };
+  }
+
+  _unwrap(envelope) {
+    // Production: decrypt body with your private key
+    try { return JSON.parse(atob(envelope.body)); }
+    catch { return envelope; }
+  }
+
+  async _topicFor(did) {
+    // Deterministic topic: sha256(PREFIX + DID)
+    const raw = new TextEncoder().encode(this.cfg.TOPIC_PREFIX + did);
+    const hashBuf = await crypto.subtle.digest('SHA-256', raw);
+    return Array.from(new Uint8Array(hashBuf))
+      .map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  async _flushQueue() {
+    if (!this._pendingQueue.length) return;
+    this.log(`[QUEUE] Flushing ${this._pendingQueue.length} queued messages`);
+    const queue = [...this._pendingQueue];
+    this._pendingQueue = [];
+    for (const envelope of queue) {
+      await this._meshSend(envelope);
+      await this._chainAppend(envelope);
+    }
+  }
+
+  _emit(event, detail) {
+    window.dispatchEvent(new CustomEvent(event, { detail }));
+  }
+
+  log(...args) {
+    if (this.cfg.DEBUG) console.log('[SovereignTransport]', ...args);
+  }
+}
+
+// ─────────────────────────────────────────────
+//  STATUS INDICATOR UI
+//  Injects a small status dot into any Sovereign page
+// ─────────────────────────────────────────────
+function injectStatusDot() {
+  const dot = document.createElement('div');
+  dot.id = 'transport-dot';
+  dot.innerHTML = `
+    <style>
+      #transport-dot {
+        position: fixed; bottom: 12px; left: 12px; z-index: 9999;
+        display: flex; align-items: center; gap: 6px;
+        background: rgba(6,6,8,0.85); border: 1px solid #1a1a28;
+        border-radius: 20px; padding: 5px 10px;
+        font-family: 'Courier New', monospace; font-size: 9px;
+        color: #94a3b8; backdrop-filter: blur(8px);
+        transition: all 0.3s;
+        pointer-events: none;
+      }
+      #transport-dot .dot {
+        width: 6px; height: 6px; border-radius: 50%;
+        background: #334155;
+        transition: background 0.3s;
+      }
+      #transport-dot .dot.mesh  { background: #00ff88; box-shadow: 0 0 6px #00ff8866; }
+      #transport-dot .dot.chain { background: #00d4ff; box-shadow: 0 0 6px #00d4ff66; }
+      #transport-dot .dot.error { background: #ff3366; box-shadow: 0 0 6px #ff336666; }
+    </style>
+    <span class="dot" id="td-mesh" title="Mesh"></span>
+    <span class="dot" id="td-chain" title="Chain"></span>
+    <span id="td-label">TRANSPORT OFFLINE</span>
+  `;
+  document.body.appendChild(dot);
+
+  window.addEventListener('transport:mesh', (e) => {
+    const el = document.getElementById('td-mesh');
+    if (!el) return;
+    el.className = 'dot ' + (e.detail.status === 'connected' ? 'mesh' : 'error');
+    updateLabel();
+  });
+
+  window.addEventListener('transport:status', (e) => {
+    const chainEl = document.getElementById('td-chain');
+    if (chainEl) chainEl.className = 'dot chain';
+    updateLabel();
+  });
+
+  function updateLabel() {
+    const meshOn  = document.getElementById('td-mesh')?.classList.contains('mesh');
+    const chainOn = document.getElementById('td-chain')?.classList.contains('chain');
+    const label   = document.getElementById('td-label');
+    if (!label) return;
+    if (meshOn && chainOn) label.textContent = 'MESH + CHAIN';
+    else if (meshOn)       label.textContent = 'MESH ONLY';
+    else if (chainOn)      label.textContent = 'CHAIN ONLY';
+    else                   label.textContent = 'LOCAL ONLY';
+  }
+}
+
+// ─────────────────────────────────────────────
+//  AUTO-WIRE — patches sendMsg() and boots connect()
+//  Works if this script is loaded AFTER the page JS
+// ─────────────────────────────────────────────
+window.SovereignTransport = SovereignTransport;
+window._ST = null; // global transport instance
+
+window.addEventListener('DOMContentLoaded', () => {
+  injectStatusDot();
+});
+
+// Called by your page after identity loads:
+// await window.sovereignConnect(myDID);
+window.sovereignConnect = async function(did) {
+  if (window._ST) window._ST.disconnect();
+  window._ST = new SovereignTransport();
+  await window._ST.connect(did);
+
+  // Subscribe to incoming messages for this DID
+  window._ST.subscribe(did, (msg, source) => {
+    console.log(`[Sovereign] Incoming from ${source}:`, msg);
+    // If the page has a receive handler, call it
+    if (typeof window.onSovereignMessage === 'function') {
+      window.onSovereignMessage(msg, source);
+    }
+  });
+
+  return window._ST;
+};
+
+// Patch to call after sendMsg() saves to local DB:
+// await window.sovereignSend(msg);
+window.sovereignSend = async function(msg) {
+  if (!window._ST) {
+    console.warn('[Sovereign] Transport not connected. Call sovereignConnect(did) first.');
+    return { queued: true };
+  }
+  return window._ST.send(msg);
+};
+
+// ════════════════════════════════════════════════════════════════════════════
+//  SOVEREIGN TRANSPORT — Security Kernel Integration (Pattern 07 + SW Bridge)
+//  © James Chapman (XheCarpenXer) · Sovereign Technology IP Registry
+//
+//  This section wires the browser-side Transport to the SW Security Kernel:
+//    • SEND now routes through SW for jitter + cover traffic padding (Pattern 07)
+//    • PIR-style topic fetch helper (Pattern 14)
+//    • Vault unlock / sign / seal / open helpers (Pattern 01)
+//    • Heartbeat keepalive for deadman switch (Pattern 12)
+//    • SW event listener for kernel events
+// ════════════════════════════════════════════════════════════════════════════
+
+class SovereignKernelBridge {
+  constructor() {
+    this._sw  = null;
+    this._cbs = new Map();  // event → [callbacks]
+    this._pending = new Map(); // nonce → { resolve, reject }
+    this._heartbeatTimer = null;
+    this._init();
+  }
+
+  async _init() {
+    if (!('serviceWorker' in navigator)) return;
+    const reg = await navigator.serviceWorker.ready;
+    this._sw  = reg.active;
+    navigator.serviceWorker.addEventListener('message', (e) => this._onKernelEvent(e.data));
+    this._startHeartbeat();
+  }
+
+  // ── Vault ──────────────────────────────────────────────────────────────
+
+  async unlockVault(passphrase) {
+    return this._call('VAULT_UNLOCK', { passphrase });
+  }
+
+  async createVault(passphrase, isDecoy = false) {
+    return this._call('VAULT_CREATE', { passphrase, isDecoy });
+  }
+
+  async createDualVault(passphrase, decoyPassphrase) {
+    return this._call('VAULT_CREATE_DUAL', { passphrase, decoyPassphrase });
+  }
+
+  async lockVault() {
+    return this._call('VAULT_LOCK', {});
+  }
+
+  // ── Pattern 01: Key Oracle ─────────────────────────────────────────────
+
+  async sign(dataB64) {
+    return this._call('SIGN', { data: dataB64 });
+  }
+
+  async seal(plaintextB64, recipientPubKey) {
+    return this._call('SEAL', { plaintext: plaintextB64, recipientPubKey });
+  }
+
+  async open(ciphertextB64, iv, senderPubKey) {
+    return this._call('OPEN', { ciphertext: ciphertextB64, iv, senderPubKey });
+  }
+
+  // ── Pattern 02: Double Ratchet ─────────────────────────────────────────
+
+  async initRatchet(peerDid, theirIdentityPubKey, theirEphemeralPubKey) {
+    return this._call('RATCHET_INIT', { peerDid, theirIdentityPubKey, theirEphemeralPubKey });
+  }
+
+  async ratchetEncrypt(peerDid, plaintextB64) {
+    return this._call('RATCHET_ENCRYPT', { peerDid, plaintext: plaintextB64 });
+  }
+
+  async ratchetDecrypt(peerDid, n, ciphertextB64, iv) {
+    return this._call('RATCHET_DECRYPT', { peerDid, n, ciphertext: ciphertextB64, iv });
+  }
+
+  // ── Pattern 06: Onion Send ─────────────────────────────────────────────
+
+  async onionSend(targetDid, plaintextB64) {
+    return this._call('ONION_SEND', { targetDid, plaintext: plaintextB64 });
+  }
+
+  // ── Pattern 14: PIR Fetch ──────────────────────────────────────────────
+
+  async pirFetch(relayUrl, myTopicHash, decoyCount = 3) {
+    return this._call('PIR_FETCH', { relayUrl, myTopicHash, decoyCount });
+  }
+
+  // ── Pattern 09: Audit ─────────────────────────────────────────────────
+
+  async verifyAuditChain() {
+    return this._call('AUDIT_VERIFY', {});
+  }
+
+  async exportAuditChain() {
+    return this._call('AUDIT_EXPORT', {});
+  }
+
+  // ── Pattern 15: Threshold Signing ─────────────────────────────────────
+
+  async tssDkgRound1(myIndex, parties, threshold) {
+    return this._call('TSS_DKG_ROUND1', { myIndex, parties, threshold });
+  }
+
+  async tssPartialSign(sessionId, payloadB64) {
+    return this._call('TSS_PARTIAL_SIGN', { sessionId, payload: payloadB64 });
+  }
+
+  async tssAggregate(partials, payloadB64) {
+    return this._call('TSS_AGGREGATE', { partials, payload: payloadB64 });
+  }
+
+  // ── Firewall admin ────────────────────────────────────────────────────
+
+  async allowDomain(domain)  { return this._call('ALLOW_DOMAIN',  { domain }); }
+  async revokeDomain(domain) { return this._call('REVOKE_DOMAIN', { domain }); }
+
+  // ── Status ────────────────────────────────────────────────────────────
+
+  async getStatus() {
+    return this._call('STATUS', {});
+  }
+
+  // ── Pattern 12: Deadman heartbeat ─────────────────────────────────────
+
+  _startHeartbeat() {
+    const INTERVAL = 30 * 60 * 1000; // 30 min
+    this._heartbeatTimer = setInterval(() => {
+      this._send({ cmd: 'HEARTBEAT' });
+    }, INTERVAL);
+    // Send immediately on load
+    setTimeout(() => this._send({ cmd: 'HEARTBEAT' }), 2000);
+  }
+
+  stopHeartbeat() {
+    if (this._heartbeatTimer) clearInterval(this._heartbeatTimer);
+  }
+
+  // ── Panic ─────────────────────────────────────────────────────────────
+
+  async panic() {
+    return this._call('PANIC', {});
+  }
+
+  // ── Event subscriptions ───────────────────────────────────────────────
+
+  on(event, cb) {
+    if (!this._cbs.has(event)) this._cbs.set(event, []);
+    this._cbs.get(event).push(cb);
+    return () => this._cbs.set(event, this._cbs.get(event).filter(f => f !== cb));
+  }
+
+  // ── Internals ─────────────────────────────────────────────────────────
+
+  _send(msg) {
+    if (!this._sw) { navigator.serviceWorker.ready.then(r => { this._sw = r.active; this._sw.postMessage(msg); }); return; }
+    this._sw.postMessage(msg);
+  }
+
+  _call(cmd, args) {
+    return new Promise((resolve, reject) => {
+      const nonce = Math.random().toString(36).slice(2);
+      this._pending.set(nonce, { resolve, reject });
+      setTimeout(() => { if (this._pending.has(nonce)) { this._pending.delete(nonce); reject(new Error('SW timeout: ' + cmd)); } }, 15000);
+      this._send({ cmd, nonce, ...args });
+    });
+  }
+
+  _onKernelEvent(data) {
+    const { event, nonce } = data || {};
+    // Resolve pending call if this is a direct response
+    if (nonce && this._pending.has(nonce)) {
+      const { resolve, reject } = this._pending.get(nonce);
+      this._pending.delete(nonce);
+      if (event?.includes('ERROR')) reject(new Error(data.reason || event));
+      else resolve(data);
+      return;
+    }
+    // Also resolve by event name pattern for vault events
+    for (const [n, { resolve }] of this._pending.entries()) {
+      const responseMap = {
+        VAULT_UNLOCK: 'VAULT_UNLOCKED', VAULT_CREATE: 'VAULT_CREATED',
+        VAULT_CREATE_DUAL: 'DUAL_VAULT_CREATED', SIGN: 'SIGNED',
+        SEAL: 'SEALED', OPEN: 'OPENED', STATUS: 'STATUS',
+        AUDIT_VERIFY: 'AUDIT_VERIFIED', AUDIT_EXPORT: 'AUDIT_EXPORTED',
+        PIR_FETCH: 'PIR_RESULTS', ONION_SEND: 'ONION_SENT',
+        PANIC: 'PANIC_LOCKDOWN',
+      };
+      // Best-effort match without nonce
+    }
+    // Broadcast to all event listeners
+    const listeners = this._cbs.get(event) || [];
+    for (const cb of listeners) cb(data);
+    // Also fire wildcard listeners
+    for (const cb of (this._cbs.get('*') || [])) cb(data);
+  }
+}
+
+// Expose globally
+window.SovereignKernel = new SovereignKernelBridge();
+
+// Convenience: boot SW with identity when available
+window.sovereignBoot = async function(did, pubKey) {
+  const reg = await navigator.serviceWorker.ready;
+  reg.active?.postMessage({ cmd: 'BOOT', did, pubKey });
+};
+
+console.log('[Sovereign] Security Kernel bridge loaded — 15 patterns active');
+
+</script>
+<script>
 'use strict';
 
 // ══════════════════════════════════════════
@@ -749,6 +1599,7 @@ const SYS = {
   currentConvo: null,   // did of active convo
   searchScope: 'all',
   db: null,
+  pendingPC: null,
 };
 
 // App manifest
@@ -784,17 +1635,23 @@ const NODE_DEFS = [
 async function openDB() {
   if (SYS.db) return SYS.db;
   return new Promise((res, rej) => {
-    const r = indexedDB.open('sovereign_genesis_v2', 2);
+    const r = indexedDB.open('sovereign_genesis_v2', 20);
     r.onupgradeneeded = e => {
       const db = e.target.result;
-      if (!db.objectStoreNames.contains('identity')) db.createObjectStore('identity', { keyPath:'did' });
-      if (!db.objectStoreNames.contains('keyvault')) db.createObjectStore('keyvault', { keyPath:'did' });
-      if (!db.objectStoreNames.contains('contacts')) db.createObjectStore('contacts', { keyPath:'did' });
-      if (!db.objectStoreNames.contains('messages')) db.createObjectStore('messages', { keyPath:'id', autoIncrement:true });
-      if (!db.objectStoreNames.contains('settings')) db.createObjectStore('settings', { keyPath:'key' });
+      [['identity','did'],['keyvault','did'],['contacts','did'],['settings','key']].forEach(([s,k]) => {
+        if (!db.objectStoreNames.contains(s)) db.createObjectStore(s, { keyPath:k });
+      });
+      if (!db.objectStoreNames.contains('messages'))
+        db.createObjectStore('messages', { keyPath:'id', autoIncrement:true });
     };
+    r.onblocked = () => console.warn('[SovereignDB] blocked — close other Sovereign tabs');
     r.onsuccess = e => { SYS.db = e.target.result; res(SYS.db); };
-    r.onerror = e => rej(e.target.error);
+    r.onerror = e => {
+      console.warn('[SovereignDB] Error, wiping and retrying:', e.target.error);
+      const del = indexedDB.deleteDatabase('sovereign_genesis_v2');
+      del.onsuccess = () => openDB().then(res).catch(rej);
+      del.onerror   = () => rej(e.target.error);
+    };
   });
 }
 async function dbPut(store, obj) {
@@ -904,6 +1761,7 @@ async function generateIdentity() {
   const pass2      = pass2El?.value || '';
 
   if (!username) { toast('Choose a display name first', 'error'); return; }
+  if (!window.SovereignKernel) { toast('Security Kernel not ready — try again in a moment', 'error'); return; }
   if (!pass || pass.length < 8) { toast('Passphrase must be at least 8 characters', 'error'); passEl?.focus(); return; }
   if (pass !== pass2) { toast('Passphrases do not match', 'error'); pass2El?.focus(); return; }
 
@@ -915,8 +1773,7 @@ async function generateIdentity() {
   try {
     // Register SW if not already
     if ('serviceWorker' in navigator) {
-      await navigator.serviceWorker.register('genesis_sw.js');
-      await navigator.serviceWorker.ready;
+      await _registerSWFromBlob();
     }
 
     status.textContent = '> Creating vault (PBKDF2 + AES-KW)…';
@@ -1844,8 +2701,7 @@ async function boot() {
   // Register Security Kernel SW
   if ('serviceWorker' in navigator) {
     try {
-      await navigator.serviceWorker.register('genesis_sw.js');
-      await navigator.serviceWorker.ready;
+      await _registerSWFromBlob();
     } catch(swErr) { console.warn('SW registration failed:', swErr); }
   }
 
@@ -1872,6 +2728,12 @@ async function boot() {
   renderPeers();
   renderConvoList();
   renderApps();
+  // Whitelist cdnjs for QR library
+  try { window.SovereignKernel?.allowDomain?.('cdnjs.cloudflare.com'); } catch {}
+  // Degraded mode banner
+  if (window._sovereignSWMode === 'shim') {
+    toast('⚠ No Service Worker — running in degraded security mode', 'error');
+  }
 
   // Hide boot
   await new Promise(r => setTimeout(r, 350));
@@ -2127,8 +2989,6 @@ window.unlockVaultFromBanner = unlockVaultFromBanner;
 
 boot();
 </script>
-<!-- Sovereign Security Kernel Transport Bridge -->
-<script src="transport.js"></script>
+<!-- transport.js inlined above -->
 </body>
 </html>
-
