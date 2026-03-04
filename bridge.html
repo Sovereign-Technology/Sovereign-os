@@ -1,0 +1,1354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sovereign — Bridge</title>
+<style>
+:root {
+  --bg:      #08080c;
+  --bg2:     #0e0e14;
+  --bg3:     #161620;
+  --bg4:     #1e1e2a;
+  --border:  #252535;
+  --border2: #353550;
+  --accent:  #00e87a;
+  --accent2: #0af;
+  --nostr:   #a855f7;
+  --matrix:  #0dbd8b;
+  --rss:     #f97316;
+  --wf:      #38bdf8;
+  --text:    #d8d8e8;
+  --text2:   #7070a0;
+  --text3:   #404060;
+  --danger:  #f43f5e;
+  --warn:    #fbbf24;
+  --font:    'Courier New', 'Lucida Console', monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.6;
+  overflow: hidden;
+}
+body::before {
+  content: '';
+  position: fixed; inset: 0; pointer-events: none; z-index: 9999;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,.06) 2px, rgba(0,0,0,.06) 4px);
+}
+#app { display: flex; flex-direction: column; height: 100vh; }
+#header {
+  display: flex; align-items: center; gap: 16px;
+  padding: 10px 16px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.logo { font-size: 11px; font-weight: bold; letter-spacing: 3px; color: var(--accent); white-space: nowrap; }
+.logo span { color: var(--text3); }
+#identity-bar { flex: 1; display: flex; align-items: center; gap: 10px; overflow: hidden; }
+.id-chip {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--bg3); border: 1px solid var(--border);
+  padding: 3px 8px; font-size: 10px; color: var(--text2);
+  cursor: pointer; transition: border-color .15s;
+  white-space: nowrap; overflow: hidden; max-width: 280px;
+}
+.id-chip:hover { border-color: var(--border2); color: var(--text); }
+.id-chip .lbl { color: var(--text3); margin-right: 2px; }
+.id-chip .val { overflow: hidden; text-overflow: ellipsis; font-size: 9px; }
+#sdot { width: 6px; height: 6px; border-radius: 50%; background: var(--text3); flex-shrink: 0; transition: background .3s; }
+#sdot.on { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+#tabs {
+  display: flex;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.tbtn {
+  padding: 8px 18px; font-family: var(--font); font-size: 10px;
+  letter-spacing: 2px; text-transform: uppercase;
+  background: none; border: none; border-bottom: 2px solid transparent;
+  color: var(--text3); cursor: pointer; transition: color .15s, border-color .15s;
+}
+.tbtn:hover { color: var(--text); }
+.tbtn.on { color: var(--text); border-bottom-color: var(--accent); }
+.tbtn[data-t="nostr"].on   { border-bottom-color: var(--nostr); color: var(--nostr); }
+.tbtn[data-t="matrix"].on  { border-bottom-color: var(--matrix); color: var(--matrix); }
+.tbtn[data-t="feeds"].on   { border-bottom-color: var(--rss); color: var(--rss); }
+.tbtn[data-t="id"].on      { border-bottom-color: var(--wf); color: var(--wf); }
+#content { flex: 1; overflow: hidden; display: flex; }
+.tpanel { display: none; width: 100%; height: 100%; overflow: hidden; }
+.tpanel.on { display: flex; }
+.split { display: flex; width: 100%; height: 100%; }
+.sidebar {
+  width: 220px; flex-shrink: 0;
+  background: var(--bg2); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.stitle {
+  font-size: 9px; letter-spacing: 3px; text-transform: uppercase;
+  color: var(--text3); padding: 10px 12px 6px;
+  border-bottom: 1px solid var(--border); flex-shrink: 0;
+}
+.sbody { flex: 1; overflow-y: auto; padding: 10px; }
+.sbody::-webkit-scrollbar { width: 3px; }
+.sbody::-webkit-scrollbar-thumb { background: var(--border2); }
+input, textarea, select {
+  font-family: var(--font); font-size: 11px;
+  background: var(--bg3); border: 1px solid var(--border);
+  color: var(--text); padding: 6px 8px; outline: none; width: 100%;
+  transition: border-color .15s;
+}
+input:focus, textarea:focus { border-color: var(--border2); }
+textarea { resize: vertical; min-height: 60px; }
+input::placeholder, textarea::placeholder { color: var(--text3); }
+button {
+  font-family: var(--font); font-size: 10px; letter-spacing: 1px;
+  padding: 6px 14px; border: 1px solid var(--border);
+  background: var(--bg3); color: var(--text2);
+  cursor: pointer; text-transform: uppercase; transition: all .15s; white-space: nowrap;
+}
+button:hover { background: var(--bg4); color: var(--text); border-color: var(--border2); }
+button.nb { border-color: var(--nostr); color: var(--nostr); }
+button.nb:hover { background: rgba(168,85,247,.1); }
+button.mb { border-color: var(--matrix); color: var(--matrix); }
+button.mb:hover { background: rgba(13,189,139,.1); }
+button.rb { border-color: var(--rss); color: var(--rss); }
+button.rb:hover { background: rgba(249,115,22,.1); }
+button.wb { border-color: var(--wf); color: var(--wf); }
+button.wb:hover { background: rgba(56,189,248,.1); }
+button.xb { border-color: var(--danger); color: var(--danger); }
+button.xb:hover { background: rgba(244,63,94,.1); }
+button:disabled { opacity: .35; cursor: not-allowed; }
+.row { display: flex; gap: 6px; align-items: flex-start; }
+.row input, .row select { flex: 1; }
+.col { display: flex; flex-direction: column; gap: 6px; }
+.litem {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 8px; font-size: 10px;
+  border: 1px solid var(--border);
+  margin-bottom: 4px; background: var(--bg);
+  cursor: pointer; transition: border-color .15s;
+}
+.litem:hover { border-color: var(--border2); }
+.litem .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--text3); flex-shrink: 0; }
+.litem .dot.ok  { background: var(--accent); }
+.litem .dot.err { background: var(--danger); }
+.litem .dot.pnd { background: var(--warn); }
+.litem .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.litem .rm { color: var(--text3); font-size: 10px; }
+.litem .rm:hover { color: var(--danger); }
+.feed { flex: 1; overflow-y: auto; padding: 10px; }
+.feed::-webkit-scrollbar { width: 3px; }
+.feed::-webkit-scrollbar-thumb { background: var(--border2); }
+.ecard {
+  border: 1px solid var(--border);
+  margin-bottom: 8px; padding: 10px;
+  background: var(--bg2); animation: si .2s ease;
+}
+@keyframes si { from { opacity:0; transform:translateY(-4px); } to { opacity:1; } }
+.ehead { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+.eauthor { font-size: 10px; color: var(--nostr); word-break: break-all; }
+.etime { font-size: 9px; color: var(--text3); white-space: nowrap; margin-left: 8px; }
+.ebody { font-size: 11px; color: var(--text); white-space: pre-wrap; word-break: break-word; }
+.eacts { display: flex; gap: 6px; margin-top: 8px; }
+.eacts button { padding: 3px 8px; font-size: 9px; }
+.cbar { padding: 10px; border-top: 1px solid var(--border); background: var(--bg2); display: flex; flex-direction: column; gap: 6px; }
+.cbar .row { align-items: flex-end; }
+.cc { font-size: 9px; color: var(--text3); text-align: right; }
+.ritem {
+  padding: 7px 10px; font-size: 10px; cursor: pointer;
+  border-left: 2px solid transparent; transition: all .12s; color: var(--text2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ritem:hover { background: var(--bg3); color: var(--text); }
+.ritem.on { border-left-color: var(--matrix); color: var(--matrix); background: var(--bg3); }
+.mxmsg { margin-bottom: 10px; animation: si .15s ease; }
+.mxmsg .snd { font-size: 10px; color: var(--matrix); margin-bottom: 2px; }
+.mxmsg.me .snd { color: var(--accent); }
+.mxmsg .bd { font-size: 11px; color: var(--text); }
+.mxmsg .ts { font-size: 9px; color: var(--text3); }
+.fitem { border: 1px solid var(--border); margin-bottom: 8px; padding: 10px; background: var(--bg2); animation: si .2s ease; }
+.fitem .ft { font-size: 11px; color: var(--rss); margin-bottom: 4px; }
+.fitem .ft a { color: inherit; text-decoration: none; }
+.fitem .ft a:hover { text-decoration: underline; }
+.fitem .fm { font-size: 9px; color: var(--text3); margin-bottom: 6px; }
+.fitem .fb { font-size: 10px; color: var(--text2); max-height: 60px; overflow: hidden; }
+.wfcard { border: 1px solid var(--wf); padding: 14px; background: var(--bg2); animation: si .2s ease; }
+.wfcard .wn { font-size: 14px; color: var(--wf); margin-bottom: 8px; }
+.wfcard .wr { font-size: 10px; color: var(--text2); margin-bottom: 4px; }
+.wfcard .wr .k { color: var(--text3); display: inline-block; width: 90px; }
+.wflink {
+  display: inline-block; font-size: 9px; padding: 2px 8px;
+  border: 1px solid var(--border); margin: 2px 2px 2px 0; color: var(--text3); cursor: pointer;
+}
+.wflink:hover { color: var(--text); border-color: var(--border2); }
+.tag { display: inline-block; font-size: 8px; letter-spacing: 1px; padding: 1px 6px; border: 1px solid; text-transform: uppercase; }
+.tag.n { border-color: var(--nostr); color: var(--nostr); }
+.tag.r { border-color: var(--rss); color: var(--rss); }
+.notice { padding: 8px 12px; font-size: 10px; margin-bottom: 8px; border-left: 3px solid var(--text3); }
+.notice.ok   { border-color: var(--accent); color: var(--accent); background: rgba(0,232,122,.05); }
+.notice.err  { border-color: var(--danger); color: var(--danger); background: rgba(244,63,94,.05); }
+.notice.warn { border-color: var(--warn); color: var(--warn); background: rgba(251,191,36,.05); }
+.notice.info { border-color: var(--accent2); color: var(--accent2); background: rgba(0,170,255,.05); }
+.lsm { font-size: 9px; color: var(--text3); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 3px; }
+.mono { font-family: var(--font); font-size: 9px; color: var(--text2); word-break: break-all; }
+hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
+</style>
+</head>
+<body>
+<div id="app">
+
+<div id="header">
+  <div class="logo">SOVEREIGN <span>·</span> BRIDGE</div>
+  <div id="identity-bar">
+    <div id="sdot"></div>
+    <div class="id-chip" id="chip-pub" title="Click to copy pubkey hex">
+      <span class="lbl">PUBKEY</span><span class="val" id="chip-pub-v">initializing…</span>
+    </div>
+    <div class="id-chip" id="chip-npub" title="Click to copy npub" style="display:none">
+      <span class="lbl">NPUB</span><span class="val" id="chip-npub-v">—</span>
+    </div>
+  </div>
+  <button id="btn-export" style="display:none;font-size:9px;padding:4px 10px">EXPORT</button>
+</div>
+
+<div id="tabs">
+  <button class="tbtn on" data-t="nostr">⬡ Nostr</button>
+  <button class="tbtn" data-t="matrix">⊞ Matrix</button>
+  <button class="tbtn" data-t="feeds">◈ Feeds</button>
+  <button class="tbtn" data-t="id">⌖ Identity</button>
+</div>
+
+<div id="content">
+
+  <!-- NOSTR -->
+  <div class="tpanel on" id="pn-nostr">
+    <div class="split">
+      <div class="sidebar">
+        <div class="stitle">Relays</div>
+        <div class="sbody" style="flex:0;max-height:190px">
+          <div id="relay-list"></div>
+          <div class="row" style="margin-top:6px">
+            <input id="relay-in" placeholder="wss://relay.damus.io" />
+            <button class="nb" id="btn-add-relay" style="padding:6px 10px">+</button>
+          </div>
+        </div>
+        <div class="stitle">Direct Messages</div>
+        <div class="sbody" id="dm-list"></div>
+        <div style="padding:8px;border-top:1px solid var(--border)">
+          <div class="lsm">New DM</div>
+          <div class="col">
+            <input id="dm-in" placeholder="npub1… or hex pubkey" />
+            <button class="nb" id="btn-dm">Open DM</button>
+          </div>
+        </div>
+      </div>
+      <div class="main">
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--border);background:var(--bg2)">
+          <span style="font-size:9px;letter-spacing:2px;color:var(--text3)" id="feed-lbl">GLOBAL FEED</span>
+          <div style="flex:1"></div>
+          <button style="font-size:9px;padding:4px 10px" id="btn-global">↺ GLOBAL</button>
+          <button style="font-size:9px;padding:4px 10px" id="btn-myfeed">MY FEED</button>
+        </div>
+        <div class="feed" id="nostr-feed"><div class="notice info">Connect a relay to see events. Ctrl+Enter to publish.</div></div>
+        <div class="cbar">
+          <textarea id="compose" placeholder="What's happening in the sovereign network?" rows="3"></textarea>
+          <div class="row">
+            <span class="cc" id="cc">0 / 280</span>
+            <div style="flex:1"></div>
+            <button class="nb" id="btn-pub">PUBLISH NOTE</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MATRIX -->
+  <div class="tpanel" id="pn-matrix">
+    <div class="split">
+      <div class="sidebar">
+        <div class="stitle">Server</div>
+        <div class="sbody" style="flex:0">
+          <div id="mx-login" class="col">
+            <input id="mx-srv" value="https://matrix.org" placeholder="https://matrix.org" />
+            <input id="mx-usr" placeholder="@user:matrix.org" />
+            <input id="mx-pwd" type="password" placeholder="password" />
+            <button class="mb" id="btn-mxlogin">CONNECT</button>
+          </div>
+          <div id="mx-conn" style="display:none">
+            <div class="notice ok" id="mx-status">Connected</div>
+            <button class="xb" id="btn-mxout" style="width:100%;margin-top:4px">DISCONNECT</button>
+          </div>
+        </div>
+        <div class="stitle">Rooms</div>
+        <div class="sbody" id="mx-rooms"><div style="font-size:10px;color:var(--text3)">Not connected.</div></div>
+      </div>
+      <div class="main">
+        <div style="padding:8px 12px;border-bottom:1px solid var(--border);background:var(--bg2);font-size:10px;color:var(--text3)" id="mx-rtitle">Select a room →</div>
+        <div class="feed" id="mx-feed"><div class="notice info">Connect to Matrix and select a room.</div></div>
+        <div class="cbar">
+          <div class="row">
+            <input id="mx-msg" placeholder="Message…" />
+            <button class="mb" id="btn-mxsend">SEND</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FEEDS -->
+  <div class="tpanel" id="pn-feeds">
+    <div class="split">
+      <div class="sidebar">
+        <div class="stitle">Subscriptions</div>
+        <div class="sbody" style="flex:0">
+          <div class="col">
+            <input id="feed-url" placeholder="https://example.com/feed.xml" />
+            <div class="row">
+              <label style="font-size:9px;color:var(--text3);display:flex;align-items:center;gap:4px">
+                <input type="checkbox" id="feed-proxy" style="width:auto"> CORS proxy
+              </label>
+              <div style="flex:1"></div>
+              <button class="rb" id="btn-addfeed">+ ADD</button>
+            </div>
+          </div>
+        </div>
+        <div class="sbody" id="feed-list"></div>
+      </div>
+      <div class="main">
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--border);background:var(--bg2)">
+          <span style="font-size:9px;letter-spacing:2px;color:var(--text3)">ALL FEEDS</span>
+          <div style="flex:1"></div>
+          <button class="rb" style="font-size:9px;padding:4px 10px" id="btn-refreshfeeds">↺ REFRESH ALL</button>
+        </div>
+        <div class="feed" id="feed-panel"><div class="notice info">Add a feed URL to subscribe.</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- IDENTITY -->
+  <div class="tpanel" id="pn-id">
+    <div class="split">
+      <div class="sidebar">
+        <div class="stitle">Bridge Keys</div>
+        <div class="sbody" style="flex:0">
+          <div class="col">
+            <div class="lsm">Nostr pubkey (hex)</div>
+            <div class="mono" id="id-pub">—</div>
+            <div class="lsm" style="margin-top:8px">npub</div>
+            <div class="mono" id="id-npub">—</div>
+            <hr>
+            <button class="xb" id="btn-reset">RESET BRIDGE KEYS</button>
+          </div>
+        </div>
+        <div class="stitle">Import / Derive</div>
+        <div class="sbody">
+          <div class="col">
+            <div class="lsm">nsec or hex privkey</div>
+            <input id="imp-key" placeholder="nsec1… or 64-char hex" />
+            <button class="wb" id="btn-impkey">IMPORT KEY</button>
+            <hr>
+            <div class="lsm">Derive from Sovereign privkey</div>
+            <input id="drv-key" placeholder="Ed25519 private key hex" />
+            <button class="wb" id="btn-drvkey">DERIVE NOSTR KEY</button>
+          </div>
+        </div>
+      </div>
+      <div class="main">
+        <div style="padding:8px 12px;border-bottom:1px solid var(--border);background:var(--bg2);font-size:9px;letter-spacing:2px;color:var(--text3)">
+          WEBFINGER · ACTIVITYPUB RESOLVER
+        </div>
+        <div style="padding:12px;border-bottom:1px solid var(--border);background:var(--bg2)">
+          <div class="row">
+            <input id="wf-in" placeholder="@user@mastodon.social" />
+            <button class="wb" id="btn-wf">RESOLVE</button>
+          </div>
+        </div>
+        <div class="feed" id="wf-out"><div class="notice info">Enter a Fediverse handle to resolve their identity and find Nostr links.</div></div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /content -->
+</div><!-- /app -->
+
+<script>
+'use strict';
+
+// ═══════════════════════════════════════════════════════════════════
+// SECP256K1 — pure JS, BigInt, zero dependencies
+// BIP-340 Schnorr signing/verification + NIP-04 ECDH
+// ═══════════════════════════════════════════════════════════════════
+const secp = (() => {
+  const Fp = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2Fn;
+  const N  = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141n;
+  const Gx = 0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798n;
+  const Gy = 0x483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8n;
+  const G  = { x: Gx, y: Gy };
+
+  const fp = a => ((a % Fp) + Fp) % Fp;
+  const fn = a => ((a % N)  + N)  % N;
+
+  function mpow(b, e, m) {
+    let r = 1n; b = ((b % m) + m) % m;
+    while (e > 0n) { if (e & 1n) r = r * b % m; e >>= 1n; b = b * b % m; }
+    return r;
+  }
+  const inv = a => mpow(fp(a), Fp - 2n, Fp);
+
+  function padd(A, B) {
+    if (!A) return B; if (!B) return A;
+    if (A.x === B.x) {
+      if (A.y !== B.y) return null;
+      const l = fp(3n * A.x * A.x * inv(2n * A.y));
+      const x = fp(l * l - 2n * A.x);
+      return { x, y: fp(l * (A.x - x) - A.y) };
+    }
+    const l = fp((B.y - A.y) * inv(B.x - A.x));
+    const x = fp(l * l - A.x - B.x);
+    return { x, y: fp(l * (A.x - x) - A.y) };
+  }
+
+  function pmul(k, P) {
+    let R = null, Q = { ...P };
+    k = fn(k);
+    while (k > 0n) { if (k & 1n) R = padd(R, Q); Q = padd(Q, Q); k >>= 1n; }
+    return R;
+  }
+
+  const hex  = b => [...b].map(v => v.toString(16).padStart(2,'0')).join('');
+  const unhex = h => new Uint8Array(h.match(/.{2}/g).map(v => parseInt(v,16)));
+  const bn   = b => BigInt('0x' + hex(b));
+  const b32  = n => unhex(n.toString(16).padStart(64,'0'));
+
+  async function sha256(data) {
+    return new Uint8Array(await crypto.subtle.digest('SHA-256', data));
+  }
+
+  async function taggedHash(tag, ...parts) {
+    const enc = new TextEncoder().encode(tag);
+    const th  = await sha256(enc);
+    const sz  = th.length * 2 + parts.reduce((s,p) => s + p.length, 0);
+    const buf = new Uint8Array(sz);
+    buf.set(th, 0); buf.set(th, th.length);
+    let off = th.length * 2;
+    for (const p of parts) { buf.set(p, off); off += p.length; }
+    return sha256(buf);
+  }
+
+  function liftX(xb) {
+    const x = bn(xb);
+    if (x >= Fp) return null;
+    const y2 = fp(mpow(x, 3n, Fp) + 7n);
+    const y  = mpow(y2, (Fp + 1n) / 4n, Fp);
+    if (mpow(y, 2n, Fp) !== y2) return null;
+    return { x, y: y % 2n === 0n ? y : Fp - y };
+  }
+
+  function getPubkey(privb) {
+    const P = pmul(bn(privb), G);
+    return b32(P.x);
+  }
+
+  async function schnorrSign(privb, msgb) {
+    let d = bn(privb);
+    let P = pmul(d, G);
+    if (P.y % 2n !== 0n) d = fn(N - d);
+    const Pb = b32(P.x);
+    const aux = crypto.getRandomValues(new Uint8Array(32));
+    const t = fn(d ^ bn(await taggedHash('BIP0340/aux', aux)));
+    const rand = await taggedHash('BIP0340/nonce', b32(t), Pb, msgb);
+    let k = fn(bn(rand));
+    const R = pmul(k, G);
+    if (R.y % 2n !== 0n) k = fn(N - k);
+    const Rb = b32(R.x);
+    const e  = fn(bn(await taggedHash('BIP0340/challenge', Rb, Pb, msgb)));
+    const s  = fn(k + e * d);
+    const sig = new Uint8Array(64);
+    sig.set(Rb, 0); sig.set(b32(s), 32);
+    return sig;
+  }
+
+  async function schnorrVerify(pubb, msgb, sigb) {
+    try {
+      const r = bn(sigb.slice(0,32)), s = bn(sigb.slice(32));
+      if (r >= Fp || s >= N) return false;
+      const P = liftX(pubb); if (!P) return false;
+      const e = fn(bn(await taggedHash('BIP0340/challenge', b32(r), pubb, msgb)));
+      const R = padd(pmul(s, G), pmul(fn(N - e), P));
+      if (!R || R.y % 2n !== 0n || R.x !== r) return false;
+      return true;
+    } catch { return false; }
+  }
+
+  async function nip04Encrypt(sprivb, rpubHex, plain) {
+    const rPub = liftX(unhex(rpubHex));
+    if (!rPub) throw new Error('Invalid recipient pubkey');
+    const shared = pmul(bn(sprivb), rPub);
+    const key = await crypto.subtle.importKey('raw', b32(shared.x), {name:'AES-CBC'}, false, ['encrypt']);
+    const iv  = crypto.getRandomValues(new Uint8Array(16));
+    const enc = new Uint8Array(await crypto.subtle.encrypt({name:'AES-CBC',iv}, key, new TextEncoder().encode(plain)));
+    return btoa(String.fromCharCode(...enc)) + '?iv=' + btoa(String.fromCharCode(...iv));
+  }
+
+  async function nip04Decrypt(rprivb, spubHex, ct) {
+    const [c, ivb64] = ct.split('?iv=');
+    const cb = Uint8Array.from(atob(c), x => x.charCodeAt(0));
+    const iv = Uint8Array.from(atob(ivb64), x => x.charCodeAt(0));
+    const sPub = liftX(unhex(spubHex));
+    if (!sPub) throw new Error('Invalid sender pubkey');
+    const shared = pmul(bn(rprivb), sPub);
+    const key = await crypto.subtle.importKey('raw', b32(shared.x), {name:'AES-CBC'}, false, ['decrypt']);
+    const dec = await crypto.subtle.decrypt({name:'AES-CBC',iv}, key, cb);
+    return new TextDecoder().decode(dec);
+  }
+
+  async function deriveFromSeed(seedb) {
+    const domain = new TextEncoder().encode('sovereign-bridge-nostr-v1');
+    const buf = new Uint8Array(domain.length + seedb.length);
+    buf.set(domain); buf.set(seedb, domain.length);
+    const h = await sha256(buf);
+    return b32(fn(bn(h)) || 1n);
+  }
+
+  return { getPubkey, schnorrSign, schnorrVerify, nip04Encrypt, nip04Decrypt,
+           deriveFromSeed, sha256, hex, unhex, bn, b32, fn, N, liftX };
+})();
+
+
+// ═══════════════════════════════════════════════════════════════════
+// BECH32 — pure JS (for npub / nsec / note1)
+// ═══════════════════════════════════════════════════════════════════
+const bech32 = (() => {
+  const CS  = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
+  const GEN = [0x3b6a57b2,0x26508e6d,0x1ea119fa,0x3d4233dd,0x2a1462b3];
+
+  function poly(vs) {
+    let c = 1;
+    for (const v of vs) {
+      const t = c >> 25; c = (c & 0x1ffffff) << 5 ^ v;
+      for (let i=0;i<5;i++) if ((t>>i)&1) c ^= GEN[i];
+    }
+    return c;
+  }
+  function hrpx(h) {
+    const r=[]; for(const c of h) r.push(c.charCodeAt(0)>>5);
+    r.push(0); for(const c of h) r.push(c.charCodeAt(0)&31);
+    return r;
+  }
+  function cvt(data, fr, to, pad=true) {
+    let acc=0,bits=0; const r=[],max=(1<<to)-1;
+    for(const v of data){ acc=(acc<<fr)|v; bits+=fr; while(bits>=to){bits-=to;r.push((acc>>bits)&max);} }
+    if(pad&&bits>0) r.push((acc<<(to-bits))&max);
+    return r;
+  }
+  function encode(hrp, d5) {
+    const comb=[...d5,0,0,0,0,0,0];
+    const mod=poly([...hrpx(hrp),...comb])^1;
+    const ck=[]; for(let i=0;i<6;i++) ck.push((mod>>(5*(5-i)))&31);
+    return hrp+'1'+[...d5,...ck].map(d=>CS[d]).join('');
+  }
+  function decode(str) {
+    const s=str.toLowerCase(), sep=s.lastIndexOf('1');
+    if(sep<1||sep+7>s.length) throw new Error('Invalid bech32');
+    const hrp=s.slice(0,sep);
+    const data=s.slice(sep+1).split('').map(c=>{const i=CS.indexOf(c);if(i<0)throw new Error('Bad char');return i;});
+    if(poly([...hrpx(hrp),...data])!==1) throw new Error('Bad checksum');
+    return {hrp,data:data.slice(0,-6)};
+  }
+  const npub = b => encode('npub', cvt(b, 8, 5));
+  const nsec = b => encode('nsec', cvt(b, 8, 5));
+  const decodeKey = s => { const {data}=decode(s); return new Uint8Array(cvt(data,5,8,false)); };
+  return { encode, decode, npub, nsec, decodeKey, cvt };
+})();
+
+
+// ═══════════════════════════════════════════════════════════════════
+// NOSTR BRIDGE — NIP-01 + NIP-04 · WebSocket relays
+// ═══════════════════════════════════════════════════════════════════
+class NostrBridge {
+  constructor() {
+    this.privb   = null;
+    this.pubb    = null;
+    this.pubHex  = null;
+    this.relays  = new Map();   // url → {ws, status}
+    this.subs    = new Map();   // subId → {filters, cb}
+    this.handlers = [];
+  }
+
+  setKey(privb) {
+    this.privb  = privb;
+    this.pubb   = secp.getPubkey(privb);
+    this.pubHex = secp.hex(this.pubb);
+  }
+
+  async addRelay(url) {
+    if (this.relays.has(url)) return;
+    this.relays.set(url, { url, status: 'pnd', ws: null });
+    this._fire('relay', { url, status: 'pnd' });
+    return this._connect(url);
+  }
+
+  removeRelay(url) {
+    const r = this.relays.get(url);
+    if (r?.ws) try { r.ws.close(); } catch {}
+    this.relays.delete(url);
+    this._fire('relay', { url, status: 'gone' });
+  }
+
+  _connect(url) {
+    return new Promise((resolve, reject) => {
+      let settled = false;
+      const settle = (fn, v) => { if(!settled){settled=true; fn(v);} };
+      const entry = this.relays.get(url);
+      try {
+        const ws = new WebSocket(url);
+        entry.ws = ws;
+        ws.onopen = () => {
+          entry.status = 'ok';
+          this._fire('relay', { url, status: 'ok' });
+          for (const [id, { filters }] of this.subs)
+            ws.send(JSON.stringify(['REQ', id, ...filters]));
+          settle(resolve, ws);
+        };
+        ws.onerror = e => { entry.status='err'; this._fire('relay',{url,status:'err'}); settle(reject,e); };
+        ws.onclose = () => {
+          entry.status = 'err';
+          this._fire('relay', { url, status: 'err' });
+          setTimeout(() => { if (this.relays.has(url)) this._connect(url); }, 8000);
+        };
+        ws.onmessage = e => this._msg(url, e.data);
+      } catch(e) { entry.status='err'; this._fire('relay',{url,status:'err'}); settle(reject,e); }
+    });
+  }
+
+  _msg(relay, raw) {
+    try {
+      const m = JSON.parse(raw);
+      if (m[0]==='EVENT') {
+        const [,sid,ev] = m;
+        const s = this.subs.get(sid);
+        if (s) s.cb(ev, relay);
+        for (const h of this.handlers) h(ev, relay);
+      } else if (m[0]==='NOTICE') {
+        console.log('[nostr notice]', relay, m[1]);
+      }
+    } catch {}
+  }
+
+  _bcast(payload) {
+    const d = JSON.stringify(payload);
+    for (const {ws, status} of this.relays.values())
+      if (ws && status==='ok' && ws.readyState===1) ws.send(d);
+  }
+
+  _fire(type, detail) { window.dispatchEvent(new CustomEvent('nostr:'+type, {detail})); }
+
+  subscribe(filters, cb) {
+    const id = secp.hex(crypto.getRandomValues(new Uint8Array(8)));
+    this.subs.set(id, { filters, cb });
+    this._bcast(['REQ', id, ...filters]);
+    return id;
+  }
+
+  unsubscribe(id) { this.subs.delete(id); this._bcast(['CLOSE', id]); }
+
+  async publish(kind, content, tags=[]) {
+    if (!this.privb) throw new Error('No key');
+    const ts = Math.floor(Date.now()/1000);
+    const serial = JSON.stringify([0, this.pubHex, ts, kind, tags, content]);
+    const idb = await secp.sha256(new TextEncoder().encode(serial));
+    const id  = secp.hex(idb);
+    const sig = secp.hex(await secp.schnorrSign(this.privb, idb));
+    const ev  = { id, pubkey: this.pubHex, created_at: ts, kind, tags, content, sig };
+    this._bcast(['EVENT', ev]);
+    return ev;
+  }
+
+  publishNote(text)                { return this.publish(1, text); }
+  publishProfile(name, about='')   { return this.publish(0, JSON.stringify({name,about})); }
+  async sendDM(toPubHex, plain)    {
+    const ct = await secp.nip04Encrypt(this.privb, toPubHex, plain);
+    return this.publish(4, ct, [['p', toPubHex]]);
+  }
+
+  subGlobal(cb, lim=30)  { return this.subscribe([{kinds:[1],limit:lim}], cb); }
+  subMine(cb, lim=30)    { return this.subscribe([{kinds:[0,1,4],authors:[this.pubHex],limit:lim}], cb); }
+  subDM(toPubHex, cb)    { return this.subscribe([{kinds:[4],authors:[this.pubHex,toPubHex],'#p':[this.pubHex],limit:50}], cb); }
+  subProfile(pk, cb)     { return this.subscribe([{kinds:[0,1],authors:[pk],limit:20}], cb); }
+}
+
+
+// ═══════════════════════════════════════════════════════════════════
+// MATRIX BRIDGE — Client-Server API r0/v3 · fetch only
+// ═══════════════════════════════════════════════════════════════════
+class MatrixBridge {
+  constructor() {
+    this.srv=null; this.tok=null; this.uid=null;
+    this.syncTok=null; this._stop=false; this._timer=null;
+    this.onMsg=[]; this.rooms=new Map();
+  }
+
+  async login(srv, user, pwd) {
+    srv = srv.replace(/\/$/,'');
+    const r = await fetch(`${srv}/_matrix/client/v3/login`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ type:'m.login.password', identifier:{type:'m.id.user',user}, password:pwd })
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+    this.srv=srv; this.tok=d.access_token; this.uid=d.user_id;
+    return d;
+  }
+
+  logout() { this.stopSync(); this.srv=this.tok=this.uid=this.syncTok=null; this.rooms.clear(); }
+
+  async joinedRooms()   { return (await (await this._a('GET','/_matrix/client/v3/joined_rooms')).json()).joined_rooms||[]; }
+  async roomName(id)    { try { return (await (await this._a('GET',`/_matrix/client/v3/rooms/${enc(id)}/state/m.room.name/`)).json()).name; } catch { return id; } }
+  async msgs(id,lim=40) { return ((await (await this._a('GET',`/_matrix/client/v3/rooms/${enc(id)}/messages?dir=b&limit=${lim}`)).json()).chunk||[]).reverse(); }
+  async send(id, text)  {
+    const txn = Date.now().toString(36)+Math.random().toString(36).slice(2);
+    return (await this._a('PUT',`/_matrix/client/v3/rooms/${enc(id)}/send/m.room.message/${txn}`,{msgtype:'m.text',body:text})).json();
+  }
+
+  async sync(timeout=15000) {
+    const p = new URLSearchParams({timeout});
+    if (this.syncTok) p.set('since', this.syncTok);
+    const d = await (await this._a('GET',`/_matrix/client/v3/sync?${p}`)).json();
+    this.syncTok = d.next_batch;
+    if (d.rooms?.join) for (const [rid,rm] of Object.entries(d.rooms.join))
+      for (const ev of rm.timeline?.events||[])
+        if (ev.type==='m.room.message') for (const h of this.onMsg) h(rid,ev);
+    return d;
+  }
+
+  startSync(cb) {
+    if(cb) this.onMsg.push(cb);
+    this._stop=false;
+    const loop = async () => {
+      if(this._stop||!this.tok) return;
+      try { await this.sync(); } catch { await new Promise(r=>setTimeout(r,5000)); }
+      if(!this._stop) this._timer=setTimeout(loop, 500);
+    };
+    loop();
+  }
+  stopSync() { this._stop=true; clearTimeout(this._timer); this.onMsg=[]; }
+
+  async _a(method, path, body) {
+    const opts = { method, headers: {'Authorization':`Bearer ${this.tok}`,'Content-Type':'application/json'} };
+    if(body) opts.body=JSON.stringify(body);
+    const r = await fetch(this.srv+path, opts);
+    if(!r.ok) { const e=await r.json().catch(()=>({})); throw new Error(e.error||`HTTP ${r.status}`); }
+    return r;
+  }
+}
+const enc = id => encodeURIComponent(id);
+
+
+// ═══════════════════════════════════════════════════════════════════
+// RSS / ATOM BRIDGE — DOMParser · zero deps
+// ═══════════════════════════════════════════════════════════════════
+class RSSBridge {
+  constructor() { this.feeds=new Map(); this.proxy='https://api.allorigins.win/raw?url='; }
+
+  async fetch(url, useProxy=false) {
+    const u = useProxy ? this.proxy+encodeURIComponent(url) : url;
+    const r = await window.fetch(u);
+    if(!r.ok) throw new Error(`HTTP ${r.status}`);
+    const text = await r.text();
+    const feed = this._parse(text, url);
+    this.feeds.set(url, feed);
+    return feed;
+  }
+
+  _parse(text, src) {
+    const doc = new DOMParser().parseFromString(text, 'text/xml');
+    if (doc.querySelector('parsererror')) {
+      const doc2 = new DOMParser().parseFromString(text, 'text/html');
+      return this._rss(doc2, src);
+    }
+    return doc.querySelector('feed') ? this._atom(doc,src) : this._rss(doc,src);
+  }
+
+  _rss(doc, src) {
+    const ch = doc.querySelector('channel');
+    const title = ch?.querySelector('title')?.textContent?.trim() || src;
+    const items = [...doc.querySelectorAll('item')].slice(0,50).map(it => ({
+      title: it.querySelector('title')?.textContent?.trim() || '(no title)',
+      link:  it.querySelector('link')?.textContent?.trim() || it.querySelector('link')?.getAttribute('href') || '',
+      desc:  strip(it.querySelector('description')?.textContent||''),
+      date:  it.querySelector('pubDate')?.textContent?.trim() || '',
+      guid:  it.querySelector('guid')?.textContent?.trim() || Math.random().toString(36),
+      src
+    }));
+    return {title,items,type:'rss',src,ts:Date.now()};
+  }
+
+  _atom(doc, src) {
+    const title = doc.querySelector('feed>title')?.textContent?.trim() || src;
+    const items = [...doc.querySelectorAll('entry')].slice(0,50).map(e => ({
+      title: e.querySelector('title')?.textContent?.trim() || '(no title)',
+      link:  e.querySelector('link')?.getAttribute('href') || e.querySelector('link')?.textContent?.trim() || '',
+      desc:  strip(e.querySelector('summary')?.textContent || e.querySelector('content')?.textContent || ''),
+      date:  e.querySelector('updated,published')?.textContent?.trim() || '',
+      guid:  e.querySelector('id')?.textContent?.trim() || Math.random().toString(36),
+      src
+    }));
+    return {title,items,type:'atom',src,ts:Date.now()};
+  }
+
+  all() {
+    const items = [];
+    for (const f of this.feeds.values()) items.push(...f.items);
+    items.sort((a,b) => new Date(b.date)-new Date(a.date));
+    return items;
+  }
+}
+
+
+// ═══════════════════════════════════════════════════════════════════
+// WEBFINGER + ACTIVITYPUB — RFC 7033 · pure fetch
+// ═══════════════════════════════════════════════════════════════════
+class WebFingerBridge {
+  async resolve(acct) {
+    const clean = acct.replace(/^@/,'');
+    const at = clean.indexOf('@');
+    if (at<1) throw new Error('Format: user@domain or @user@domain');
+    const domain = clean.slice(at+1);
+    const r = await fetch(`https://${domain}/.well-known/webfinger?resource=acct:${clean}`,
+      { headers: { Accept: 'application/json' } });
+    if (!r.ok) throw new Error(`WebFinger ${r.status} — is this a Fediverse server?`);
+    return r.json();
+  }
+
+  async fetchAP(acct) {
+    const wf = await this.resolve(acct);
+    const self = (wf.links||[]).find(l => l.rel==='self' &&
+      (l.type==='application/activity+json'||l.type==='application/ld+json'));
+    if (!self) throw new Error('No ActivityPub profile link found');
+    const r = await fetch(self.href, { headers: { Accept: 'application/activity+json' } });
+    if (!r.ok) throw new Error(`AP profile ${r.status}`);
+    return { wf, profile: await r.json() };
+  }
+
+  nostrLink(wf) {
+    return (wf.links||[]).find(l =>
+      l.rel==='https://nostr.pub/next/nostr' || l.rel==='nostr' ||
+      (l.href||'').includes('nostr:npub'));
+  }
+}
+
+
+// ═══════════════════════════════════════════════════════════════════
+// INDEXED DB PERSISTENCE
+// ═══════════════════════════════════════════════════════════════════
+const db = (() => {
+  let _db;
+  const ready = new Promise(res => {
+    const req = indexedDB.open('sovereign-bridge-v1', 1);
+    req.onupgradeneeded = e => e.target.result.createObjectStore('kv');
+    req.onsuccess = e => { _db=e.target.result; res(); };
+    req.onerror   = () => res();
+  });
+  const tx = (mode) => _db?.transaction('kv', mode).objectStore('kv');
+  const get = async k => { await ready; if(!_db)return null; return new Promise(r=>{ const q=tx('readonly').get(k); q.onsuccess=()=>r(q.result??null); q.onerror=()=>r(null); }); };
+  const set = async (k,v) => { await ready; if(!_db)return; return new Promise(r=>{ const t=_db.transaction('kv','readwrite'); t.objectStore('kv').put(v,k); t.oncomplete=r; t.onerror=r; }); };
+  return { get, set };
+})();
+
+
+// ═══════════════════════════════════════════════════════════════════
+// COORDINATOR
+// ═══════════════════════════════════════════════════════════════════
+const bridge = {
+  nostr:  new NostrBridge(),
+  matrix: new MatrixBridge(),
+  rss:    new RSSBridge(),
+  wf:     new WebFingerBridge(),
+  privb: null, pubb: null,
+
+  async init() {
+    let priv = await db.get('privkey');
+    if (!priv) { priv = crypto.getRandomValues(new Uint8Array(32)); await db.set('privkey', priv); }
+    this.setKey(priv);
+    const relays = await db.get('relays') || [];
+    for (const url of relays) this.nostr.addRelay(url).catch(()=>{});
+    const feeds = await db.get('feeds') || [];
+    for (const {url,proxy} of feeds) this.rss.fetch(url,proxy).catch(()=>{});
+  },
+
+  setKey(priv) {
+    this.privb = priv; this.pubb = secp.getPubkey(priv);
+    this.nostr.setKey(priv);
+    UI.updateIdentity();
+  },
+
+  async resetKey() {
+    const p = crypto.getRandomValues(new Uint8Array(32));
+    await db.set('privkey', p); this.setKey(p);
+  },
+
+  async saveRelays() { await db.set('relays', [...this.nostr.relays.keys()]); },
+  async saveFeeds()  { const f=[]; for(const [u] of this.rss.feeds) f.push({url:u,proxy:false}); await db.set('feeds',f); }
+};
+
+
+// ═══════════════════════════════════════════════════════════════════
+// UI
+// ═══════════════════════════════════════════════════════════════════
+const UI = {
+  activeTab: 'nostr',
+  nostrSub: null,
+  mxRoom: null,
+  dmTarget: null,
+
+  init() {
+    // tabs
+    document.querySelectorAll('.tbtn').forEach(b =>
+      b.addEventListener('click', () => this.tab(b.dataset.t)));
+
+    this._nostr();
+    this._matrix();
+    this._feeds();
+    this._identity();
+  },
+
+  tab(t) {
+    this.activeTab = t;
+    document.querySelectorAll('.tbtn').forEach(b => b.classList.toggle('on', b.dataset.t===t));
+    document.querySelectorAll('.tpanel').forEach(p => p.classList.toggle('on', p.id===`pn-${t}`));
+  },
+
+  updateIdentity() {
+    if (!bridge.pubb) return;
+    const ph = secp.hex(bridge.pubb);
+    const np = bech32.npub(bridge.pubb);
+    document.getElementById('chip-pub-v').textContent  = ph.slice(0,16)+'…';
+    document.getElementById('chip-npub-v').textContent = np.slice(0,20)+'…';
+    document.getElementById('chip-npub').style.display = '';
+    document.getElementById('id-pub').textContent  = ph;
+    document.getElementById('id-npub').textContent = np;
+    document.getElementById('btn-export').style.display = '';
+    document.getElementById('sdot').classList.add('on');
+  },
+
+  // ── NOSTR ─────────────────────────────────────────────────────
+  _nostr() {
+    const $ = id => document.getElementById(id);
+
+    $('btn-add-relay').addEventListener('click', async () => {
+      const url = $('relay-in').value.trim(); if(!url)return;
+      $('relay-in').value='';
+      await bridge.nostr.addRelay(url);
+      await bridge.saveRelays();
+      this.renderRelays();
+    });
+    $('relay-in').addEventListener('keydown', e => { if(e.key==='Enter') $('btn-add-relay').click(); });
+
+    $('btn-global').addEventListener('click', () => this.nostrGlobal());
+    $('btn-myfeed').addEventListener('click', () => this.nostrMine());
+
+    const txt = $('compose');
+    txt.addEventListener('input', () => { $('cc').textContent=`${txt.value.length} / 280`; });
+    $('btn-pub').addEventListener('click', async () => {
+      const c = txt.value.trim(); if(!c)return;
+      try { await bridge.nostr.publishNote(c); txt.value=''; $('cc').textContent='0 / 280'; this.toast('Published','ok'); }
+      catch(e) { this.toast(e.message,'err'); }
+    });
+    txt.addEventListener('keydown', e => { if(e.key==='Enter'&&e.ctrlKey) $('btn-pub').click(); });
+
+    $('btn-dm').addEventListener('click', () => {
+      const v = $('dm-in').value.trim(); if(!v)return;
+      try {
+        const h = v.startsWith('npub1') ? secp.hex(bech32.decodeKey(v)) : v;
+        this.openDM(h);
+      } catch { this.toast('Invalid pubkey','err'); }
+    });
+
+    window.addEventListener('nostr:relay', () => this.renderRelays());
+    window.addEventListener('nostr:relay', e => {
+      if (e.detail.status==='ok' && !this.nostrSub) this.nostrGlobal();
+    });
+
+    $('chip-pub').addEventListener('click', () => { navigator.clipboard.writeText(secp.hex(bridge.pubb)); this.toast('Copied','ok'); });
+    $('chip-npub').addEventListener('click', () => { navigator.clipboard.writeText(bech32.npub(bridge.pubb)); this.toast('Copied','ok'); });
+  },
+
+  renderRelays() {
+    const list = document.getElementById('relay-list');
+    list.innerHTML = '';
+    if (!bridge.nostr.relays.size) {
+      list.innerHTML='<div style="font-size:9px;color:var(--text3);padding:4px">No relays.</div>';
+      return;
+    }
+    for (const [url,{status}] of bridge.nostr.relays) {
+      const el = document.createElement('div'); el.className='litem';
+      const short = url.replace(/wss?:\/\//,'');
+      el.innerHTML=`<div class="dot ${status==='ok'?'ok':status==='pnd'?'pnd':'err'}"></div><div class="nm" title="${esc(url)}">${esc(short)}</div><span class="rm" data-u="${esc(url)}">✕</span>`;
+      el.querySelector('.rm').addEventListener('click', async e => {
+        e.stopPropagation(); bridge.nostr.removeRelay(e.target.dataset.u);
+        await bridge.saveRelays(); this.renderRelays();
+      });
+      list.appendChild(el);
+    }
+  },
+
+  nostrGlobal() {
+    if (this.nostrSub) bridge.nostr.unsubscribe(this.nostrSub);
+    document.getElementById('feed-lbl').textContent='GLOBAL FEED';
+    document.getElementById('nostr-feed').innerHTML='';
+    this.nostrSub = bridge.nostr.subGlobal(ev => this.renderEvent(ev));
+  },
+
+  nostrMine() {
+    if (!bridge.nostr.pubHex) { this.toast('No key loaded','err'); return; }
+    if (this.nostrSub) bridge.nostr.unsubscribe(this.nostrSub);
+    document.getElementById('feed-lbl').textContent='MY FEED';
+    document.getElementById('nostr-feed').innerHTML='';
+    this.nostrSub = bridge.nostr.subMine(ev => this.renderEvent(ev));
+  },
+
+  openDM(pubHex) {
+    this.dmTarget = pubHex;
+    document.getElementById('feed-lbl').textContent='DM: '+pubHex.slice(0,12)+'…';
+    document.getElementById('nostr-feed').innerHTML='';
+    if (this.nostrSub) bridge.nostr.unsubscribe(this.nostrSub);
+    this.nostrSub = bridge.nostr.subDM(pubHex, async ev => {
+      let body = ev.content;
+      try {
+        const sender = ev.pubkey===bridge.nostr.pubHex ? pubHex : ev.pubkey;
+        body = await secp.nip04Decrypt(bridge.privb, sender, ev.content);
+      } catch {}
+      this.renderEvent({...ev, content:body});
+    });
+    this.addDMSidebar(pubHex);
+  },
+
+  addDMSidebar(pubHex) {
+    const list = document.getElementById('dm-list');
+    if (document.getElementById(`dm-${pubHex}`)) return;
+    const el = document.createElement('div'); el.className='litem'; el.id=`dm-${pubHex}`;
+    el.innerHTML=`<div class="nm">${pubHex.slice(0,14)}…</div>`;
+    el.addEventListener('click', () => this.openDM(pubHex));
+    list.appendChild(el);
+  },
+
+  renderEvent(ev, prepend=true) {
+    const feed = document.getElementById('nostr-feed');
+    if (document.getElementById(`ev-${ev.id}`)) return;
+    feed.querySelector('.notice.info')?.remove();
+    const kinds = {0:'profile',1:'note',4:'dm',3:'contacts'};
+    const kl = kinds[ev.kind]||`k:${ev.kind}`;
+    const ago = this.ago(ev.created_at*1000);
+    const div = document.createElement('div'); div.className='ecard'; div.id=`ev-${ev.id}`;
+    div.innerHTML=`
+      <div class="ehead">
+        <span class="eauthor">${esc(ev.pubkey?.slice(0,20))}…</span>
+        <span class="etime">${ago} · <span class="tag n">${kl}</span></span>
+      </div>
+      <div class="ebody">${esc(ev.content||'').slice(0,600)}</div>
+      <div class="eacts">
+        <button style="font-size:9px;padding:3px 8px" data-pk="${esc(ev.pubkey)}">↳ DM</button>
+        <button style="font-size:9px;padding:3px 8px" data-id="${esc(ev.id)}">⧉ COPY ID</button>
+      </div>`;
+    div.querySelector('[data-pk]').addEventListener('click', e => this.openDM(e.target.dataset.pk));
+    div.querySelector('[data-id]').addEventListener('click', e => { navigator.clipboard.writeText(e.target.dataset.id); this.toast('Copied','ok'); });
+    if (prepend && feed.firstChild) feed.insertBefore(div, feed.firstChild);
+    else feed.appendChild(div);
+  },
+
+  // ── MATRIX ────────────────────────────────────────────────────
+  _matrix() {
+    const $ = id => document.getElementById(id);
+    $('btn-mxlogin').addEventListener('click', async () => {
+      const srv=$('mx-srv').value.trim(), usr=$('mx-usr').value.trim(), pwd=$('mx-pwd').value;
+      if(!srv||!usr||!pwd)return;
+      $('btn-mxlogin').disabled=true;
+      try { await bridge.matrix.login(srv,usr,pwd); this.mxConnected(); }
+      catch(e) { this.toast('Matrix: '+e.message,'err'); }
+      finally { $('btn-mxlogin').disabled=false; }
+    });
+    $('btn-mxout').addEventListener('click', () => {
+      bridge.matrix.logout();
+      $('mx-login').style.display=''; $('mx-conn').style.display='none';
+      $('mx-rooms').innerHTML='<div style="font-size:10px;color:var(--text3)">Not connected.</div>';
+      $('mx-feed').innerHTML='<div class="notice info">Connect to Matrix and select a room.</div>';
+      $('mx-rtitle').textContent='Select a room →';
+    });
+    $('btn-mxsend').addEventListener('click', () => this.mxSend());
+    $('mx-msg').addEventListener('keydown', e => { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();this.mxSend();} });
+  },
+
+  async mxConnected() {
+    const $ = id => document.getElementById(id);
+    $('mx-login').style.display='none'; $('mx-conn').style.display='';
+    $('mx-status').textContent='Connected as '+bridge.matrix.uid;
+    const ids = await bridge.matrix.joinedRooms();
+    const list = $('mx-rooms'); list.innerHTML='';
+    for (const id of ids.slice(0,25)) {
+      const name = await bridge.matrix.roomName(id);
+      bridge.matrix.rooms.set(id, {name});
+      const el = document.createElement('div'); el.className='ritem'; el.dataset.id=id;
+      el.textContent=(name||id).slice(0,28); el.title=id;
+      el.addEventListener('click', () => this.mxOpenRoom(id,name));
+      list.appendChild(el);
+    }
+    bridge.matrix.startSync((rid,ev) => {
+      if (rid===this.mxRoom) this.renderMxMsg(ev);
+      else {
+        const el=document.querySelector(`.ritem[data-id="${rid}"]`);
+        if (el && !el.querySelector('.badge')) el.insertAdjacentHTML('beforeend','<span class="badge" style="background:var(--matrix);color:#000;font-size:8px;padding:0 4px;margin-left:4px">·</span>');
+      }
+    });
+  },
+
+  async mxOpenRoom(id, name) {
+    this.mxRoom = id;
+    const $ = x => document.getElementById(x);
+    $('mx-rtitle').textContent = name||id;
+    document.querySelectorAll('.ritem').forEach(el => {
+      el.classList.toggle('on', el.dataset.id===id);
+      el.querySelector('.badge')?.remove();
+    });
+    const feed=$('mx-feed'); feed.innerHTML='<div style="font-size:9px;color:var(--text3);text-align:center;padding:10px">Loading…</div>';
+    try {
+      const msgs = await bridge.matrix.msgs(id,40);
+      feed.innerHTML='';
+      msgs.forEach(m => this.renderMxMsg(m));
+    } catch(e) { feed.innerHTML=`<div class="notice err">Failed: ${esc(e.message)}</div>`; }
+  },
+
+  renderMxMsg(ev) {
+    const feed=document.getElementById('mx-feed');
+    if(!ev.content?.body) return;
+    if(document.getElementById(`mx-${ev.event_id}`)) return;
+    feed.querySelector('.notice.info')?.remove();
+    const mine = ev.sender===bridge.matrix.uid;
+    const div=document.createElement('div'); div.className=`mxmsg${mine?' me':''}`; div.id=`mx-${ev.event_id}`;
+    div.innerHTML=`<div class="snd">${esc(ev.sender)}</div><div class="bd">${esc(ev.content.body)}</div><div class="ts">${this.ago(ev.origin_server_ts)}</div>`;
+    feed.appendChild(div); feed.scrollTop=feed.scrollHeight;
+  },
+
+  async mxSend() {
+    if(!this.mxRoom){this.toast('Select a room','warn');return;}
+    const inp=document.getElementById('mx-msg'); const t=inp.value.trim(); if(!t)return; inp.value='';
+    try { await bridge.matrix.send(this.mxRoom, t); } catch(e){this.toast('Matrix: '+e.message,'err');}
+  },
+
+  // ── FEEDS ─────────────────────────────────────────────────────
+  _feeds() {
+    const $ = id => document.getElementById(id);
+    $('btn-addfeed').addEventListener('click', () => this.addFeed());
+    $('feed-url').addEventListener('keydown', e => { if(e.key==='Enter') this.addFeed(); });
+    $('btn-refreshfeeds').addEventListener('click', async () => {
+      for (const [url] of bridge.rss.feeds) bridge.rss.fetch(url).catch(()=>{});
+      setTimeout(() => this.renderFeedItems(), 2500);
+    });
+  },
+
+  async addFeed() {
+    const url=document.getElementById('feed-url').value.trim();
+    const proxy=document.getElementById('feed-proxy').checked;
+    if(!url)return; document.getElementById('feed-url').value='';
+    try {
+      const f=await bridge.rss.fetch(url,proxy);
+      this.toast('Subscribed: '+f.title,'ok');
+      this.renderFeedSidebar(); this.renderFeedItems();
+      await bridge.saveFeeds();
+    } catch(e) { this.toast('Feed error: '+e.message+'. Try CORS proxy.','err'); }
+  },
+
+  renderFeedSidebar() {
+    const list=document.getElementById('feed-list'); list.innerHTML='';
+    for (const [url,f] of bridge.rss.feeds) {
+      const el=document.createElement('div'); el.className='litem';
+      el.innerHTML=`<div class="dot ok"></div><div class="nm" title="${esc(url)}">${esc(f.title.slice(0,22))}</div><span class="rm" data-u="${esc(url)}">✕</span>`;
+      el.querySelector('.rm').addEventListener('click', async e => {
+        e.stopPropagation(); bridge.rss.feeds.delete(e.target.dataset.u);
+        this.renderFeedSidebar(); this.renderFeedItems(); await bridge.saveFeeds();
+      });
+      list.appendChild(el);
+    }
+  },
+
+  renderFeedItems() {
+    const panel=document.getElementById('feed-panel');
+    const items=bridge.rss.all();
+    if(!items.length){panel.innerHTML='<div class="notice info">Add a feed URL to subscribe.</div>';return;}
+    panel.innerHTML='';
+    for (const it of items.slice(0,60)) {
+      const dt=it.date?new Date(it.date).toLocaleDateString():'';
+      const domain=it.src.replace(/https?:\/\//,'').split('/')[0];
+      const div=document.createElement('div'); div.className='fitem';
+      div.innerHTML=`<div class="ft">${it.link?`<a href="${esc(it.link)}" target="_blank" rel="noopener">${esc(it.title)}</a>`:esc(it.title)}</div><div class="fm">${dt} · <span class="tag r">rss</span> ${esc(domain)}</div><div class="fb">${esc(it.desc)}</div>`;
+      panel.appendChild(div);
+    }
+  },
+
+  // ── IDENTITY / WEBFINGER ──────────────────────────────────────
+  _identity() {
+    const $ = id => document.getElementById(id);
+
+    $('btn-wf').addEventListener('click', () => this.wfResolve());
+    $('wf-in').addEventListener('keydown', e => { if(e.key==='Enter') this.wfResolve(); });
+
+    $('btn-impkey').addEventListener('click', async () => {
+      const v=$('imp-key').value.trim(); if(!v)return;
+      try {
+        let priv; if(v.startsWith('nsec1')) priv=bech32.decodeKey(v);
+        else if(/^[0-9a-f]{64}$/i.test(v)) priv=secp.unhex(v);
+        else throw new Error('Need nsec1… or 64-char hex');
+        await db.set('privkey',priv); bridge.setKey(priv);
+        this.toast('Key imported!','ok'); $('imp-key').value='';
+      } catch(e){this.toast(e.message,'err');}
+    });
+
+    $('btn-drvkey').addEventListener('click', async () => {
+      const v=$('drv-key').value.trim(); if(!v)return;
+      try {
+        const seed=secp.unhex(v);
+        const derived=await secp.deriveFromSeed(seed);
+        await db.set('privkey',derived); bridge.setKey(derived);
+        this.toast('Derived from Sovereign key!','ok'); $('drv-key').value='';
+      } catch(e){this.toast(e.message,'err');}
+    });
+
+    $('btn-reset').addEventListener('click', async () => {
+      if(!confirm('Generate new bridge keypair?'))return;
+      await bridge.resetKey(); this.toast('New identity generated','warn');
+    });
+
+    $('btn-export').addEventListener('click', () => {
+      const blob=new Blob([JSON.stringify({
+        npub: bech32.npub(bridge.pubb),
+        nsec: bech32.nsec(bridge.privb),
+        pubkey_hex: secp.hex(bridge.pubb)
+      },null,2)],{type:'application/json'});
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(blob); a.download='sovereign-bridge-identity.json'; a.click();
+    });
+  },
+
+  async wfResolve() {
+    const v=document.getElementById('wf-in').value.trim(); if(!v)return;
+    const out=document.getElementById('wf-out');
+    out.innerHTML='<div style="font-size:10px;color:var(--text3);padding:10px">Resolving…</div>';
+    try {
+      const {wf,profile} = await bridge.wf.fetchAP(v);
+      const nl = bridge.wf.nostrLink(wf);
+      let html=`<div class="wfcard"><div class="wn">${esc(profile.name||profile.preferredUsername||v)}</div>`;
+      if(profile.summary) html+=`<div class="wr" style="margin-bottom:10px">${esc(strip(profile.summary).slice(0,200))}</div>`;
+      html+=`<div class="wr"><span class="k">handle</span>${esc(v)}</div>`;
+      if(profile.id)  html+=`<div class="wr"><span class="k">AP id</span><span style="font-size:9px">${esc(profile.id)}</span></div>`;
+      if(profile.url) html+=`<div class="wr"><span class="k">url</span><a href="${esc(profile.url)}" target="_blank" rel="noopener" style="color:var(--wf)">${esc(profile.url)}</a></div>`;
+      if(nl)          html+=`<div class="wr"><span class="k">nostr</span><span style="color:var(--nostr);font-size:9px">${esc(nl.href||'')}</span></div>`;
+      html+='<div class="wf-links" style="margin-top:10px">';
+      for(const l of wf.links||[]) if(l.href) html+=`<span class="wflink" title="${esc(l.href)}">${esc((l.rel||l.type||l.href).split('/').pop().slice(0,16))}</span>`;
+      html+='</div></div>';
+
+      if(nl?.href?.includes('npub1')) {
+        const npubStr=nl.href.replace('nostr:','').replace(/^.*npub1/,'npub1');
+        html+=`<div style="margin-top:10px"><button class="nb" id="btn-follow-wf" data-np="${esc(npubStr)}">+ FOLLOW ON NOSTR</button></div>`;
+      }
+      out.innerHTML=html;
+
+      const fbtn=document.getElementById('btn-follow-wf');
+      if(fbtn) fbtn.addEventListener('click', e => {
+        try {
+          const pubHex=secp.hex(bech32.decodeKey(e.target.dataset.np));
+          bridge.nostr.subProfile(pubHex, ev => UI.renderEvent(ev));
+          this.toast('Subscribed to their Nostr feed','ok');
+          this.tab('nostr');
+        } catch { this.toast('Could not decode npub','err'); }
+      });
+    } catch(e) { out.innerHTML=`<div class="notice err">${esc(e.message)}</div>`; }
+  },
+
+  // ── Helpers ───────────────────────────────────────────────────
+  toast(msg, lvl='info') {
+    const el=document.createElement('div');
+    el.className=`notice ${lvl}`;
+    el.style.cssText='position:fixed;bottom:16px;right:16px;z-index:10000;min-width:200px;max-width:360px;font-size:10px';
+    el.textContent=msg;
+    document.body.appendChild(el);
+    setTimeout(()=>el.remove(), 3200);
+  },
+
+  ago(ts) {
+    const d=(Date.now()-ts)/1000;
+    if(d<60) return Math.floor(d)+'s';
+    if(d<3600) return Math.floor(d/60)+'m';
+    if(d<86400) return Math.floor(d/3600)+'h';
+    return Math.floor(d/86400)+'d';
+  }
+};
+
+
+// ═══════════════════════════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════════════════════════
+const esc  = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const strip = s => s.replace(/<[^>]+>/g,'').replace(/\s+/g,' ').trim().slice(0,300);
+
+
+// ═══════════════════════════════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', async () => {
+  UI.init();
+  await bridge.init();
+
+  // ── Auto-detect Sovereign Genesis identity from shared IndexedDB ──
+  // Both pages open the same DB name, so we can read the Sovereign identity.
+  try {
+    const sovereignDB = await new Promise((res, rej) => {
+      const r = indexedDB.open('sovereign_genesis_v2', 2);
+      r.onsuccess = e => res(e.target.result);
+      r.onerror = () => res(null);
+    });
+    if (sovereignDB) {
+      const identities = await new Promise(res => {
+        const tx = sovereignDB.transaction('identity', 'readonly');
+        const req = tx.objectStore('identity').getAll();
+        req.onsuccess = e => res(e.target.result);
+        req.onerror = () => res([]);
+      });
+      if (identities.length > 0) {
+        const id = identities[0];
+        // Show a non-intrusive banner offering to derive bridge key from Sovereign identity
+        const banner = document.createElement('div');
+        banner.className = 'notice info';
+        banner.style.cssText = 'margin:8px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;';
+        banner.innerHTML = `<span>⬡ Sovereign identity detected: <strong>${esc(id.username)}</strong> — derive bridge keys?</span><button class="wb" style="padding:3px 10px;font-size:9px;" id="btn-auto-derive">DERIVE</button>`;
+        document.getElementById('content').prepend(banner);
+        document.getElementById('btn-auto-derive').addEventListener('click', async () => {
+          // Derive a deterministic secp256k1 key from the Sovereign pubkey hex
+          const seed = secp.unhex(id.pubKeyHex.slice(0, 64));
+          const derived = await secp.deriveFromSeed(seed);
+          await db.set('privkey', derived);
+          bridge.setKey(derived);
+          banner.remove();
+          UI.toast(`Bridge keys derived from ${id.username}'s Sovereign identity`, 'ok');
+        });
+      }
+    }
+  } catch (e) {
+    console.log('[Bridge] Could not read Sovereign identity:', e.message);
+  }
+
+  UI.renderRelays();
+  console.log('[Sovereign Bridge] Ready. Pure JS. No dependencies.');
+  console.log('  pubkey:', secp.hex(bridge.pubb));
+  console.log('  npub:  ', bech32.npub(bridge.pubb));
+});
+</script>
+</body>
+</html>

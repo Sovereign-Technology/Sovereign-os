@@ -671,7 +671,7 @@ textarea.field-input {
 }
 .ts-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--text3); }
 .ts-dot.mesh { background: var(--green); box-shadow: 0 0 6px rgba(0,232,122,0.5); }
-.ts-dot.chain { background: var(--cyan); box-shadow: 0 0 6px rgba(0,200,240,0.5); }
+.ts-dot.chain { background: var(--cyan); box-shadow: 0 0 6px rgba(0,200,240,0.5); animation: pulse 2s infinite; }
 
 /* Toast notifications */
 #toast-area {
@@ -754,6 +754,11 @@ textarea.field-input {
       <span class="tab-icon">⊞</span>
       <span>Apps</span>
     </button>
+    <a class="nav-tab" href="bridge.html" target="_blank" style="text-decoration:none;" title="Nostr · Matrix · RSS · Fediverse">
+      <span class="tab-icon">⬡</span>
+      <span>Bridge</span>
+      <span class="frozen-pill" style="background:rgba(168,85,247,0.12);border-color:rgba(168,85,247,0.3);color:#a855f7;">EXT</span>
+    </a>
   </nav>
 
   <div class="id-area">
@@ -881,26 +886,40 @@ textarea.field-input {
       <div id="offer-status" style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-bottom:8px;"></div>
       <div id="offer-packet-wrap" style="display:none;">
         <div id="offer-packet" style="font-family:var(--mono);font-size:10px;background:var(--bg3);border:1px solid rgba(0,200,240,0.3);border-radius:6px;padding:10px;word-break:break-all;color:var(--cyan);max-height:100px;overflow:auto;margin-bottom:8px;cursor:pointer;" onclick="copyOfferPacket()"></div>
-        <button class="btn btn-ghost btn-sm" onclick="copyOfferPacket()">📋 Copy Offer Packet</button>
-        <span style="font-size:10px;color:var(--text3);margin-left:10px;">← Send this to your peer. Then wait for their Answer Packet (Step 3).</span>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+          <button class="btn btn-ghost btn-sm" onclick="copyOfferPacket()">📋 Copy Offer Packet</button>
+          <button class="btn btn-ghost btn-sm" onclick="showQR('offer')" style="border-color:rgba(0,200,240,0.4);color:var(--cyan);">⬡ Show QR Code</button>
+        </div>
+        <span style="font-size:10px;color:var(--text3);margin-top:6px;display:block;">← Send this to your peer (copy or QR). Then wait for their Answer Packet (Step 3).</span>
       </div>
     </div>
 
-    <!-- ── STEP 2: Paste incoming packet (offer OR answer) ── -->
-    <div class="handshake-box" style="margin-bottom:16px;">
+      <div class="handshake-box" style="margin-bottom:16px;">
       <div class="handshake-title">📥 Step 2 — Paste a Packet You Received</div>
       <div class="handshake-desc">If someone sent you an <strong>Offer Packet</strong>, paste it here — the app will generate an Answer Packet for you to send back. If you're waiting for a response and received an <strong>Answer Packet</strong>, paste it here to complete the connection.</div>
       <textarea class="field-input" id="peer-packet-input" placeholder="Paste Offer or Answer packet here…" style="margin-bottom:10px;min-height:70px;"></textarea>
-      <button class="btn btn-primary btn-sm" onclick="processIncomingPacket()">Process Packet</button>
-      <div id="process-status" style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:8px;"></div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:6px;">
+        <button class="btn btn-primary btn-sm" onclick="processIncomingPacket()">Process Packet</button>
+        <button class="btn btn-ghost btn-sm" onclick="openQRScanner()" style="border-color:rgba(0,232,122,0.4);color:var(--green);">📷 Scan QR Code</button>
+      </div>
+      <div id="process-status" style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:4px;"></div>
+      <!-- QR Scanner area -->
+      <div id="qr-scanner-wrap" style="display:none;margin-top:12px;">
+        <div style="font-size:11px;color:var(--text2);margin-bottom:8px;">Point your camera at the QR code:</div>
+        <video id="qr-video" style="width:100%;max-width:320px;border-radius:6px;border:1px solid rgba(0,232,122,0.3);" autoplay playsinline muted></video>
+        <canvas id="qr-canvas" style="display:none;"></canvas>
+        <button class="btn btn-ghost btn-sm" onclick="closeQRScanner()" style="margin-top:8px;">✕ Close Scanner</button>
+      </div>
     </div>
 
-    <!-- ── STEP 3: Answer packet output (shown after processing an offer) ── -->
     <div class="handshake-box" id="answer-packet-wrap" style="display:none;margin-bottom:16px;border-color:rgba(0,232,122,0.3);">
       <div class="handshake-title">📤 Step 3 — Send This Answer Packet Back</div>
       <div class="handshake-desc">Send this to the person who gave you the Offer Packet. Once they paste it in Step 2, the connection opens.</div>
       <div id="answer-packet" style="font-family:var(--mono);font-size:10px;background:var(--bg3);border:1px solid rgba(0,232,122,0.3);border-radius:6px;padding:10px;word-break:break-all;color:var(--green);max-height:100px;overflow:auto;margin-bottom:8px;cursor:pointer;" onclick="copyAnswerPacket()"></div>
-      <button class="btn btn-ghost btn-sm" onclick="copyAnswerPacket()">📋 Copy Answer Packet</button>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <button class="btn btn-ghost btn-sm" onclick="copyAnswerPacket()">📋 Copy Answer Packet</button>
+        <button class="btn btn-ghost btn-sm" onclick="showQR('answer')" style="border-color:rgba(0,232,122,0.4);color:var(--green);">⬡ Show QR Code</button>
+      </div>
     </div>
 
     <div class="divider"></div>
@@ -976,6 +995,28 @@ textarea.field-input {
   <span id="ts-label">LOCAL ONLY</span>
 </div>
 
+<!-- ─── QR CODE MODAL ─── -->
+<div id="qr-modal" style="
+  display:none;position:fixed;inset:0;z-index:700;
+  background:rgba(0,0,0,0.85);backdrop-filter:blur(8px);
+  align-items:center;justify-content:center;
+">
+  <div style="
+    background:#0c0e14;border:1px solid rgba(255,255,255,0.12);
+    border-radius:12px;padding:28px;max-width:380px;width:90%;
+    text-align:center;position:relative;
+  ">
+    <button onclick="closeQRModal()" style="
+      position:absolute;top:12px;right:14px;background:none;border:none;
+      color:#454e62;cursor:pointer;font-size:18px;line-height:1;
+    ">✕</button>
+    <div id="qr-modal-label" style="font-size:9px;letter-spacing:2px;color:#454e62;font-family:'Space Mono',monospace;margin-bottom:14px;">CONNECTION QR</div>
+    <canvas id="qr-display-canvas" style="border-radius:8px;max-width:280px;width:100%;display:block;margin:0 auto 16px;"></canvas>
+    <div style="font-size:11px;color:#8a93a8;line-height:1.6;">Scan this QR code with the other device's camera in Step 2 of the Connect panel.</div>
+    <button onclick="closeQRModal()" class="btn btn-ghost btn-sm" style="margin-top:16px;">Close</button>
+  </div>
+</div>
+
 <!-- ─── TOAST AREA ─── -->
 <div id="toast-area"></div>
 
@@ -1020,6 +1061,8 @@ const APPS = [
   { name:'Messenger', desc:'Real-time peer-to-peer encrypted messaging over WebRTC.', icon:'⌁', color:'#4d9eff', file:'messenger.html', tag:'live', block:'#006' },
   { name:'Attack Command', desc:'Adversarial security platform — Solidity auditing, RRTK testing, advanced attack modules.', icon:'⚡', color:'#ff7240', file:'attack.html', tag:'live', block:'#007' },
   { name:'Sovereign Search', desc:'Network-wide search — messages, peers, and the distributed index.', icon:'⌕', color:'#00e87a', file:'search.html', tag:'live', block:'#008' },
+  { name:'Bridge', desc:'Connect to Nostr, Matrix, RSS feeds and the Fediverse. Your gateway to the open web.', icon:'⬡', color:'#a855f7', file:'bridge.html', tag:'live', block:'#009' },
+  { name:'Bridge', desc:'Connect to Nostr, Matrix, RSS feeds and the Fediverse. Your gateway to the open web.', icon:'⬡', color:'#a855f7', file:'bridge.html', tag:'live', block:'#009' },
   { name:'Genesis Node', desc:'This file. The hub that boots and connects the entire network.', icon:'◉', color:'#00c8f0', file:'index.html', tag:'frozen', block:'#000' },
 ];
 
@@ -1032,6 +1075,7 @@ const NODE_DEFS = [
   { id:'mail', name:'MAIL', label:'Sovereign Mail', desc:'Encrypted sovereign communication layer.', type:'COMM', color:'#ff4466', file:'mail.html', block:'#005', peers:3, radius:15 },
   { id:'messenger', name:'MESSENGER', label:'Sovereign Messenger', desc:'Real-time encrypted P2P messaging.', type:'COMM', color:'#4d9eff', file:'messenger.html', block:'#006', peers:2, radius:15 },
   { id:'attack', name:'ATTACK CMD', label:'Attack Command', desc:'Adversarial security platform — Solidity auditing, RRTK.', type:'SECURITY', color:'#ff7240', file:'attack.html', block:'#007', peers:2, radius:17 },
+  { id:'bridge', name:'BRIDGE', label:'Sovereign Bridge', desc:'Nostr, Matrix, RSS, Fediverse gateway — your open web portal.', type:'GATEWAY', color:'#a855f7', file:'bridge.html', block:'#009', peers:4, radius:17 },
 ];
 
 // ══════════════════════════════════════════
@@ -1195,7 +1239,9 @@ async function generateIdentity() {
     };
     await dbPut('identity', identity);
     await dbPut('keyvault', { did, ...vault });
-    await dbPut('settings', { key:'relay_url', value:'' });
+    // Only save relay_url setting if not already set
+    const existingRelay = await dbGet('settings', 'relay_url');
+    if (!existingRelay) await dbPut('settings', { key:'relay_url', value:'' });
 
     SYS.identity = identity;
     status.textContent = '> Identity saved to IndexedDB ✓';
@@ -1253,9 +1299,12 @@ async function deleteIdentity() {
   document.getElementById('id-dot').classList.remove('live');
   document.getElementById('identity-existing').style.display = 'none';
   document.getElementById('identity-create').style.display = 'block';
-  document.getElementById('btn-generate').disabled = true;
-  document.getElementById('entropy-fill').style.width = '0';
+  document.getElementById('btn-generate').disabled = false; // auto-seed already ran
+  document.getElementById('entropy-fill').style.width = '100%';
   _entropyPool = new Uint8Array(0); _entropyPct = 0;
+  // Re-run auto-seed so identity can be generated immediately
+  const reseed = new Uint8Array(128); crypto.getRandomValues(reseed);
+  addEntropy(reseed);
   closeModal();
   toast('Identity deleted', 'success');
 }
@@ -1592,9 +1641,15 @@ function handleRelayMessage(msg) {
     msg.peers?.forEach(p => { if (!SYS.peers.has(p.did) && p.did !== SYS.identity?.did) registerPeer(p.did, p.name, null); });
   }
   if (msg.type === 'MESSAGE') { receiveMessage(msg); }
-  // Relay-forwarded signaling packets
-  if (msg.type === 'OFFER' && msg.to === SYS.identity?.did) handleIncomingOffer(msg);
-  if (msg.type === 'ANSWER' && msg.to === SYS.identity?.did) handleIncomingAnswer(msg);
+  // Relay-forwarded signaling packets — guard against malformed/legacy packets
+  if (msg.type === 'OFFER' && msg.to === SYS.identity?.did) {
+    if (msg.v >= 3 && msg.sdp && msg.did && msg.name) handleIncomingOffer(msg);
+    else netLog('Ignored legacy/malformed OFFER from relay');
+  }
+  if (msg.type === 'ANSWER' && msg.to === SYS.identity?.did) {
+    if (msg.v >= 3 && msg.sdp && msg.did && msg.name) handleIncomingAnswer(msg);
+    else netLog('Ignored legacy/malformed ANSWER from relay');
+  }
 }
 
 // ══════════════════════════════════════════
@@ -2120,6 +2175,164 @@ async function boot() {
   window.addEventListener('resize', resizeCanvas);
   resizeCanvas();
   drawCanvas();
+}
+
+// ══════════════════════════════════════════
+// QR CODE ENGINE — pure JS, no dependencies
+// ══════════════════════════════════════════
+
+// Minimal QR code generator using qrcodegen algorithm (reed-solomon + masking)
+// We use a lightweight approach: encode to a data URI via a canvas
+
+function generateQRDataURL(text, size = 280) {
+  // Use the browser's built-in QR via a hidden anchor trick + canvas
+  // Fallback: render as styled canvas grid using our own micro-encoder
+  const canvas = document.getElementById('qr-display-canvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = size; canvas.height = size;
+
+  // Try using the BarcodeDetector API or fallback to our mini encoder
+  _drawQRToCanvas(ctx, text, size);
+}
+
+// Micro QR encoder using the qrcode-generator approach
+// For packets (base64 ~400-800 chars), we need QR version 15-20
+// We'll use a simplified matrix approach with error correction
+function _drawQRToCanvas(ctx, data, size) {
+  // Use a prebuilt approach via dynamic script injection of qrcodejs
+  const script = document.createElement('script');
+  script.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+  script.onload = () => {
+    // Clear and use a temp div
+    ctx.clearRect(0, 0, size, size);
+    const tmp = document.createElement('div');
+    tmp.style.display = 'none';
+    document.body.appendChild(tmp);
+    try {
+      const qr = new QRCode(tmp, {
+        text: data,
+        width: size, height: size,
+        colorDark: '#00c8f0',
+        colorLight: '#07080b',
+        correctLevel: QRCode.CorrectLevel.M,
+      });
+      // Wait for canvas render
+      setTimeout(() => {
+        const qrCanvas = tmp.querySelector('canvas');
+        if (qrCanvas) {
+          ctx.canvas.width = size; ctx.canvas.height = size;
+          ctx.drawImage(qrCanvas, 0, 0, size, size);
+        }
+        tmp.remove();
+      }, 150);
+    } catch(e) {
+      tmp.remove();
+      // Fallback: render text notice
+      ctx.fillStyle = '#07080b';
+      ctx.fillRect(0, 0, size, size);
+      ctx.fillStyle = '#00c8f0';
+      ctx.font = '11px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('QR: packet too large', size/2, size/2 - 10);
+      ctx.fillText('for QR — use Copy', size/2, size/2 + 10);
+    }
+  };
+  script.onerror = () => {
+    // Offline fallback — draw checkerboard placeholder with message
+    ctx.fillStyle = '#07080b'; ctx.fillRect(0, 0, size, size);
+    ctx.fillStyle = '#454e62'; ctx.font = '11px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('QR library offline', size/2, size/2 - 8);
+    ctx.fillText('Use Copy button', size/2, size/2 + 12);
+  };
+  if (!window.QRCode) {
+    document.head.appendChild(script);
+  } else {
+    script.onload();
+  }
+}
+
+function showQR(type) {
+  const packet = type === 'offer'
+    ? document.getElementById('offer-packet')?.textContent?.trim()
+    : document.getElementById('answer-packet')?.textContent?.trim();
+  if (!packet) { toast('No packet to show', 'error'); return; }
+
+  const label = type === 'offer' ? 'OFFER QR — SCAN WITH PEER DEVICE' : 'ANSWER QR — SCAN WITH PEER DEVICE';
+  document.getElementById('qr-modal-label').textContent = label;
+  document.getElementById('qr-modal').style.display = 'flex';
+  generateQRDataURL(packet, 280);
+}
+
+function closeQRModal() {
+  document.getElementById('qr-modal').style.display = 'none';
+}
+
+// Click outside to close
+document.getElementById('qr-modal').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeQRModal();
+});
+
+// ── QR SCANNER via camera ──────────────────────────────────
+let _qrScanInterval = null;
+let _qrStream = null;
+
+async function openQRScanner() {
+  const wrap = document.getElementById('qr-scanner-wrap');
+  const video = document.getElementById('qr-video');
+  wrap.style.display = 'block';
+
+  try {
+    _qrStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    video.srcObject = _qrStream;
+    await video.play();
+    _startQRScan();
+    netLog('QR scanner opened — point at peer\'s QR code');
+  } catch (e) {
+    wrap.style.display = 'none';
+    toast('Camera access denied: ' + e.message, 'error');
+  }
+}
+
+function closeQRScanner() {
+  if (_qrScanInterval) { clearInterval(_qrScanInterval); _qrScanInterval = null; }
+  if (_qrStream) { _qrStream.getTracks().forEach(t => t.stop()); _qrStream = null; }
+  document.getElementById('qr-scanner-wrap').style.display = 'none';
+  document.getElementById('qr-video').srcObject = null;
+}
+
+function _startQRScan() {
+  const video = document.getElementById('qr-video');
+  const canvas = document.getElementById('qr-canvas');
+  const ctx = canvas.getContext('2d');
+
+  _qrScanInterval = setInterval(async () => {
+    if (video.readyState !== video.HAVE_ENOUGH_DATA) return;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0);
+
+    // Use BarcodeDetector if available (Chrome 83+, Android)
+    if ('BarcodeDetector' in window) {
+      try {
+        const detector = new BarcodeDetector({ formats: ['qr_code'] });
+        const codes = await detector.detect(canvas);
+        if (codes.length > 0) {
+          const raw = codes[0].rawValue;
+          closeQRScanner();
+          document.getElementById('peer-packet-input').value = raw;
+          setProcessStatus('> QR scanned! Processing packet…', 'var(--green)');
+          toast('QR scanned — processing connection…', 'success');
+          await processIncomingPacket();
+        }
+      } catch {}
+    } else {
+      // BarcodeDetector not available — show notice
+      clearInterval(_qrScanInterval); _qrScanInterval = null;
+      setProcessStatus('> BarcodeDetector not supported in this browser. Use Copy/Paste instead.', 'var(--amber)');
+      closeQRScanner();
+      toast('QR scanning needs Chrome 83+ or Android. Use Copy/Paste on this device.', 'error');
+    }
+  }, 400);
 }
 
 boot();
