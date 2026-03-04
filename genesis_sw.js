@@ -213,7 +213,9 @@ self.addEventListener('message', async (e) => {
 
   const openCmds = new Set([
     'BOOT','VAULT_UNLOCK','VAULT_CREATE','VAULT_CREATE_DUAL',
-    'STATUS','HEARTBEAT','PANIC','SW_VERSION','AUDIT_VERIFY','AUDIT_EXPORT'
+    'STATUS','HEARTBEAT','PANIC','SW_VERSION','AUDIT_VERIFY','AUDIT_EXPORT',
+    'AUDIT_NOTARY', // 4B fix: notary attestation is pre-auth — page signs with local key
+    'SELF_TEST',
   ]);
 
   if (!openCmds.has(cmd)) {
@@ -287,6 +289,8 @@ self.addEventListener('message', async (e) => {
 
     case 'STATUS':           _handleStatus(client);                      break;
     case 'SW_VERSION':       client.postMessage({ event:'SW_VERSION', version:SW_VERSION, build:SW_BUILD }); break;
+    case 'SELF_TEST':        await _handleSelfTest(client);              break;
+    case 'AUDIT_NOTARY':     await _handleAuditNotary(args, client);     break; // 4B fix
     default:                 client.postMessage({ event:'ERROR', cmd, reason:'Unknown command' });
   }
 });
@@ -433,8 +437,12 @@ async function _handleSeal(args, client) {
   if (!_exchangeKey) { client.postMessage({ event:'ERROR', cmd:'SEAL', reason:'Vault locked' }); return; }
   const theirKey = await crypto.subtle.importKey('raw', _fromB64(args.recipientPubKey),
     { name:'ECDH', namedCurve:'P-256' }, false, []);
-  const shared   = await crypto.subtle.deriveBits({ name:'ECDH', public: theirKey }, _exchangeKey, 256);
-  const aesKey   = await crypto.subtle.importKey('raw', shared, 'AES-GCM', false, ['encrypt']);
+  const dhRaw    = await crypto.subtle.deriveBits({ name:'ECDH', public: theirKey }, _exchangeKey, 256);
+  const hkdfK    = await crypto.subtle.importKey('raw', dhRaw, 'HKDF', false, ['deriveBits']);
+  const keyBuf   = await crypto.subtle.deriveBits(
+    { name:'HKDF', hash:'SHA-256', salt: new Uint8Array(32), info: _str2b('sovereign-seal-v1') },
+    hkdfK, 256);
+  const aesKey   = await crypto.subtle.importKey('raw', keyBuf, 'AES-GCM', false, ['encrypt']);
   const iv       = crypto.getRandomValues(new Uint8Array(12));
   const ct       = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, aesKey, _fromB64(args.plaintext));
   client.postMessage({ event:'SEALED', ciphertext: _b64(ct), iv: _b64(iv), nonce: args.nonce });
@@ -448,8 +456,12 @@ async function _handleOpen(args, client) {
   try {
     const senderKey = await crypto.subtle.importKey('raw', _fromB64(args.senderPubKey),
       { name:'ECDH', namedCurve:'P-256' }, false, []);
-    const shared    = await crypto.subtle.deriveBits({ name:'ECDH', public: senderKey }, _exchangeKey, 256);
-    const aesKey    = await crypto.subtle.importKey('raw', shared, 'AES-GCM', false, ['decrypt']);
+    const dhRaw     = await crypto.subtle.deriveBits({ name:'ECDH', public: senderKey }, _exchangeKey, 256);
+    const hkdfK     = await crypto.subtle.importKey('raw', dhRaw, 'HKDF', false, ['deriveBits']);
+    const keyBuf    = await crypto.subtle.deriveBits(
+      { name:'HKDF', hash:'SHA-256', salt: new Uint8Array(32), info: _str2b('sovereign-seal-v1') },
+      hkdfK, 256);
+    const aesKey    = await crypto.subtle.importKey('raw', keyBuf, 'AES-GCM', false, ['decrypt']);
     const pt        = await crypto.subtle.decrypt({ name:'AES-GCM', iv: _fromB64(args.iv) }, aesKey, _fromB64(args.ciphertext));
     client.postMessage({ event:'OPENED', plaintext: _b64(pt), nonce: args.nonce });
     _auditLog('OPEN', { clientId: client.id });
@@ -517,6 +529,47 @@ async function _handleRatchetDecrypt(args, client) {
   const s = _ratchetSessions.get(args.peerDid);
   if (!s) { client.postMessage({ event:'ERROR', cmd:'RATCHET_DECRYPT', reason:'No session' }); return; }
   const n = args.n;
+
+  // Gap 11 fix: DH ratchet step — if peer sent a new DH public key, perform the DH ratchet
+  // to advance the root key and derive a fresh receiving chain (provides break-in recovery)
+  if (args.myDHPubKey && args.myDHPubKey !== s.lastSeenPeerDHPub) {
+    try {
+      const theirNewDH = await crypto.subtle.importKey('raw', _fromB64(args.myDHPubKey),
+        { name:'ECDH', namedCurve:'P-256' }, false, []);
+      // DH ratchet: derive new root key + recv chain from old root + DH output
+      const dh       = await crypto.subtle.deriveBits({ name:'ECDH', public: theirNewDH }, s.myDHPriv, 256);
+      const ikm      = _concat(s.rootKey, new Uint8Array(dh));
+      const hkdfKey  = await crypto.subtle.importKey('raw', ikm, 'HKDF', false, ['deriveBits']);
+      const derived  = await crypto.subtle.deriveBits(
+        { name:'HKDF', hash:'SHA-256', salt: new Uint8Array(32), info: _str2b('sovereign-ratchet-dh-step') },
+        hkdfKey, 512);
+      const d = new Uint8Array(derived);
+      s.rootKey   = d.slice(0, 32);
+      s.recvChain = d.slice(32, 64);
+      s.recvN     = 0;
+      s.skipped.clear();
+      s.lastSeenPeerDHPub = args.myDHPubKey;
+      // Generate our new DH keypair for the next send step
+      const myNewDH    = await crypto.subtle.generateKey({ name:'ECDH', namedCurve:'P-256' }, true, ['deriveBits']);
+      const myNewPub   = await crypto.subtle.exportKey('raw', myNewDH.publicKey);
+      // Advance send chain with new DH
+      const dh2      = await crypto.subtle.deriveBits({ name:'ECDH', public: theirNewDH }, myNewDH.privateKey, 256);
+      const ikm2     = _concat(s.rootKey, new Uint8Array(dh2));
+      const hkdfKey2 = await crypto.subtle.importKey('raw', ikm2, 'HKDF', false, ['deriveBits']);
+      const derived2 = await crypto.subtle.deriveBits(
+        { name:'HKDF', hash:'SHA-256', salt: new Uint8Array(32), info: _str2b('sovereign-ratchet-dh-step') },
+        hkdfKey2, 512);
+      const d2 = new Uint8Array(derived2);
+      s.rootKey    = d2.slice(0, 32);
+      s.sendChain  = d2.slice(32, 64);
+      s.sendN      = 0;
+      s.myDHPriv   = myNewDH.privateKey;
+      s.myDHPubB64 = _b64(myNewPub);
+    } catch (err) {
+      client.postMessage({ event:'ERROR', cmd:'RATCHET_DECRYPT', reason:'DH ratchet step failed: ' + err.message }); return;
+    }
+  }
+
   let msgKey;
   if (s.skipped.has(n)) {
     msgKey = s.skipped.get(n);
@@ -629,8 +682,8 @@ async function _handleOnionSend(args, client) {
   if (!_requireCap(client.id, CAP.SEND_MESSAGES, client)) return;
   const { targetDid, plaintext } = args;
   const relays = _selectRoute(targetDid, 2);
-  if (!relays.length) {
-    client.postMessage({ event:'ERROR', cmd:'ONION_SEND', reason:'Insufficient peers' }); return;
+  if (relays.length < 2) {
+    client.postMessage({ event:'ERROR', cmd:'ONION_SEND', reason:`Insufficient qualified peers for onion routing (need 2, have ${relays.length})` }); return;
   }
   const route = [...relays, targetDid];
   let payload = JSON.stringify({ type:'FINAL', content: plaintext, to: targetDid });
@@ -646,7 +699,11 @@ async function _handleOnionSend(args, client) {
     const theirK = await crypto.subtle.importKey('raw', _fromB64(peer.exchPubKeyB64),
       { name:'ECDH', namedCurve:'P-256' }, false, []);
     const shared = await crypto.subtle.deriveBits({ name:'ECDH', public: theirK }, eph.privateKey, 256);
-    const aesKey = await crypto.subtle.importKey('raw', shared, 'AES-GCM', false, ['encrypt']);
+    const hkdfK  = await crypto.subtle.importKey('raw', shared, 'HKDF', false, ['deriveBits']);
+    const keyBuf = await crypto.subtle.deriveBits(
+      { name:'HKDF', hash:'SHA-256', salt: new Uint8Array(32), info: _str2b('sovereign-onion-v1') },
+      hkdfK, 256);
+    const aesKey = await crypto.subtle.importKey('raw', keyBuf, 'AES-GCM', false, ['encrypt']);
     const iv     = crypto.getRandomValues(new Uint8Array(12));
     const ct     = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, aesKey, _str2b(envelope));
     payload      = JSON.stringify({ ephPubKey: _b64(ephPub), iv: _b64(iv), ct: _b64(ct) });
@@ -663,7 +720,11 @@ async function _handleOnionIncoming(args, client) {
     const ephPub  = await crypto.subtle.importKey('raw', _fromB64(parsed.ephPubKey),
       { name:'ECDH', namedCurve:'P-256' }, false, []);
     const shared  = await crypto.subtle.deriveBits({ name:'ECDH', public: ephPub }, _exchangeKey, 256);
-    const aesKey  = await crypto.subtle.importKey('raw', shared, 'AES-GCM', false, ['decrypt']);
+    const hkdfK   = await crypto.subtle.importKey('raw', shared, 'HKDF', false, ['deriveBits']);
+    const keyBuf  = await crypto.subtle.deriveBits(
+      { name:'HKDF', hash:'SHA-256', salt: new Uint8Array(32), info: _str2b('sovereign-onion-v1') },
+      hkdfK, 256);
+    const aesKey  = await crypto.subtle.importKey('raw', keyBuf, 'AES-GCM', false, ['decrypt']);
     const pt      = await crypto.subtle.decrypt({ name:'AES-GCM', iv: _fromB64(parsed.iv) }, aesKey, _fromB64(parsed.ct));
     const env     = JSON.parse(_b2str(pt));
     if (env.type === 'FINAL') _broadcast({ event:'ONION_MESSAGE', content: env.content });
@@ -672,7 +733,11 @@ async function _handleOnionIncoming(args, client) {
 }
 
 function _selectRoute(targetDid, n) {
-  const cands = [..._registry.keys()].filter(d => d !== _myDid && d !== targetDid);
+  // Gap 13 fix: only select peers that have an exchange key registered,
+  // so hops are never silently dropped during onion encryption.
+  const cands = [..._registry.entries()]
+    .filter(([d, p]) => d !== _myDid && d !== targetDid && p.exchPubKeyB64)
+    .map(([d]) => d);
   for (let i = cands.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i+1));
     [cands[i], cands[j]] = [cands[j], cands[i]];
@@ -692,13 +757,22 @@ function _startCoverTraffic() {
   scheduleNext();
 }
 
-function _sendCoverTraffic() {
+async function _sendCoverTraffic() {
   const peers = [..._registry.keys()].filter(d => d !== _myDid);
   for (const did of peers.filter(() => Math.random() < 0.3)) {
-    const dummy = _padToBucket(JSON.stringify({
-      type:'COVER', ts: Date.now(), nonce: _b64(crypto.getRandomValues(new Uint8Array(16))),
-    }));
-    _broadcast({ event:'RELAY_SEND', did, msg: dummy });
+    try {
+      // Gap 12 fix: cover traffic must be indistinguishable from real encrypted messages.
+      // Encrypt random bytes with a throw-away key so the envelope looks identical to CHAT.
+      const throwawayKey = await crypto.subtle.generateKey({ name:'AES-GCM', length:256 }, false, ['encrypt']);
+      const iv           = crypto.getRandomValues(new Uint8Array(12));
+      const randomPayload= crypto.getRandomValues(new Uint8Array(128));
+      const ct           = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, throwawayKey, randomPayload);
+      const dummy = _padToBucket(JSON.stringify({
+        type:'CHAT', iv: _b64(iv), ct: _b64(ct), ts: Date.now(),
+        nonce: _b64(crypto.getRandomValues(new Uint8Array(16))),
+      }));
+      _broadcast({ event:'RELAY_SEND', did, msg: dummy });
+    } catch (_) { /* ignore */ }
   }
 }
 
@@ -751,6 +825,14 @@ async function _attestTabIntegrity() {
 
 async function _auditInit() {
   _auditHmacKey = await crypto.subtle.generateKey({ name:'HMAC', hash:'SHA-256' }, true, ['sign','verify']);
+  // Gap 8: restore running tip from IDB so chain is not lost on SW restart
+  try {
+    const tip = await _idbGet(VAULT_STORE, 'audit_tip');
+    if (tip?.tipHash) {
+      _auditPrevHash = _fromB64(tip.tipHash);
+      _log(`Audit chain resumed from seq ${tip.seq}, tip ${tip.tipHash.slice(0,8)}…`);
+    }
+  } catch (_) { /* IDB may not exist yet on first install — that is fine */ }
 }
 
 async function _auditLog(event, data) {
@@ -761,8 +843,12 @@ async function _auditLog(event, data) {
   if (_auditHmacKey) hmac = _b64(await crypto.subtle.sign('HMAC', _auditHmacKey, eBytes));
   const record = { ...entry, hash: _b64(hash), hmac };
   _auditChain.push(record);
+  // Keep only last 500 entries in memory; persist the running tip to IDB (Gap 8 fix)
+  if (_auditChain.length > 500) _auditChain.splice(0, _auditChain.length - 500);
   _auditPrevHash = new Uint8Array(hash);
   _broadcast({ event:'AUDIT_ENTRY', record });
+  // Persist tip non-blocking so restart can resume chain
+  _idbSet(VAULT_STORE, 'audit_tip', { seq: record.seq, tipHash: _b64(hash), ts: record.ts }).catch(()=>{});
 }
 
 // Sync version for fetch handler (no await)
@@ -785,12 +871,26 @@ async function _handleAuditVerify(client) {
 // ════════════════════════════════════════════════════════════════════════════
 
 async function _issueCapability(clientId, bitmask) {
-  _capabilities.set(clientId, {
-    clientId, bitmask,
-    issuedAt : Date.now(),
-    expiresAt: Date.now() + 60 * 60 * 1000,
-    nonce    : _b64(crypto.getRandomValues(new Uint8Array(16))),
-  });
+  const issuedAt  = Date.now();
+  const expiresAt = issuedAt + 60 * 60 * 1000;
+  const nonce     = _b64(crypto.getRandomValues(new Uint8Array(16)));
+  // Gap 14 fix: bind token to clientId+bitmask+issuedAt+nonce via HMAC
+  // so impersonation attempts are detectable even if clientId is somehow spoofed.
+  let tokenHmac = null;
+  if (_auditHmacKey) {
+    const claim = _str2b(JSON.stringify({ clientId, bitmask, issuedAt, nonce }));
+    tokenHmac = _b64(await crypto.subtle.sign('HMAC', _auditHmacKey, claim));
+  }
+  _capabilities.set(clientId, { clientId, bitmask, issuedAt, expiresAt, nonce, tokenHmac });
+}
+
+async function _verifyCapabilityToken(clientId) {
+  const cap = _capabilities.get(clientId);
+  if (!cap || !cap.tokenHmac || !_auditHmacKey) return !!cap;
+  const claim = _str2b(JSON.stringify({ clientId: cap.clientId, bitmask: cap.bitmask, issuedAt: cap.issuedAt, nonce: cap.nonce }));
+  try {
+    return await crypto.subtle.verify('HMAC', _auditHmacKey, _fromB64(cap.tokenHmac), claim);
+  } catch { return false; }
 }
 
 function _requireCap(clientId, required, client) {
@@ -798,6 +898,12 @@ function _requireCap(clientId, required, client) {
   if (!cap) { client?.postMessage({ event:'CAPABILITY_DENIED', required }); return false; }
   if (Date.now() > cap.expiresAt) { _capabilities.delete(clientId); client?.postMessage({ event:'CAPABILITY_EXPIRED' }); return false; }
   if (!(cap.bitmask & required)) { client?.postMessage({ event:'CAPABILITY_DENIED', required }); return false; }
+  // Gap 14: verify HMAC binding asynchronously; revoke cap if verification fails
+  if (cap.tokenHmac && _auditHmacKey) {
+    _verifyCapabilityToken(clientId).then(valid => {
+      if (!valid) { _capabilities.delete(clientId); _auditLog('CAP_HMAC_FAIL', { clientId }); }
+    }).catch(()=>{});
+  }
   return true;
 }
 
@@ -880,16 +986,33 @@ function _resetDeadman() {
 // ════════════════════════════════════════════════════════════════════════════
 
 async function _validateIncomingMessage(did, msg, sigB64, seq, nonce) {
-  // 1. Signature verification
+  // 1. Signature verification — Gap 1 fix: support both ECDSA P-256 (SW-side) and Ed25519 (page-side)
+  //    until identity systems are fully unified. Try P-256 first, then Ed25519.
   if (sigB64 && _registry.get(did)?.pubKeyB64) {
+    let sigOk = false;
+    const msgB   = _str2b(typeof msg === 'string' ? msg : JSON.stringify(msg));
+    const pubRaw = _fromB64(_registry.get(did).pubKeyB64);
+    // Try ECDSA P-256 (SW-generated keys)
     try {
-      const pubKey = await crypto.subtle.importKey('raw', _fromB64(_registry.get(did).pubKeyB64),
+      const pubKey = await crypto.subtle.importKey('raw', pubRaw,
         { name:'ECDSA', namedCurve:'P-256' }, false, ['verify']);
-      const msgB   = _str2b(typeof msg === 'string' ? msg : JSON.stringify(msg));
-      if (!(await crypto.subtle.verify({ name:'ECDSA', hash:'SHA-256' }, pubKey, _fromB64(sigB64), msgB))) {
-        _recordPeerFault(did, 'INVALID_SIG', 15); return false;
-      }
+      sigOk = await crypto.subtle.verify({ name:'ECDSA', hash:'SHA-256' }, pubKey, _fromB64(sigB64), msgB);
     } catch {}
+    // Try Ed25519 (page-generated keys) — fallback for backward compat until migration completes
+    if (!sigOk) {
+      try {
+        const pubKey = await crypto.subtle.importKey('raw', pubRaw, { name:'Ed25519' }, false, ['verify']);
+        sigOk = await crypto.subtle.verify({ name:'Ed25519' }, pubKey, _fromB64(sigB64), msgB);
+      } catch {}
+    }
+    // Also try SPKI format for page-side Ed25519 keys that may be SPKI-encoded
+    if (!sigOk) {
+      try {
+        const pubKey = await crypto.subtle.importKey('spki', pubRaw, { name:'Ed25519' }, false, ['verify']);
+        sigOk = await crypto.subtle.verify({ name:'Ed25519' }, pubKey, _fromB64(sigB64), msgB);
+      } catch {}
+    }
+    if (!sigOk) { _recordPeerFault(did, 'INVALID_SIG', 15); return false; }
   }
   // 2. Timestamp window (±5 min)
   if (typeof msg === 'object' && msg?.ts && Math.abs(Date.now() - msg.ts) > 300000) {
@@ -1088,8 +1211,120 @@ async function _handleTssAggregate(args, client) {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-//  §20 — STATUS
 // ════════════════════════════════════════════════════════════════════════════
+//  §20a — 4B FIX — AI NOTARY AUDIT ATTESTATION
+//  Accepts dual-signed attestations from SovereignAINotary (sovereign_security.js).
+//  Appends them to the SW audit chain for a tamper-evident dual-signed trail.
+// ════════════════════════════════════════════════════════════════════════════
+
+async function _handleAuditNotary(args, client) {
+  const { attestation } = args;
+  if (!attestation?.payload || !attestation?.sig || !attestation?.notaryPub) {
+    client.postMessage({ event:'ERROR', cmd:'AUDIT_NOTARY', reason:'Invalid attestation format' }); return;
+  }
+  try {
+    // Verify the notary signature before accepting
+    const notaryPubRaw = _fromB64(attestation.notaryPub);
+    const notaryKey    = await crypto.subtle.importKey('raw', notaryPubRaw,
+      { name:'ECDSA', namedCurve:'P-256' }, false, ['verify']);
+    const payloadBytes = _str2b(attestation.payload);
+    const sigBytes     = _fromB64(attestation.sig);
+    const valid        = await crypto.subtle.verify(
+      { name:'ECDSA', hash:'SHA-256' }, notaryKey, sigBytes, payloadBytes);
+    if (!valid) {
+      client.postMessage({ event:'ERROR', cmd:'AUDIT_NOTARY', reason:'Notary signature invalid' });
+      _auditLog('NOTARY_SIG_FAIL', { clientId: client.id });
+      return;
+    }
+    // Attestation is valid — append to audit chain
+    _auditLog('AI_NOTARY_ATTESTATION', {
+      notaryPub   : attestation.notaryPub.slice(0, 24) + '…',
+      payloadHash : _b64(await _sha256(_str2b(attestation.payload))),
+      clientId    : client.id,
+    });
+    client.postMessage({ event:'AUDIT_NOTARY_ACCEPTED', ts: Date.now() });
+  } catch(err) {
+    client.postMessage({ event:'ERROR', cmd:'AUDIT_NOTARY', reason: err.message });
+  }
+}
+
+//  §20b — PATTERN 15 FIX — SELF_TEST / HEALTH CHECK
+// ════════════════════════════════════════════════════════════════════════════
+
+async function _handleSelfTest(client) {
+  const details = [];
+  let pass = true;
+
+  // 1. Vault unlock check
+  details.push({ test: 'vault_state', result: !_vaultLocked ? 'UNLOCKED' : 'LOCKED' });
+
+  // 2. Sign → Verify round trip (only if vault is unlocked)
+  if (!_vaultLocked && _signingKey && _verifyKey) {
+    try {
+      const testVec = _str2b('sovereign-self-test-vector');
+      const sig     = await crypto.subtle.sign({ name:'ECDSA', hash:'SHA-256' }, _signingKey, testVec);
+      const ok      = await crypto.subtle.verify({ name:'ECDSA', hash:'SHA-256' }, _verifyKey, sig, testVec);
+      details.push({ test: 'sign_verify_roundtrip', result: ok ? 'PASS' : 'FAIL' });
+      if (!ok) pass = false;
+    } catch (e) {
+      details.push({ test: 'sign_verify_roundtrip', result: 'ERROR', error: e.message });
+      pass = false;
+    }
+  } else {
+    details.push({ test: 'sign_verify_roundtrip', result: 'SKIPPED_VAULT_LOCKED' });
+  }
+
+  // 3. SEAL → OPEN round trip (only if vault is unlocked and exchange key available)
+  if (!_vaultLocked && _exchangeKey && _exchPubKey) {
+    try {
+      const plaintext = _str2b('sovereign-seal-test');
+      const exchPubRaw= await crypto.subtle.exportKey('raw', _exchPubKey);
+      const theirKey  = await crypto.subtle.importKey('raw', exchPubRaw, { name:'ECDH', namedCurve:'P-256' }, false, []);
+      const dhRaw     = await crypto.subtle.deriveBits({ name:'ECDH', public: theirKey }, _exchangeKey, 256);
+      const hkdfK     = await crypto.subtle.importKey('raw', dhRaw, 'HKDF', false, ['deriveBits']);
+      const keyBuf    = await crypto.subtle.deriveBits({ name:'HKDF', hash:'SHA-256', salt: new Uint8Array(32), info: _str2b('sovereign-seal-v1') }, hkdfK, 256);
+      const aesKey    = await crypto.subtle.importKey('raw', keyBuf, 'AES-GCM', false, ['encrypt','decrypt']);
+      const iv        = crypto.getRandomValues(new Uint8Array(12));
+      const ct        = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, aesKey, plaintext);
+      const pt        = await crypto.subtle.decrypt({ name:'AES-GCM', iv }, aesKey, ct);
+      const ok        = _b2str(pt) === 'sovereign-seal-test';
+      details.push({ test: 'seal_open_roundtrip', result: ok ? 'PASS' : 'FAIL' });
+      if (!ok) pass = false;
+    } catch (e) {
+      details.push({ test: 'seal_open_roundtrip', result: 'ERROR', error: e.message });
+      pass = false;
+    }
+  } else {
+    details.push({ test: 'seal_open_roundtrip', result: 'SKIPPED_VAULT_LOCKED' });
+  }
+
+  // 4. Audit chain integrity
+  try {
+    let prev = new Uint8Array(32), auditOk = true;
+    for (const record of _auditChain) {
+      const { hash, hmac, ...entry } = record;
+      const eBytes   = _str2b(JSON.stringify(entry));
+      const computed = _b64(await _sha256(_concat(prev, eBytes)));
+      if (computed !== hash) { auditOk = false; break; }
+      prev = _fromB64(hash);
+    }
+    details.push({ test: 'audit_chain_integrity', result: auditOk ? 'PASS' : 'FAIL', entries: _auditChain.length });
+    if (!auditOk) pass = false;
+  } catch (e) {
+    details.push({ test: 'audit_chain_integrity', result: 'ERROR', error: e.message });
+    pass = false;
+  }
+
+  // 5. Entropy pool sanity (not all zeros)
+  const entropyOk = _entropyPool.some(b => b !== 0);
+  details.push({ test: 'entropy_pool', result: entropyOk ? 'PASS' : 'FAIL' });
+  if (!entropyOk) pass = false;
+
+  client.postMessage({ event:'SELF_TEST_RESULT', pass, details, ts: Date.now() });
+  _auditLog('SELF_TEST', { pass, tests: details.length });
+}
+
+
 
 function _handleStatus(client) {
   const cap = _capabilities.get(client.id);

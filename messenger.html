@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script src="sovereign_security.js"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sovereign</title>
@@ -507,6 +508,10 @@ main{
 </style>
 <!-- QR Code library (pure JS, no deps) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<!-- Gap 3 fix: FSM kernel — load before transport so invariants are active from the start -->
+<script src="sovereign_fsm.js"></script>
+<!-- Gap 4 fix: transport.js — DHT, Double Ratchet, KDF, sovereignSend/onSovereignMessage -->
+<script src="transport.js"></script>
 </head>
 <body>
 
@@ -1177,7 +1182,7 @@ const IdentityEngine = (() => {
   async function _persist(id){
     const salt=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(id.did+navigator.userAgent));
     const wm=await crypto.subtle.importKey('raw',salt,'PBKDF2',false,['deriveKey']);
-    const wk=await crypto.subtle.deriveKey({name:'PBKDF2',salt:new Uint8Array(salt),iterations:310000,hash:'SHA-256'},wm,{name:'AES-GCM',length:256},false,['encrypt']);
+    const wk=await crypto.subtle.deriveKey({name:'PBKDF2',salt:new Uint8Array(salt),iterations:600000,hash:'SHA-256'},wm,{name:'AES-GCM',length:256},false,['encrypt']);
     const iv=crypto.getRandomValues(new Uint8Array(12));
     const raw=new Uint8Array(id.privKeyHex.match(/.{2}/g).map(h=>parseInt(h,16)));
     const enc=await crypto.subtle.encrypt({name:'AES-GCM',iv},wk,raw);
@@ -1983,7 +1988,9 @@ const P2PNet = (() => {
   async function _makeEnvelope(type, payload, to='*'){
     const id=IdentityEngine.get(); if(!id) return null;
     const env={to, from:_nodeId, did:id.did, username:id.username, pubKeyHex:id.pubKeyHex, type, payload, ts:Date.now()};
-    env.sig=await _sign({to,from:_nodeId,did:id.did,type,payload,ts:env.ts})||'unsigned';
+    const _sigResult=await _sign({to,from:_nodeId,did:id.did,type,payload,ts:env.ts});
+    if(!_sigResult){ console.error('[Sovereign][INV-10] Unsigned envelope — send blocked',{type,to}); return 0; } // 3B fix: INV-10 — reject unsigned
+    env.sig=_sigResult;
     return env;
   }
 
@@ -2077,7 +2084,18 @@ const P2PNet = (() => {
     const s=JSON.stringify(env);
     let sent=0;
 
-    // BroadcastChannel always
+    // Gap 7 fix: if transport.js is loaded, route through sovereignSend (DHT + DR + KDF).
+    // This wires messenger.html into the v2 security architecture for all outbound messages.
+    if (typeof window.sovereignSend === 'function' && window._ST) {
+      try {
+        const msg = { id: env.id || crypto.randomUUID(), from: env.from, to: env.to || '*',
+                      ts: env.ts || Date.now(), body: s, hash: env.hash, sig: env.sig };
+        window.sovereignSend(msg).catch(()=>{});
+        sent++;
+      } catch(_) {}
+    }
+
+    // BroadcastChannel always (same-device fallback and backward compat)
     if(_bc){ try{_bc.postMessage(s);sent++;}catch(e){} }
 
     // WebSocket relay
@@ -2100,7 +2118,7 @@ const P2PNet = (() => {
   function _initBroadcastChannel(){
     if(typeof BroadcastChannel==='undefined') return;
     if(_bc) return; // already open
-    _bc=new BroadcastChannel('sovereign-os-mesh');
+    _bc=new BroadcastChannel('sovereign_dht');
     _bc.onmessage=async e=>{
       try{ await _dispatch(JSON.parse(e.data),'bc'); }catch(_){}
     };
@@ -2228,6 +2246,15 @@ const P2PNet = (() => {
     // Layer 0: BroadcastChannel — always, zero latency, no network needed
     _initBroadcastChannel();
 
+    // Gap 7 fix: wire incoming messages from transport.js (sovereignSend path) into P2PNet _dispatch
+    // so messages routed via the v2 DHT/DR/KDF stack are visible in the messenger UI.
+    window.onSovereignMessage = async function(msg, source) {
+      try {
+        const env = typeof msg.body === 'string' ? JSON.parse(msg.body) : msg;
+        await _dispatch(env, 'sovereign_transport');
+      } catch(_) {}
+    };
+
     // Layer 1: WebSocket relay — only if URL is set and non-empty
     const relayEl=document.getElementById('relay-url');
     const url=(relayEl?.value||'').trim();
@@ -2289,7 +2316,9 @@ const P2PNet = (() => {
       pubKeyHex:id.pubKeyHex,
       ts:Date.now()
     };
-    packet.sig=await _sign(packet)||'unsigned';
+    const _pSig=await _sign(packet);
+    if(!_pSig){ console.error('[Sovereign][INV-10] Unsigned packet — send blocked'); return; } // 3B fix
+    packet.sig=_pSig;
     const txt=JSON.stringify(packet);
     try{
       await navigator.clipboard.writeText(txt);
@@ -2701,7 +2730,8 @@ function _refreshPeerUI() {
       const chip = document.createElement('div');
       chip.className = 'peer-chip';
       chip.id = 'tab-' + nid;
-      chip.innerHTML = `<div class="peer-chip-dot live"></div>${p.username || nid.substr(0,12)}`;
+      const _chipSan = (window.sanitize||String)(p.username || nid.substr(0,12));
+      chip.innerHTML = ''; const dot=document.createElement('div'); dot.className='peer-chip-dot live'; const lbl=document.createElement('span'); lbl.textContent=_chipSan; chip.appendChild(dot); chip.appendChild(lbl);
       chip.onclick = () => selectChannel(nid);
       sidebar.insertBefore(chip, null);
     }

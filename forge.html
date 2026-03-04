@@ -1,4 +1,5 @@
 <html lang="en"><head>
+<script src="sovereign_security.js"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <!-- CSP NOTE: script-src uses 'unsafe-inline' only because all JS is inline in this single-file app.
@@ -371,6 +372,10 @@ label{font-size:9px;color:var(--text2);display:block;margin-bottom:4px;text-tran
 .forge-menu-item{display:block;width:100%;text-align:left;padding:8px 16px;background:none;border:none;color:var(--text2);cursor:pointer;font-size:11px;font-family:var(--ui);transition:.15s;}
 .forge-menu-item:hover{background:rgba(255,255,255,.04);color:var(--text);}
 </style>
+<!-- Gap 3 fix: load FSM kernel first — enforces invariants before any transport code runs -->
+<script src="sovereign_fsm.js"></script>
+<!-- Gap 4 fix: load transport.js — exposes DHT, Double Ratchet, KDF, and sovereignSend -->
+<script src="transport.js"></script>
 <script>
 function forgeTab(name){
   document.querySelectorAll('#forge-nav-tabs .nav-tab').forEach(b=>b.classList.remove('active'));
@@ -2265,7 +2270,7 @@ const IdentityEngine = (() => {
   async function _persist(id){
     const salt=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(id.did+navigator.userAgent));
     const wm=await crypto.subtle.importKey('raw',salt,'PBKDF2',false,['deriveKey']);
-    const wk=await crypto.subtle.deriveKey({name:'PBKDF2',salt:new Uint8Array(salt),iterations:310000,hash:'SHA-256'},wm,{name:'AES-GCM',length:256},false,['encrypt']);
+    const wk=await crypto.subtle.deriveKey({name:'PBKDF2',salt:new Uint8Array(salt),iterations:600000,hash:'SHA-256'},wm,{name:'AES-GCM',length:256},false,['encrypt']);
     const iv=crypto.getRandomValues(new Uint8Array(12));
     const raw=new Uint8Array(id.privKeyHex.match(/.{2}/g).map(h=>parseInt(h,16)));
     const enc=await crypto.subtle.encrypt({name:'AES-GCM',iv},wk,raw);
@@ -3071,7 +3076,9 @@ const P2PNet = (() => {
   async function _makeEnvelope(type, payload, to='*'){
     const id=IdentityEngine.get(); if(!id) return null;
     const env={to, from:_nodeId, did:id.did, username:id.username, pubKeyHex:id.pubKeyHex, type, payload, ts:Date.now()};
-    env.sig=await _sign({to,from:_nodeId,did:id.did,type,payload,ts:env.ts})||'unsigned';
+    const _sigResult=await _sign({to,from:_nodeId,did:id.did,type,payload,ts:env.ts});
+    if(!_sigResult){ console.error('[Sovereign][INV-10] Unsigned envelope — send blocked',{type,to}); return 0; } // 3B fix: INV-10 — reject unsigned
+    env.sig=_sigResult;
     return env;
   }
 
@@ -3189,7 +3196,7 @@ const P2PNet = (() => {
   function _initBroadcastChannel(){
     if(typeof BroadcastChannel==='undefined') return;
     if(_bc) return; // already open
-    _bc=new BroadcastChannel('sovereign-os-mesh');
+    _bc=new BroadcastChannel('sovereign_dht');
     _bc.onmessage=async e=>{
       try{ await _dispatch(JSON.parse(e.data),'bc'); }catch(_){}
     };
@@ -3378,7 +3385,9 @@ const P2PNet = (() => {
       pubKeyHex:id.pubKeyHex,
       ts:Date.now()
     };
-    packet.sig=await _sign(packet)||'unsigned';
+    const _pSig=await _sign(packet);
+    if(!_pSig){ console.error('[Sovereign][INV-10] Unsigned packet — send blocked'); return; } // 3B fix
+    packet.sig=_pSig;
     const txt=JSON.stringify(packet);
     try{
       await navigator.clipboard.writeText(txt);
@@ -3660,8 +3669,8 @@ You run locally on Ollama. Be direct, precise, occasionally poetic. No bullet li
         }));
         const sig=await crypto.subtle.sign({name:'Ed25519'},kp.privateKey,bytes);
         packet.sig=Array.from(new Uint8Array(sig)).map(b=>b.toString(16).padStart(2,'0')).join('');
-      }catch(e){ packet.sig='unsigned'; }
-    } else { packet.sig='unsigned'; }
+      }catch(e){ console.error('[Sovereign][INV-10] Sign error — send blocked:',e.message); return; } // 3B fix
+    } else { console.error('[Sovereign][INV-10] No identity — send blocked'); return; } // 3B fix
     return packet;
   }
 
@@ -3803,7 +3812,7 @@ You run locally on Ollama. Be direct, precise, occasionally poetic. No bullet li
 
       if(peerPacket){
         // Full auto-connect: hand packet to P2PNet
-        if(status)status.innerHTML=`<span style="color:var(--green);">✓ Got peer packet: ${peerPacket.username||peerPacket.node}</span>`;
+        if(status){ status.textContent=''; const sp=document.createElement('span'); sp.style.color='var(--green)'; sp.textContent='✓ Got peer packet: '+((window.sanitize||String)(peerPacket.username)||( window.sanitize||String)(peerPacket.node)||'unknown'); status.appendChild(sp); }
         // Feed to P2PNet manual handshake acceptor
         const ta=document.getElementById('paste-handshake');
         if(ta){ ta.value=JSON.stringify(peerPacket); }

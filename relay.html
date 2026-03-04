@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script src="sovereign_security.js"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>⬡ SOVEREIGN RELAY</title>
@@ -585,9 +586,8 @@ const LOG_MAX=300;
 
 // STUN — Google's free servers, no key, no account
 const ICE_SERVERS=[
-  {urls:'stun:stun.l.google.com:19302'},
-  {urls:'stun:stun1.l.google.com:19302'},
-  {urls:'stun:stun2.l.google.com:19302'},
+  {urls:'stun:openrelay.metered.ca:80'},  // 1E fix: community STUN
+  {urls:'stun:stun.relay.metered.ca:80'},
 ];
 
 // ─────────────────────────────────────────────

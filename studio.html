@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script src="sovereign_security.js"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Content-Security-Policy" content="
@@ -1388,13 +1389,12 @@ Return ONLY valid JSON with this structure:
     try {
       const raw = await AIEngine.generate(prompt);
       if (raw) {
-        const jsonMatch = raw.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          try {
-            const parsed = JSON.parse(jsonMatch[0]);
-            if (parsed.name && parsed.name !== 'App Name') blueprint = parsed;
-          } catch(_) {}
-        }
+        // 4A fix: validate through schema validator — never render raw AI text into DOM
+        blueprint = window.SovereignAIOutput ? window.SovereignAIOutput.parseBlueprint(raw) : (() => {
+          const m = raw.match(/\{[\s\S]*\}/);
+          if (!m) return null;
+          try { const p = JSON.parse(m[0]); return (p.name && p.name !== 'App Name') ? p : null; } catch { return null; }
+        })();
         if (!blueprint) _log('AI response was not valid JSON — using smart builder', 'warn');
       }
     } catch(e) {
@@ -1413,6 +1413,13 @@ Return ONLY valid JSON with this structure:
     StudioEngine.showStage('blueprint');
     State.current = { blueprint, source: desc, status: 'draft', createdAt: Date.now() };
     _log('Blueprint ready — click ⚡ Generate Code', 'ok');
+    // 4B fix: notarize the AI output — creates dual-signed audit trail SW HMAC + notary sig
+    if (window.SovereignAINotary) {
+      window.SovereignAINotary.attest(
+        window.SOVEREIGN_FILE_HASH || 'no-hash',
+        { stage:'blueprint', blueprintName: blueprint.name, ts: Date.now() }
+      ).catch(e => _log('Notary attestation: ' + e.message, 'warn'));
+    }
     if (document.getElementById('pref-autosave')?.checked) saveApp(true);
   }
 
@@ -1494,9 +1501,11 @@ Return ONLY valid JSON with this structure:
     try {
       const raw = await AIEngine.generate(_buildAIPrompt(bp, id));
       if (raw) {
-        // Accept if it has the sovereign design system markers OR any reasonable HTML
-        const hm = raw.match(/<!DOCTYPE html[\s\S]*/i) || raw.match(/<html[\s\S]*/i);
-        if (hm) code = hm[0];
+        // 4A fix: validate HTML output through schema validator — code goes to textContent only
+        code = window.SovereignAIOutput ? window.SovereignAIOutput.parseCode(raw) : (() => {
+          const hm = raw.match(/<!DOCTYPE html[\s\S]*/i) || raw.match(/<html[\s\S]*/i);
+          return hm ? hm[0] : null;
+        })();
         if (!code) _log('AI output was not valid HTML — using built-in generator', 'warn');
       }
     } catch(e) { _log((e.message || 'AI error') + ' — using built-in generator', 'warn'); }
@@ -1507,6 +1516,13 @@ Return ONLY valid JSON with this structure:
     codeEl.textContent = code;
     if (statusEl) statusEl.textContent = '✓ ' + (code.length/1024).toFixed(1) + ' KB · download & share';
     document.getElementById('publish-btn').style.display = 'flex';
+    // 4B fix: notarize code generation output
+    if (window.SovereignAINotary) {
+      window.SovereignAINotary.attest(
+        window.SOVEREIGN_FILE_HASH || 'no-hash',
+        { stage:'codegen', codeLen: code.length, ts: Date.now() }
+      ).catch(e => _log('Notary attestation: ' + e.message, 'warn'));
+    }
   }
 
 
@@ -1521,7 +1537,7 @@ Return ONLY valid JSON with this structure:
     'function _setuid(){var x=_id();var el=document.getElementById("nav-user");if(el)el.textContent="@"+_user();}',
     'function toast(msg,col){var t=document.createElement("div");t.className="toast";if(col)t.style.borderColor=col;t.textContent=msg;document.body.appendChild(t);setTimeout(function(){t.remove();},3000);}',
     'function _sha256(str){return crypto.subtle.digest("SHA-256",new TextEncoder().encode(str)).then(function(b){return Array.from(new Uint8Array(b)).map(function(x){return x.toString(16).padStart(2,"0");}).join("");});}',
-    'function _bc(msg){try{var ch=new BroadcastChannel("sovereign-os-mesh");ch.postMessage(JSON.stringify(msg));ch.close();}catch(e){}}',
+    'function _bc(msg){try{var ch=new BroadcastChannel("sovereign_dht");ch.postMessage(JSON.stringify(msg));ch.close();}catch(e){}}',
     '_setuid();'
   ].join('\n');
 
@@ -1534,7 +1550,8 @@ Return ONLY valid JSON with this structure:
   }
 
   function _sovShell(appName, cat, bodyHTML, scriptCode) {
-    return '<!DOCTYPE html>\n<html lang="en"><head>\n'
+    return '<!DOCTYPE html>\n<html lang="en"><head>
+<script src="sovereign_security.js"></script>\n'
       + '<meta charset="UTF-8">\n'
       + '<meta name="viewport" content="width=device-width,initial-scale=1.0">\n'
       + '<title>' + String(appName) + '</title>\n'
@@ -1663,7 +1680,7 @@ Return ONLY valid JSON with this structure:
       + 'wEntry("REWARD",_did(),{amount:reward,note:"5% staking reward"},function(){wRefresh();toast("Claimed "+reward+" ' + sym + ' rewards!");});'
       + '}'
       + '};'
-      + 'try{var bcIn=new BroadcastChannel("sovereign-os-mesh");'
+      + 'try{var bcIn=new BroadcastChannel("sovereign_dht");'
       + 'bcIn.onmessage=function(ev){try{'
       + 'var env=JSON.parse(ev.data);if(!env||env.type!=="TOKEN_SEND")return;'
       + 'var p=env.payload;if(!p)return;'
@@ -1672,7 +1689,7 @@ Return ONLY valid JSON with this structure:
       + 'wEntry("RECEIVE",p.from,{amount:p.amount,from:p.fromUsername||p.from,memo:p.msg||""},function(){wRefresh();toast("+"+p.amount+" ' + sym + ' from @"+(p.fromUsername||"peer")+"!");});'
       + '}}catch(ex){}};'
       + '}catch(ex){}'
-      + 'try{var bcScan=new BroadcastChannel("sovereign-os-mesh");var foundPeers=[];'
+      + 'try{var bcScan=new BroadcastChannel("sovereign_dht");var foundPeers=[];'
       + 'bcScan.postMessage(JSON.stringify({type:"HELLO",did:_did(),username:_user(),ts:Date.now()}));'
       + 'bcScan.onmessage=function(ev){try{'
       + 'var d=JSON.parse(ev.data);'
@@ -1716,7 +1733,7 @@ Return ONLY valid JSON with this structure:
       + 'document.getElementById("pt").value="";'
       + '_bc({type:"SOCIAL_POST",from:"social-node",did:_did(),username:_user(),ts:Date.now(),payload:p});'
       + 'fRender();toast("Published!");}};'
-      + 'try{var bcS=new BroadcastChannel("sovereign-os-mesh");'
+      + 'try{var bcS=new BroadcastChannel("sovereign_dht");'
       + 'bcS.onmessage=function(ev){try{var d=JSON.parse(ev.data);'
       + 'if(d.type==="SOCIAL_POST"&&d.payload&&d.payload.author!==_user()){posts.unshift(d.payload);localStorage.setItem("' + sk + '",JSON.stringify(posts));fRender();}}'
       + 'catch(ex){}};'
@@ -1875,7 +1892,7 @@ Return ONLY valid JSON with this structure:
       + '2. topnav: id="topnav", back link class="nav-back" href="genesis_node.html"\n'
       + '3. Content in: <div class="wrap"><div class="page">\n'
       + '4. Classes: .panel .g2 .g3 .metric .btn .card .badge .log .br .f\n'
-      + '5. JS: localStorage only, BroadcastChannel("sovereign-os-mesh") for mesh\n'
+      + '5. JS: localStorage only, BroadcastChannel("sovereign_dht") for mesh\n'
       + '6. Identity: JSON.parse(localStorage.getItem("sovereign_identity"))\n'
       + '7. Creator: ' + authorUser + ' (' + authorDid + ')\n'
       + 'Return ONLY the HTML file. No markdown.';
@@ -2015,7 +2032,8 @@ Return ONLY valid JSON with this structure:
   // ── helpers ──────────────────────────────────────────────────────
   // All generated apps use SOV_CSS/SOV_JS/_sovNav for a consistent look across the whole network
   function _appShell(name, cat, body, scriptBody) {
-    return '<!DOCTYPE html>\n<html lang="en"><head>\n'
+    return '<!DOCTYPE html>\n<html lang="en"><head>
+<script src="sovereign_security.js"></script>\n'
       + '<meta charset="UTF-8">\n'
       + '<meta name="viewport" content="width=device-width,initial-scale=1.0">\n'
       + '<title>' + String(name) + '</title>\n'
@@ -2164,7 +2182,7 @@ Return ONLY valid JSON with this structure:
       '    }',
       '    await _entry("SEND",id.did,{amount:amt,to:to,memo:memo,from:id.did});',
       '    // Broadcast over sovereign mesh',
-      '    try{var bc=new BroadcastChannel("sovereign-os-mesh");',
+      '    try{var bc=new BroadcastChannel("sovereign_dht");',
       '      bc.postMessage(JSON.stringify({type:"TOKEN_SEND",from:"'+coin.toLowerCase()+'-node",did:id.did,username:id.username||"anon",ts:Date.now(),',
       '        payload:{txId:"tx"+Date.now(),amount:amt,from:id.did,fromUsername:id.username||"anon",to:to,msg:memo,coin:SYM}}));',
       '      bc.close();}catch(e){}',
@@ -2204,7 +2222,7 @@ Return ONLY valid JSON with this structure:
       '};',
       '',
       '// Listen for incoming transfers',
-      'try{var _bc=new BroadcastChannel("sovereign-os-mesh");',
+      'try{var _bc=new BroadcastChannel("sovereign_dht");',
       '_bc.onmessage=async function(e){',
       '  try{var env=JSON.parse(e.data);',
       '    if(env.type!=="TOKEN_SEND")return;',
@@ -2222,7 +2240,7 @@ Return ONLY valid JSON with this structure:
       '',
       '// Scan for online peers via BroadcastChannel',
       'function _scanPeers(){',
-      '  try{var bc2=new BroadcastChannel("sovereign-os-mesh");',
+      '  try{var bc2=new BroadcastChannel("sovereign_dht");',
       '  var peers=[];',
       '  bc2.postMessage(JSON.stringify({type:"PING_WALLET",coin:SYM,ts:Date.now()}));',
       '  setTimeout(function(){bc2.close();',
@@ -2267,10 +2285,10 @@ Return ONLY valid JSON with this structure:
       '  if(!t){toast("Write something first");return;}',
       '  var p={id:"p"+Date.now(),text:t,author:id&&id.username||"anon",did:id&&id.did||"",ts:Date.now()};',
       '  posts.unshift(p);save();document.getElementById("post-text").value="";',
-      '  var bc=new BroadcastChannel("sovereign-os-mesh");',
+      '  var bc=new BroadcastChannel("sovereign_dht");',
       '  bc.postMessage(JSON.stringify({type:"SOCIAL_POST",payload:p}));bc.close();',
       '  render();toast("Posted!");}};',
-      'try{var _bc2=new BroadcastChannel("sovereign-os-mesh");',
+      'try{var _bc2=new BroadcastChannel("sovereign_dht");',
       '_bc2.onmessage=function(e){try{var d=JSON.parse(e.data);if(d.type==="SOCIAL_POST"&&d.payload){posts.unshift(d.payload);save();render();}}catch(ex){}};}catch(ex){}',
       'render();'
     ].join('\n');

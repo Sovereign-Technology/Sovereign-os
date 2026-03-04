@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script src="sovereign_security.js"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sovereign — Your Space Online</title>
@@ -1157,7 +1158,7 @@ const P2PNet = (() => {
     const id=IdentityEngine.get();if(!id){_log('No identity','warn');return;}
     _nodeId=_nodeIdFromDid(id.did);
     try{
-      _bc=new BroadcastChannel('sovereign-os-mesh');
+      _bc=new BroadcastChannel('sovereign_dht');
       _bc.onmessage=async e=>{
         try{const env=JSON.parse(e.data);await _dispatch(env);}catch(err){}
       };

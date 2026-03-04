@@ -111,7 +111,15 @@ class SovereignKDF {
 class DoubleRatchet {
   constructor(cfg = SOVEREIGN_CONFIG) {
     this.cfg       = cfg;
-    this._sessions = new Map();
+    // 2B fix: restore persisted sessions from localStorage on construction
+    this._sessions = (window.SovereignSessionStore ? window.SovereignSessionStore.load() : null) || new Map();
+  }
+
+  /** 2B fix: persist session state after any mutation */
+  _persistSessions() {
+    if (window.SovereignSessionStore) {
+      try { window.SovereignSessionStore.save(this._sessions); } catch(_) {}
+    }
   }
 
   // ── X3DH sender init ─────────────────────────────────────────────────
@@ -124,6 +132,7 @@ class DoubleRatchet {
     const dhO  = await this._dh(DHs.privateKey, theirSignedPreKeyPub);
     const [RK, CKs] = await this._kdfRk(sk, dhO);
     this._sessions.set(peerDid, { DHs, DHr: theirSignedPreKeyPub, RK, CKs, CKr:null, Ns:0, Nr:0, PN:0, MKSKIP:new Map() });
+    this._persistSessions(); // 2B fix
     return _b64(await crypto.subtle.exportKey('raw', myEphKP.publicKey));
   }
 
@@ -135,6 +144,7 @@ class DoubleRatchet {
     const dh3 = await this._dh(mySignedPreKeyPriv, theirEph);
     const sk   = await this._kdfRkRaw(_concat(dh1, dh2, dh3), new Uint8Array(32));
     this._sessions.set(peerDid, { DHs:null, DHr:theirEph, RK:sk, CKs:null, CKr:null, Ns:0, Nr:0, PN:0, MKSKIP:new Map() });
+    this._persistSessions(); // 2B fix
   }
 
   // ── Encrypt ──────────────────────────────────────────────────────────
@@ -264,7 +274,10 @@ class SovereignDHT {
     this._listeners = [];
     this._bc        = new BroadcastChannel('sovereign_dht');
     this._bc.onmessage = (e) => this._onBC(e.data);
-    this._iceServers = [{ urls:'stun:stun.l.google.com:19302' }];
+    this._iceServers = window.SOVEREIGN_ICE_SERVERS || [
+      { urls:'stun:openrelay.metered.ca:80' },
+      { urls:'stun:stun.relay.metered.ca:80' },
+    ]; // 1E fix: community STUN, not Google (see sovereign_security.js)
   }
 
   async init(did) {
@@ -327,17 +340,57 @@ class SovereignDHT {
   }
 
   _announce() {
-    this._bc.postMessage({ type:'ANNOUNCE', did:this._did, ts:Date.now() });
+    // Gap 10 fix: include a signed prekey bundle in announcements so peers can
+    // bootstrap a Double Ratchet session without an extra round-trip.
+    // Format: { type:'ANNOUNCE', did, ts, prekey:{ identityPub, signedPreKeyPub, signature } }
+    const bundle = this._prekeyBundle || null;
+    this._bc.postMessage({ type:'ANNOUNCE', did:this._did, ts:Date.now(), prekey: bundle });
+  }
+
+  /** Generate and cache a signed prekey bundle for DR bootstrap (Gap 10) */
+  async generatePrekeyBundle(identityPrivKey, identityPubKeyB64) {
+    const ephKP   = await crypto.subtle.generateKey({ name:'ECDH', namedCurve:'P-256' }, true, ['deriveBits']);
+    const ephPub  = await crypto.subtle.exportKey('raw', ephKP.publicKey);
+    const sigData = new Uint8Array([...new TextEncoder().encode('sovereign-prekey-v1:'), ...new Uint8Array(ephPub)]);
+    const sig     = await crypto.subtle.sign({ name:'ECDSA', hash:'SHA-256' }, identityPrivKey, sigData);
+    this._prekeyBundle = {
+      identityPub   : identityPubKeyB64,
+      signedPreKeyPub: _b64(ephPub),
+      signature     : _b64(sig),
+    };
+    this._prekeyPriv = ephKP.privateKey;
+    return this._prekeyBundle;
   }
 
   _onBC(msg) {
     if (!msg?.type) return;
-    if (msg.type === 'ANNOUNCE' && msg.did) { this._addPeer(msg.did, msg.pubKey||null, 'local'); return; }
+    if (msg.type === 'ANNOUNCE' && msg.did) {
+      this._addPeer(msg.did, msg.pubKey||null, 'local');
+      // Gap 10 fix: if peer has a prekey bundle and we have no DR session with them,
+      // store their bundle so SovereignTransport can initiate a DR session on first send.
+      if (msg.prekey && msg.did !== this._did) {
+        this._emit('peer_prekey', { did: msg.did, prekey: msg.prekey });
+      }
+      return;
+    }
     if (msg.to !== this._did) return;
     if (msg.type === 'MSG')    { this._emit('message', { from:msg.from, data:msg.data, channel:'broadcast' }); return; }
+    // Gap 10 fix: handle explicit prekey request/response messages
+    if (msg.type === 'PREKEY_REQUEST') { this._handlePrekeyRequest(msg); return; }
+    if (msg.type === 'PREKEY_RESPONSE') { this._emit('peer_prekey', { did: msg.from, prekey: msg.prekey }); return; }
     if (msg.type === 'OFFER')  { this._handleOffer(msg); return; }
     if (msg.type === 'ANSWER') { this._handleAnswer(msg); return; }
     if (msg.type === 'ICE')    { this._handleICE(msg); }
+  }
+
+  _handlePrekeyRequest(msg) {
+    if (this._prekeyBundle) {
+      this._bc.postMessage({ type:'PREKEY_RESPONSE', to:msg.from, from:this._did, prekey:this._prekeyBundle });
+    }
+  }
+
+  requestPrekey(peerDid) {
+    this._bc.postMessage({ type:'PREKEY_REQUEST', to:peerDid, from:this._did });
   }
 
   async _initiateWebRTC(peerDid, sigFn) {
@@ -436,8 +489,40 @@ class SovereignTransport {
     this.dht.on('message',    (e) => this._handleIncoming(e.data, 'dht'));
     this.dht.on('peer_found', (e) => this._onDHTPeer(e, 'found'));
     this.dht.on('peer_lost',  (e) => this._onDHTPeer(e, 'lost'));
+    // Gap 10 fix: auto-bootstrap DR session when we receive a peer's prekey bundle
+    this.dht.on('peer_prekey', (e) => this._onPeerPrekey(e));
 
     _log('Transport', 'v2 initialized');
+  }
+
+  /** Gap 10: bootstrap a DR session when we receive a peer's prekey bundle */
+  async _onPeerPrekey({ did, prekey }) {
+    if (this.ratchet.hasSession(did)) return; // already have a session
+    if (!this._myIdentityPriv) return;        // vault not unlocked yet — queue for later
+    try {
+      // Verify the prekey signature before using it
+      const identityPubRaw = _fromB64(prekey.identityPub);
+      const signedPreKeyRaw = _fromB64(prekey.signedPreKeyPub);
+      const verifyKey = await crypto.subtle.importKey('raw', identityPubRaw,
+        { name:'ECDSA', namedCurve:'P-256' }, false, ['verify']);
+      const sigData   = new Uint8Array([...new TextEncoder().encode('sovereign-prekey-v1:'), ...signedPreKeyRaw]);
+      const valid     = await crypto.subtle.verify({ name:'ECDSA', hash:'SHA-256' }, verifyKey,
+        _fromB64(prekey.signature), sigData);
+      if (!valid) { _log('Transport', `Prekey sig invalid for ${did.slice(0,20)}`); return; }
+
+      await this.ratchet.initSender(did, this._myIdentityPriv,
+        identityPubRaw, signedPreKeyRaw, this._myEphKP);
+      this._emit('transport:dr_session_started', { did });
+      _log('Transport', `DR session initiated with ${did.slice(0,20)}`);
+    } catch (e) {
+      _log('Transport', `DR session init failed for ${did.slice(0,20)}: ${e.message}`);
+    }
+  }
+
+  /** Gap 10: called after vault unlock to provide identity key for DR */
+  setIdentityKey(identityPrivKey, ephemeralKP) {
+    this._myIdentityPriv = identityPrivKey;
+    this._myEphKP        = ephemeralKP;
   }
 
   /**
@@ -537,22 +622,29 @@ class SovereignTransport {
 
   async _meshSend(env) {
     if (!this._meshReady) return false;
-    try { this._meshSocket.send(JSON.stringify({ type:'PUBLISH', topic: await _topicFor(this.cfg.TOPIC_PREFIX, env.to), data:env })); return true; }
+    // 1D fix: use ephemeral token instead of raw DID — relay sees tokens, not DIDs
+    const token = await _ephemeralTopicFor(this.cfg.TOPIC_PREFIX, env.to);
+    try { this._meshSocket.send(JSON.stringify({ type:'PUBLISH', topic: token, data:env })); return true; }
     catch { return false; }
   }
 
   async _meshSubscribe(did) {
     if (!this._meshReady) return;
-    this._meshSocket.send(JSON.stringify({ type:'SUBSCRIBE', topic: await _topicFor(this.cfg.TOPIC_PREFIX, did) }));
+    // 1D fix: subscribe with ephemeral token
+    const token = await _ephemeralTopicFor(this.cfg.TOPIC_PREFIX, did);
+    this._meshSocket.send(JSON.stringify({ type:'SUBSCRIBE', topic: token }));
   }
 
   // ── Chain ────────────────────────────────────────────────────────────
   async _chainAppend(env) {
     try {
+      // 1D fix: chain RPC also uses ephemeral token — sender identity not exposed
+      const token = await _ephemeralTopicFor(this.cfg.TOPIC_PREFIX, env.to);
+      const myToken = await _ephemeralTopicFor(this.cfg.TOPIC_PREFIX, this._myDid);
       const res = await fetch(this.cfg.CHAIN_RPC, {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ jsonrpc:'2.0', id:1, method:'sovereign_appendMessage',
-          params:{ topic: await _topicFor(this.cfg.TOPIC_PREFIX, env.to), blob:btoa(JSON.stringify(env)), sender:this._myDid }}),
+          params:{ topic: token, blob:btoa(JSON.stringify(env)), sender: myToken }}),
         signal: AbortSignal.timeout(8000),
       });
       if (!res.ok) return false;
@@ -568,10 +660,12 @@ class SovereignTransport {
   async _pollChain() {
     if (!this._myDid) return;
     try {
+      // 1D fix: poll with ephemeral token
+      const myToken = await _ephemeralTopicFor(this.cfg.TOPIC_PREFIX, this._myDid);
       const res = await fetch(this.cfg.CHAIN_RPC, {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ jsonrpc:'2.0', id:1, method:'sovereign_getMessages',
-          params:{ topic: await _topicFor(this.cfg.TOPIC_PREFIX, this._myDid), since:this._lastPollTs||0 }}),
+          params:{ topic: myToken, since:this._lastPollTs||0 }}),
         signal: AbortSignal.timeout(5000),
       });
       if (!res.ok) return;
@@ -634,6 +728,22 @@ async function _sha256bytes(data) { return new Uint8Array(await crypto.subtle.di
 async function _topicFor(prefix, did) {
   const h = await crypto.subtle.digest('SHA-256', _str2b(prefix + did));
   return Array.from(new Uint8Array(h)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+// 1D fix: ephemeral daily token — relay sees tokens, not DIDs
+// HMAC(did, daily_epoch) — changes every day, unlinkable across sessions,
+// but deterministic for the same DID on the same calendar day.
+async function _ephemeralTopicFor(prefix, did) {
+  if (window.sovereignEphemeralToken) {
+    return prefix + (await window.sovereignEphemeralToken(did));
+  }
+  // Fallback if sovereign_security.js not loaded yet
+  const epoch   = Math.floor(Date.now() / 86400000);
+  const keyMat  = _str2b('sovereign-relay-epoch-v1:' + did);
+  const saltMat = _str2b(String(epoch));
+  const baseKey = await crypto.subtle.importKey('raw', keyMat, { name:'HMAC', hash:'SHA-256' }, false, ['sign']);
+  const sig     = await crypto.subtle.sign('HMAC', baseKey, saltMat);
+  return prefix + Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2,'0')).join('').slice(0,32);
 }
 function _xorDist(a, b) { const o = new Uint8Array(a.length); for (let i=0;i<a.length;i++) o[i]=a[i]^b[i]; return o; }
 function _cmpBuf(a, b) { for (let i=0;i<Math.min(a.length,b.length);i++) { if(a[i]<b[i])return -1; if(a[i]>b[i])return 1; } return 0; }
@@ -701,6 +811,15 @@ window.sovereignConnect = async function(did, passphrase = null, salt = null) {
   if (window._ST) window._ST.disconnect();
   window._ST = new SovereignTransport();
 
+  // Gap 9 fix: load persisted KDF salt from localStorage on reconnect so the
+  // same passphrase always derives the same session key across page loads.
+  if (!salt && passphrase) {
+    const saved = localStorage.getItem('sovereign_kdf_salt');
+    if (saved) {
+      try { salt = _fromB64(saved); } catch (_) { salt = null; }
+    }
+  }
+
   if (window.SovereignFSM && passphrase) {
     window.SovereignFSM.kdf.send('STRETCH');
     window.addEventListener('transport:kdf_ready', () => {
@@ -710,6 +829,13 @@ window.sovereignConnect = async function(did, passphrase = null, salt = null) {
   }
 
   await window._ST.connect(did, passphrase, salt);
+
+  // Gap 9 fix: persist the salt after connect so future reconnects can reuse it
+  if (window._ST._kdfResult?.salt) {
+    try {
+      localStorage.setItem('sovereign_kdf_salt', _b64(window._ST._kdfResult.salt));
+    } catch (_) { /* private browsing may block localStorage */ }
+  }
 
   window._ST.subscribe(did, (msg, source) => {
     if (typeof window.onSovereignMessage === 'function') window.onSovereignMessage(msg, source);
