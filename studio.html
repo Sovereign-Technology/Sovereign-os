@@ -701,7 +701,7 @@ body {
             </div>
             <iframe id="app-preview-frame"
               style="flex:1;border:1px solid rgba(255,255,255,0.07);border-radius:6px;background:#fff;min-height:0;"
-              sandbox="allow-scripts"></iframe>
+              sandbox="allow-scripts allow-same-origin"></iframe>
           </div>
 
         </div>
@@ -2506,7 +2506,7 @@ Return ONLY valid JSON with this structure:
     const code = State.current?.generatedCode || document.getElementById('code-output').textContent;
     if(!code || code.startsWith('//')) { alert('Generate the app code first'); return; }
     const name = (bp?.name || 'my_app').replace(/\s+/g,'_').toLowerCase();
-    const blob = new Blob([code], {type:'text/html'});
+    const blob = new Blob([code], {type:'text/html;charset=utf-8'});
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = name + '_v' + (bp?.version||'1.0') + '.html';
@@ -2518,7 +2518,7 @@ Return ONLY valid JSON with this structure:
     const code = State.current?.generatedCode || document.getElementById('code-output').textContent;
     if(!code || code.startsWith('//')) { alert('Generate code first'); return; }
     const frame = document.getElementById('app-preview-frame');
-    const blob = new Blob([code], {type:'text/html'});
+    const blob = new Blob([code], {type:'text/html;charset=utf-8'});
     frame.src = URL.createObjectURL(blob);
   }
 
