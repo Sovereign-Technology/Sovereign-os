@@ -1126,7 +1126,7 @@ async function _wrapVault(keys, passphrase) {
   const salt    = crypto.getRandomValues(new Uint8Array(16));
   const pbkdf   = await crypto.subtle.importKey('raw', _str2b(passphrase), 'PBKDF2', false, ['deriveKey']);
   const wrapKey = await crypto.subtle.deriveKey(
-    { name:'PBKDF2', salt, iterations:310000, hash:'SHA-256' },
+    { name:'PBKDF2', salt, iterations:600000, hash:'SHA-256' },
     pbkdf, { name:'AES-KW', length:256 }, false, ['wrapKey','unwrapKey']
   );
   const wSig  = await crypto.subtle.wrapKey('pkcs8', keys.signingKey,  wrapKey, 'AES-KW');
@@ -1142,7 +1142,7 @@ async function _unwrapVault(blob, passphrase) {
   const salt    = _fromB64(blob.salt);
   const pbkdf   = await crypto.subtle.importKey('raw', _str2b(passphrase), 'PBKDF2', false, ['deriveKey']);
   const wrapKey = await crypto.subtle.deriveKey(
-    { name:'PBKDF2', salt, iterations:310000, hash:'SHA-256' },
+    { name:'PBKDF2', salt, iterations:600000, hash:'SHA-256' },
     pbkdf, { name:'AES-KW', length:256 }, false, ['wrapKey','unwrapKey']
   );
   const signingKey  = await crypto.subtle.unwrapKey('pkcs8', _fromB64(blob.wSig), wrapKey, 'AES-KW',

@@ -1,534 +1,737 @@
-/**
- * ╔══════════════════════════════════════════════════════════╗
- * ║          SOVEREIGN TRANSPORT LAYER  v1.0                ║
- * ║  Bridges your UI to: Blockchain Ledger + Mesh Network   ║
- * ╚══════════════════════════════════════════════════════════╝
- *
- * DROP THIS SCRIPT INTO ANY SOVEREIGN HTML FILE.
- * It wires itself in automatically on DOMContentLoaded.
- *
- * ARCHITECTURE:
- *   Browser UI
- *       │
- *       ▼
- *   SovereignTransport  ◄── YOU ARE HERE
- *      ├── MeshChannel    (WebSocket → local mesh node)
- *      ├── ChainChannel   (HTTP RPC → blockchain node)
- *      └── BroadcastChannel (tab-to-tab, offline fallback)
- *
- * CONFIGURATION (edit the CONFIG block below):
- *   MESH_WS_URL  → your libp2p/gossipsub node WebSocket
- *   CHAIN_RPC    → your blockchain RPC endpoint
- *   POLL_MS      → how often to check chain for incoming msgs
- */
+// ═══════════════════════════════════════════════════════════════════════════
+//  §1 — CONFIG
+// ═══════════════════════════════════════════════════════════════════════════
 
-// ─────────────────────────────────────────────
-//  CONFIG — edit these to match your nodes
-// ─────────────────────────────────────────────
 const SOVEREIGN_CONFIG = {
-  // Your local mesh node WebSocket (libp2p, gossipsub, etc.)
-  // Run: npx @libp2p/daemon or your custom node
-  MESH_WS_URL: 'ws://localhost:8765',
-
-  // Your blockchain RPC (Solana, custom chain, etc.)
-  // Replace with your actual RPC endpoint
-  CHAIN_RPC: 'http://localhost:8899',
-
-  // Polling interval for incoming chain messages (ms)
-  POLL_MS: 3000,
-
-  // Topic prefix for DHT routing
-  // Messages land at: sha256(TOPIC_PREFIX + recipient_did)
-  TOPIC_PREFIX: 'sovereign:msg:',
-
-  // Enable debug logs in console
-  DEBUG: true,
-
-  // Retry config
-  RECONNECT_DELAY_MS: 5000,
-  MAX_RECONNECT_ATTEMPTS: 10,
+  MESH_WS_URL:           'ws://localhost:8765',
+  CHAIN_RPC:             'http://localhost:8899',
+  POLL_MS:               3000,
+  TOPIC_PREFIX:          'sovereign:msg:',
+  DEBUG:                 true,
+  RECONNECT_DELAY_MS:    5000,
+  MAX_RECONNECT_ATTEMPTS:10,
+  DHT_K:                 8,
+  DHT_ANNOUNCE_MS:       15000,
+  DHT_TTL_MS:            60000,
+  KDF_PBKDF2_ITERATIONS: 600000,
+  KDF_SALT_BYTES:        32,
+  KDF_PREFER_ARGON2:     true,
+  DR_MAX_SKIP:           100,
 };
 
-// ─────────────────────────────────────────────
-//  SOVEREIGN TRANSPORT — core class
-// ─────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+//  §2 — SOVEREIGN KDF
+//  Stretch a user passphrase BEFORE it touches the vault.
+//  Without this, the vault key is as strong as the machine alone.
+//  With this, cracking the vault requires the passphrase + the salt.
+// ═══════════════════════════════════════════════════════════════════════════
+
+class SovereignKDF {
+  constructor(cfg = SOVEREIGN_CONFIG) {
+    this.cfg = cfg;
+    this._argon2 = null;
+    this._algorithm = 'pbkdf2';
+  }
+
+  /**
+   * Stretch a passphrase into 32 bytes of key material.
+   * @param {string}     passphrase
+   * @param {Uint8Array} [salt]        provide existing salt to reproduce key
+   * @param {function}   [onProgress]  called with 0..1
+   * @returns {Promise<{keyBytes: Uint8Array, salt: Uint8Array, algorithm: string}>}
+   */
+  async stretch(passphrase, salt = null, onProgress = null) {
+    salt = salt || crypto.getRandomValues(new Uint8Array(this.cfg.KDF_SALT_BYTES));
+    if (this.cfg.KDF_PREFER_ARGON2) {
+      try {
+        const r = await this._argon2Stretch(passphrase, salt, onProgress);
+        return { ...r, salt, algorithm: 'argon2id' };
+      } catch { /* fall through */ }
+    }
+    const r = await this._pbkdf2Stretch(passphrase, salt, onProgress);
+    return { ...r, salt, algorithm: 'pbkdf2' };
+  }
+
+  async deriveWrapKey(keyBytes) {
+    return crypto.subtle.importKey('raw', keyBytes, { name:'AES-KW', length:256 }, false, ['wrapKey','unwrapKey']);
+  }
+
+  async _pbkdf2Stretch(passphrase, salt, onProgress) {
+    if (onProgress) onProgress(0.05);
+    const enc     = new TextEncoder().encode(passphrase);
+    const baseKey = await crypto.subtle.importKey('raw', enc, 'PBKDF2', false, ['deriveBits']);
+    if (onProgress) onProgress(0.15);
+    // Yield to UI between yielded segments to keep the page alive
+    const SEGS = 5;
+    for (let i = 0; i < SEGS - 1; i++) {
+      await new Promise(r => setTimeout(r, 0));
+      if (onProgress) onProgress(0.15 + (i / SEGS) * 0.8);
+    }
+    const bits = await crypto.subtle.deriveBits(
+      { name:'PBKDF2', salt, iterations: this.cfg.KDF_PBKDF2_ITERATIONS, hash:'SHA-256' },
+      baseKey, 256
+    );
+    if (onProgress) onProgress(1.0);
+    return { keyBytes: new Uint8Array(bits) };
+  }
+
+  async _loadArgon2() {
+    if (this._argon2) return this._argon2;
+    return new Promise((res, rej) => {
+      const s  = document.createElement('script');
+      s.src    = 'https://cdnjs.cloudflare.com/ajax/libs/argon2-browser/1.18.0/argon2.js';
+      s.onload = () => { if (window.argon2) { this._argon2 = window.argon2; res(this._argon2); } else rej(new Error('argon2 missing')); };
+      s.onerror = rej;
+      document.head.appendChild(s);
+    });
+  }
+
+  async _argon2Stretch(passphrase, salt, onProgress) {
+    if (onProgress) onProgress(0.05);
+    const lib = await this._loadArgon2();
+    if (onProgress) onProgress(0.2);
+    const result = await lib.hash({ pass: passphrase, salt, time:3, mem:65536, hashLen:32, parallelism:1, type: lib.ArgonType.Argon2id });
+    if (onProgress) onProgress(1.0);
+    return { keyBytes: result.hash };
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  §3 — DOUBLE RATCHET  (Signal spec, pure WebCrypto, no deps)
+//
+//  DH:      ECDH P-256
+//  KDF_RK:  HKDF-SHA-256   (advances root key + produces chain key)
+//  KDF_CK:  HMAC-SHA-256   (produces message key + next chain key)
+//  AEAD:    AES-256-GCM    (header authenticated as AAD)
+//
+//  Session state per peer:
+//    DHs, DHr, RK, CKs, CKr, Ns, Nr, PN, MKSKIP
+// ═══════════════════════════════════════════════════════════════════════════
+
+class DoubleRatchet {
+  constructor(cfg = SOVEREIGN_CONFIG) {
+    this.cfg       = cfg;
+    this._sessions = new Map();
+  }
+
+  // ── X3DH sender init ─────────────────────────────────────────────────
+  async initSender(peerDid, myIdentityPriv, theirIdentityPub, theirSignedPreKeyPub, myEphKP) {
+    const dh1 = await this._dh(myIdentityPriv,    theirSignedPreKeyPub);
+    const dh2 = await this._dh(myEphKP.privateKey, theirIdentityPub);
+    const dh3 = await this._dh(myEphKP.privateKey, theirSignedPreKeyPub);
+    const sk   = await this._kdfRkRaw(_concat(dh1, dh2, dh3), new Uint8Array(32));
+    const DHs  = await this._genKP();
+    const dhO  = await this._dh(DHs.privateKey, theirSignedPreKeyPub);
+    const [RK, CKs] = await this._kdfRk(sk, dhO);
+    this._sessions.set(peerDid, { DHs, DHr: theirSignedPreKeyPub, RK, CKs, CKr:null, Ns:0, Nr:0, PN:0, MKSKIP:new Map() });
+    return _b64(await crypto.subtle.exportKey('raw', myEphKP.publicKey));
+  }
+
+  // ── X3DH receiver init ───────────────────────────────────────────────
+  async initReceiver(peerDid, myIdentityPriv, mySignedPreKeyPriv, theirIdentityPub, theirEphB64) {
+    const theirEph = await crypto.subtle.importKey('raw', _fromB64(theirEphB64), { name:'ECDH', namedCurve:'P-256' }, true, []);
+    const dh1 = await this._dh(mySignedPreKeyPriv, theirIdentityPub);
+    const dh2 = await this._dh(myIdentityPriv,     theirEph);
+    const dh3 = await this._dh(mySignedPreKeyPriv, theirEph);
+    const sk   = await this._kdfRkRaw(_concat(dh1, dh2, dh3), new Uint8Array(32));
+    this._sessions.set(peerDid, { DHs:null, DHr:theirEph, RK:sk, CKs:null, CKr:null, Ns:0, Nr:0, PN:0, MKSKIP:new Map() });
+  }
+
+  // ── Encrypt ──────────────────────────────────────────────────────────
+  async encrypt(peerDid, plaintext) {
+    const s = this._sessions.get(peerDid);
+    if (!s) throw new Error('DR: no session for ' + peerDid);
+    // Perform DH ratchet step if no sending chain yet (receiver first send)
+    if (!s.CKs) {
+      s.DHs = await this._genKP();
+      const dhO = await this._dh(s.DHs.privateKey, s.DHr);
+      [s.RK, s.CKs] = await this._kdfRk(s.RK, dhO);
+      s.PN = 0;
+    }
+    const [CKs, MK] = await this._kdfCk(s.CKs);
+    s.CKs = CKs;
+    const n      = s.Ns++;
+    const dhPub  = await crypto.subtle.exportKey('raw', s.DHs.publicKey);
+    const header = { dh: _b64(dhPub), pn: s.PN, n };
+    const iv     = crypto.getRandomValues(new Uint8Array(12));
+    const aad    = new TextEncoder().encode(JSON.stringify(header));
+    const aesKey = await crypto.subtle.importKey('raw', MK, 'AES-GCM', false, ['encrypt']);
+    const ct     = await crypto.subtle.encrypt({ name:'AES-GCM', iv, additionalData:aad }, aesKey,
+      typeof plaintext === 'string' ? new TextEncoder().encode(plaintext) : plaintext);
+    return { header, ciphertext: _b64(ct), iv: _b64(iv) };
+  }
+
+  // ── Decrypt ──────────────────────────────────────────────────────────
+  async decrypt(peerDid, header, ciphertext, iv) {
+    const s = this._sessions.get(peerDid);
+    if (!s) throw new Error('DR: no session for ' + peerDid);
+    // Skipped message key cache
+    const skipKey = `${header.dh}:${header.n}`;
+    if (s.MKSKIP.has(skipKey)) {
+      const MK = s.MKSKIP.get(skipKey); s.MKSKIP.delete(skipKey);
+      return this._aesDec(MK, header, ciphertext, iv);
+    }
+    const inDHPub = await crypto.subtle.importKey('raw', _fromB64(header.dh), { name:'ECDH', namedCurve:'P-256' }, true, []);
+    const curRaw  = s.DHr ? _b64(await crypto.subtle.exportKey('raw', s.DHr)) : null;
+    const isNew   = !curRaw || curRaw !== header.dh;
+    if (isNew) {
+      if (s.CKr) await this._skipKeys(s, s.DHr, header.pn);
+      s.PN = s.Ns; s.Ns = 0; s.Nr = 0;
+      const dhO1 = s.DHs ? await this._dh(s.DHs.privateKey, inDHPub) : new Uint8Array(32);
+      [s.RK, s.CKr] = await this._kdfRk(s.RK, dhO1);
+      s.DHs = await this._genKP();
+      const dhO2 = await this._dh(s.DHs.privateKey, inDHPub);
+      [s.RK, s.CKs] = await this._kdfRk(s.RK, dhO2);
+      s.DHr = inDHPub;
+    }
+    await this._skipKeys(s, inDHPub, header.n);
+    const [CKr, MK] = await this._kdfCk(s.CKr); s.CKr = CKr; s.Nr++;
+    return this._aesDec(MK, header, ciphertext, iv);
+  }
+
+  async _skipKeys(s, dhPub, until) {
+    if (s.MKSKIP.size + (until - s.Nr) > this.cfg.DR_MAX_SKIP) throw new Error('DR: too many skipped messages');
+    let CKr = s.CKr;
+    if (!CKr) return;
+    const dhB64 = _b64(await crypto.subtle.exportKey('raw', dhPub));
+    while (s.Nr < until) {
+      const [nCKr, MK] = await this._kdfCk(CKr);
+      s.MKSKIP.set(`${dhB64}:${s.Nr}`, MK); CKr = nCKr; s.Nr++;
+    }
+    s.CKr = CKr;
+  }
+
+  async _aesDec(MK, header, ctB64, ivB64) {
+    const aesKey = await crypto.subtle.importKey('raw', MK, 'AES-GCM', false, ['decrypt']);
+    const aad    = new TextEncoder().encode(JSON.stringify(header));
+    const pt     = await crypto.subtle.decrypt({ name:'AES-GCM', iv:_fromB64(ivB64), additionalData:aad }, aesKey, _fromB64(ctB64));
+    return new Uint8Array(pt);
+  }
+
+  /** KDF_RK: HKDF(salt=RK, ikm=DH_output) → [RK', CK] */
+  async _kdfRk(RK, dhOut) {
+    const k = await crypto.subtle.importKey('raw', dhOut, 'HKDF', false, ['deriveBits']);
+    const d = new Uint8Array(await crypto.subtle.deriveBits(
+      { name:'HKDF', hash:'SHA-256', salt:RK, info:_str2b('sovereign-dr-rk-v2') }, k, 512));
+    return [d.slice(0,32), d.slice(32,64)];
+  }
+
+  async _kdfRkRaw(ikm, salt) {
+    const k = await crypto.subtle.importKey('raw', ikm, 'HKDF', false, ['deriveBits']);
+    const d = await crypto.subtle.deriveBits({ name:'HKDF', hash:'SHA-256', salt, info:_str2b('sovereign-x3dh-v2') }, k, 256);
+    return new Uint8Array(d);
+  }
+
+  /** KDF_CK: HMAC(CK, 0x02) → CK',  HMAC(CK, 0x01) → MK  (Signal convention) */
+  async _kdfCk(CK) {
+    const hk = await crypto.subtle.importKey('raw', CK, { name:'HMAC', hash:'SHA-256' }, false, ['sign']);
+    const [MKbuf, CKbuf] = await Promise.all([
+      crypto.subtle.sign('HMAC', hk, new Uint8Array([0x01])),
+      crypto.subtle.sign('HMAC', hk, new Uint8Array([0x02])),
+    ]);
+    return [new Uint8Array(CKbuf), new Uint8Array(MKbuf)];
+  }
+
+  async _dh(priv, pub) {
+    return new Uint8Array(await crypto.subtle.deriveBits({ name:'ECDH', public:pub }, priv, 256));
+  }
+
+  async _genKP() {
+    return crypto.subtle.generateKey({ name:'ECDH', namedCurve:'P-256' }, true, ['deriveBits']);
+  }
+
+  hasSession(did)    { return this._sessions.has(did); }
+  deleteSession(did) { this._sessions.delete(did); }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  §4 — SOVEREIGN DHT
+//  Kademlia XOR routing. Transport priority:
+//    1. BroadcastChannel — same device (instant)
+//    2. WebRTC DataChannel — LAN P2P (fast, serverless)
+//    3. Relay WebSocket — internet fallback (always there)
+// ═══════════════════════════════════════════════════════════════════════════
+
+class SovereignDHT {
+  constructor(cfg = SOVEREIGN_CONFIG) {
+    this.cfg        = cfg;
+    this._did       = null;
+    this._myId      = null;
+    this._table     = new Map();
+    this._channels  = new Map();
+    this._pcs       = new Map();
+    this._pending   = new Map();
+    this._listeners = [];
+    this._bc        = new BroadcastChannel('sovereign_dht');
+    this._bc.onmessage = (e) => this._onBC(e.data);
+    this._iceServers = [{ urls:'stun:stun.l.google.com:19302' }];
+  }
+
+  async init(did) {
+    this._did  = did;
+    this._myId = await _sha256bytes(_str2b(did));
+    this._announceTimer = setInterval(() => this._announce(), this.cfg.DHT_ANNOUNCE_MS);
+    this._gcTimer       = setInterval(() => this._gc(),       this.cfg.DHT_TTL_MS);
+    this._announce();
+    _log('DHT', `init node=${_b64(this._myId).slice(0,12)}`);
+  }
+
+  async findPeers(targetDid) {
+    const tid = await _sha256bytes(_str2b(targetDid));
+    return this._kClosest(tid, this.cfg.DHT_K);
+  }
+
+  async connect(peerDid, signalingFn) {
+    if (this._channels.has(peerDid)) return this._channels.get(peerDid);
+    return new Promise((res, rej) => {
+      const t = setTimeout(() => { this._pending.delete(peerDid); rej(new Error('DHT connect timeout')); }, 15000);
+      this._pending.set(peerDid, { resolve:res, reject:rej, timeout:t });
+      this._initiateWebRTC(peerDid, signalingFn).catch(rej);
+    });
+  }
+
+  on(event, cb) {
+    this._listeners.push({ event, cb });
+    return () => { this._listeners = this._listeners.filter(l => l.cb !== cb); };
+  }
+
+  async sendToPeer(peerDid, data) {
+    const ch = this._channels.get(peerDid);
+    if (ch && ch.readyState === 'open') { ch.send(JSON.stringify(data)); return 'webrtc'; }
+    this._bc.postMessage({ type:'MSG', to:peerDid, from:this._did, data });
+    return 'broadcast';
+  }
+
+  async _addPeer(did, pubKey, address) {
+    if (did === this._did) return;
+    const nodeId = await _sha256bytes(_str2b(did));
+    const entry  = { did, pubKey, address, nodeId, seenAt:Date.now() };
+    this._table.set(_b64(nodeId), entry);
+    this._trimTable();
+    this._emit('peer_found', entry);
+    return entry;
+  }
+
+  _kClosest(tid, k) {
+    return [...this._table.values()]
+      .map(e => ({ ...e, dist: _xorDist(e.nodeId, tid) }))
+      .sort((a,b) => _cmpBuf(a.dist, b.dist))
+      .slice(0, k);
+  }
+
+  _trimTable() {
+    const max = this.cfg.DHT_K * 32;
+    if (this._table.size <= max) return;
+    const keep = new Set(this._kClosest(this._myId, max).map(e => _b64(e.nodeId)));
+    for (const k of this._table.keys()) { if (!keep.has(k)) this._table.delete(k); }
+  }
+
+  _announce() {
+    this._bc.postMessage({ type:'ANNOUNCE', did:this._did, ts:Date.now() });
+  }
+
+  _onBC(msg) {
+    if (!msg?.type) return;
+    if (msg.type === 'ANNOUNCE' && msg.did) { this._addPeer(msg.did, msg.pubKey||null, 'local'); return; }
+    if (msg.to !== this._did) return;
+    if (msg.type === 'MSG')    { this._emit('message', { from:msg.from, data:msg.data, channel:'broadcast' }); return; }
+    if (msg.type === 'OFFER')  { this._handleOffer(msg); return; }
+    if (msg.type === 'ANSWER') { this._handleAnswer(msg); return; }
+    if (msg.type === 'ICE')    { this._handleICE(msg); }
+  }
+
+  async _initiateWebRTC(peerDid, sigFn) {
+    const pc = new RTCPeerConnection({ iceServers: this._iceServers });
+    const dc = pc.createDataChannel('sovereign', { ordered:true });
+    this._pcs.set(peerDid, pc);
+    this._wireDC(dc, peerDid);
+    pc.onicecandidate = (e) => {
+      if (!e.candidate) return;
+      const m = { type:'ICE', to:peerDid, from:this._did, candidate:e.candidate };
+      this._bc.postMessage(m); if (sigFn) sigFn(m);
+    };
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    const m = { type:'OFFER', to:peerDid, from:this._did, sdp:offer };
+    this._bc.postMessage(m); if (sigFn) sigFn(m);
+  }
+
+  async _handleOffer(msg) {
+    const pc = new RTCPeerConnection({ iceServers: this._iceServers });
+    this._pcs.set(msg.from, pc);
+    pc.ondatachannel  = (e) => this._wireDC(e.channel, msg.from);
+    pc.onicecandidate = (e) => {
+      if (e.candidate) this._bc.postMessage({ type:'ICE', to:msg.from, from:this._did, candidate:e.candidate });
+    };
+    await pc.setRemoteDescription(new RTCSessionDescription(msg.sdp));
+    const ans = await pc.createAnswer();
+    await pc.setLocalDescription(ans);
+    this._bc.postMessage({ type:'ANSWER', to:msg.from, from:this._did, sdp:ans });
+  }
+
+  async _handleAnswer(msg) {
+    const pc = this._pcs.get(msg.from);
+    if (pc) await pc.setRemoteDescription(new RTCSessionDescription(msg.sdp));
+  }
+
+  async _handleICE(msg) {
+    const pc = this._pcs.get(msg.from);
+    if (pc) { try { await pc.addIceCandidate(new RTCIceCandidate(msg.candidate)); } catch {} }
+  }
+
+  _wireDC(dc, peerDid) {
+    dc.onopen = () => {
+      this._channels.set(peerDid, dc);
+      _log('DHT', `WebRTC open: ${peerDid.slice(0,24)}`);
+      const p = this._pending.get(peerDid);
+      if (p) { clearTimeout(p.timeout); p.resolve(dc); this._pending.delete(peerDid); }
+    };
+    dc.onclose   = () => { this._channels.delete(peerDid); this._emit('peer_lost', { did:peerDid }); };
+    dc.onmessage = (e) => { try { this._emit('message', { from:peerDid, data:JSON.parse(e.data), channel:'webrtc' }); } catch {} };
+  }
+
+  _gc() {
+    const cutoff = Date.now() - this.cfg.DHT_TTL_MS;
+    for (const [k, e] of this._table.entries()) {
+      if (e.seenAt < cutoff) { this._table.delete(k); this._emit('peer_lost', { did:e.did }); }
+    }
+  }
+
+  _emit(event, data) {
+    for (const l of this._listeners) { if (l.event === event) { try { l.cb(data); } catch {} } }
+  }
+
+  destroy() {
+    clearInterval(this._announceTimer); clearInterval(this._gcTimer);
+    this._bc.close();
+    for (const dc of this._channels.values()) { try { dc.close(); } catch {} }
+    for (const pc of this._pcs.values())      { try { pc.close(); } catch {} }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  §5 — SOVEREIGN TRANSPORT
+// ═══════════════════════════════════════════════════════════════════════════
+
 class SovereignTransport {
   constructor(config = SOVEREIGN_CONFIG) {
     this.cfg = config;
-    this._meshSocket = null;
-    this._meshReady = false;
-    this._reconnectCount = 0;
-    this._listeners = [];          // { did, callback }
-    this._pendingQueue = [];       // messages queued while offline
-    this._pollTimer = null;
-    this._myDid = null;
-    this._seenIds = new Set();     // dedup incoming
+    this.kdf     = new SovereignKDF(config);
+    this.ratchet = new DoubleRatchet(config);
+    this.dht     = new SovereignDHT(config);
 
-    // Tab-to-tab fallback (works even with no network)
+    this._meshSocket     = null;
+    this._meshReady      = false;
+    this._reconnectCount = 0;
+    this._listeners      = [];
+    this._pendingQueue   = [];
+    this._pollTimer      = null;
+    this._myDid          = null;
+    this._seenIds        = new Set();
+    this._kdfResult      = null;
+
     this._localBus = new BroadcastChannel('sovereign_transport');
     this._localBus.onmessage = (e) => this._handleIncoming(e.data, 'local');
 
-    this.log('SovereignTransport initialized');
+    this.dht.on('message',    (e) => this._handleIncoming(e.data, 'dht'));
+    this.dht.on('peer_found', (e) => this._onDHTPeer(e, 'found'));
+    this.dht.on('peer_lost',  (e) => this._onDHTPeer(e, 'lost'));
+
+    _log('Transport', 'v2 initialized');
   }
 
-  // ── PUBLIC API ─────────────────────────────
-
   /**
-   * Call this once your identity is loaded.
-   * @param {string} did - your DID string
+   * Connect. Passphrase recommended — runs KDF before vault unlock.
+   * @param {string}      did
+   * @param {string}     [passphrase]
+   * @param {Uint8Array} [kdfSalt]   — stored non-secret; provide on reconnect
    */
-  async connect(did) {
+  async connect(did, passphrase = null, kdfSalt = null) {
     this._myDid = did;
-    this.log(`Connecting as ${did}`);
 
-    // Start mesh WebSocket
-    await this._connectMesh();
-
-    // Start chain polling for incoming messages
-    this._startChainPoll();
-
-    // Emit status
-    this._emit('transport:status', { mesh: this._meshReady, chain: true });
-  }
-
-  /**
-   * Send a message. Call this after your local dbPut().
-   * @param {object} msg - the signed message object from sendMsg()
-   * @returns {object} { mesh: bool, chain: bool, queued: bool }
-   */
-  async send(msg) {
-    const envelope = this._wrap(msg);
-    const result = { mesh: false, chain: false, queued: false };
-
-    // 1. Always broadcast to local tabs (instant, zero latency)
-    this._localBus.postMessage(envelope);
-    this.log(`[LOCAL BUS] broadcasted msg ${msg.id}`);
-
-    // 2. Send via mesh (fast propagation)
-    if (this._meshReady) {
-      result.mesh = await this._meshSend(envelope);
+    if (passphrase) {
+      this._emit('transport:kdf_progress', { progress: 0 });
+      this._kdfResult = await this.kdf.stretch(passphrase, kdfSalt,
+        (p) => this._emit('transport:kdf_progress', { progress: p })
+      );
+      this._emit('transport:kdf_ready', { algorithm: this._kdfResult.algorithm, salt: _b64(this._kdfResult.salt) });
+      _log('Transport', `KDF complete via ${this._kdfResult.algorithm}`);
     }
 
-    // 3. Anchor to chain (permanent record)
+    await this.dht.init(did);
+    this._connectMesh().catch(() => {});   // relay = optional fallback
+    this._startChainPoll();
+    this._emit('transport:status', { mesh: this._meshReady, dht: true, chain: true });
+  }
+
+  /** Send. Encrypts with Double Ratchet if a session exists for recipient. */
+  async send(msg) {
+    const result = { dht:false, mesh:false, chain:false, queued:false };
+
+    let envelope;
+    if (this.ratchet.hasSession(msg.to)) {
+      const pt  = new TextEncoder().encode(JSON.stringify(msg));
+      const enc = await this.ratchet.encrypt(msg.to, pt);
+      envelope  = { id:msg.id, from:msg.from, to:msg.to, ts:msg.ts, enc:true,
+                    dr_header:enc.header, dr_iv:enc.iv, body:enc.ciphertext };
+    } else {
+      envelope = { id:msg.id, from:msg.from, to:msg.to, ts:msg.ts, enc:false,
+                   hash:msg.hash, sig:msg.sig, body:btoa(JSON.stringify(msg)) };
+    }
+
+    this._localBus.postMessage(envelope);
+
+    const peers = await this.dht.findPeers(msg.to);
+    for (const peer of peers.slice(0,3)) {
+      try { await this.dht.sendToPeer(peer.did, envelope); result.dht = true; break; } catch {}
+    }
+
+    if (!result.dht && this._meshReady) result.mesh = await this._meshSend(envelope);
     result.chain = await this._chainAppend(envelope);
 
-    // 4. If both failed, queue for retry
-    if (!result.mesh && !result.chain) {
-      this._pendingQueue.push(envelope);
-      result.queued = true;
-      this.log(`[QUEUE] msg ${msg.id} queued (${this._pendingQueue.length} pending)`);
+    if (!result.dht && !result.mesh && !result.chain) {
+      this._pendingQueue.push(envelope); result.queued = true;
     }
-
     return result;
   }
 
-  /**
-   * Register a callback for incoming messages addressed to a DID.
-   * @param {string} did - DID to listen for
-   * @param {function} callback - called with (msg, source)
-   */
   subscribe(did, callback) {
     this._listeners.push({ did, callback });
-    this.log(`Subscribed to messages for ${did}`);
-
-    // Subscribe on mesh topic
-    if (this._meshReady) {
-      this._meshSubscribe(did);
-    }
+    if (this._meshReady) this._meshSubscribe(did);
   }
 
-  /**
-   * Graceful shutdown.
-   */
   disconnect() {
     if (this._meshSocket) this._meshSocket.close();
-    if (this._pollTimer) clearInterval(this._pollTimer);
+    if (this._pollTimer)  clearInterval(this._pollTimer);
     this._localBus.close();
-    this.log('Transport disconnected');
+    this.dht.destroy();
+    _log('Transport', 'disconnected');
   }
 
-  // ── MESH (WebSocket) ───────────────────────
+  get kdfResult() { return this._kdfResult; }
 
+  // ── Relay (fallback) ─────────────────────────────────────────────────
   async _connectMesh() {
-    return new Promise((resolve) => {
+    return new Promise((res) => {
       try {
         this._meshSocket = new WebSocket(this.cfg.MESH_WS_URL);
-
-        this._meshSocket.onopen = () => {
-          this._meshReady = true;
-          this._reconnectCount = 0;
-          this.log(`[MESH] Connected to ${this.cfg.MESH_WS_URL}`);
-
-          // Re-subscribe all listeners after reconnect
+        this._meshSocket.onopen  = () => {
+          this._meshReady = true; this._reconnectCount = 0;
+          _log('Transport', 'relay connected (fallback)');
           this._listeners.forEach(l => this._meshSubscribe(l.did));
-
-          // Flush pending queue
           this._flushQueue();
-
-          this._emit('transport:mesh', { status: 'connected' });
-          resolve(true);
+          this._emit('transport:mesh', { status:'connected' }); res(true);
         };
-
-        this._meshSocket.onmessage = (e) => {
-          try {
-            const envelope = JSON.parse(e.data);
-            this._handleIncoming(envelope, 'mesh');
-          } catch (err) {
-            this.log('[MESH] Bad message format', err);
-          }
-        };
-
-        this._meshSocket.onclose = () => {
-          this._meshReady = false;
-          this.log('[MESH] Disconnected. Reconnecting...');
-          this._emit('transport:mesh', { status: 'disconnected' });
-          this._scheduleReconnect();
-          resolve(false);
-        };
-
-        this._meshSocket.onerror = (e) => {
-          this.log('[MESH] Error:', e.message || 'connection refused');
-          // Don't crash — fall back to chain-only
-          resolve(false);
-        };
-      } catch (err) {
-        this.log('[MESH] Could not connect:', err.message);
-        resolve(false);
-      }
+        this._meshSocket.onmessage = (e) => { try { this._handleIncoming(JSON.parse(e.data), 'mesh'); } catch {} };
+        this._meshSocket.onclose   = () => { this._meshReady = false; this._emit('transport:mesh', { status:'disconnected' }); this._scheduleReconnect(); res(false); };
+        this._meshSocket.onerror   = () => res(false);
+      } catch { res(false); }
     });
   }
 
   _scheduleReconnect() {
-    if (this._reconnectCount >= this.cfg.MAX_RECONNECT_ATTEMPTS) {
-      this.log('[MESH] Max reconnect attempts reached. Running chain-only.');
-      return;
-    }
+    if (this._reconnectCount >= this.cfg.MAX_RECONNECT_ATTEMPTS) return;
     this._reconnectCount++;
     setTimeout(() => this._connectMesh(), this.cfg.RECONNECT_DELAY_MS);
   }
 
-  async _meshSend(envelope) {
+  async _meshSend(env) {
     if (!this._meshReady) return false;
-    try {
-      const topic = await this._topicFor(envelope.to);
-      this._meshSocket.send(JSON.stringify({
-        type: 'PUBLISH',
-        topic,
-        data: envelope,
-      }));
-      this.log(`[MESH] Sent to topic ${topic.slice(0, 16)}…`);
-      return true;
-    } catch (err) {
-      this.log('[MESH] Send failed:', err.message);
-      return false;
-    }
+    try { this._meshSocket.send(JSON.stringify({ type:'PUBLISH', topic: await _topicFor(this.cfg.TOPIC_PREFIX, env.to), data:env })); return true; }
+    catch { return false; }
   }
 
   async _meshSubscribe(did) {
     if (!this._meshReady) return;
-    const topic = await this._topicFor(did);
-    this._meshSocket.send(JSON.stringify({
-      type: 'SUBSCRIBE',
-      topic,
-    }));
-    this.log(`[MESH] Subscribed to topic for ${did.slice(0, 20)}…`);
+    this._meshSocket.send(JSON.stringify({ type:'SUBSCRIBE', topic: await _topicFor(this.cfg.TOPIC_PREFIX, did) }));
   }
 
-  // ── CHAIN (HTTP RPC) ───────────────────────
-
-  async _chainAppend(envelope) {
+  // ── Chain ────────────────────────────────────────────────────────────
+  async _chainAppend(env) {
     try {
-      const topic = await this._topicFor(envelope.to);
-
-      // ── ADAPT THIS TO YOUR CHAIN ──────────────────────────────
-      // This calls a generic JSON-RPC endpoint.
-      // Replace with your chain's actual method.
-      //
-      // Solana example:
-      //   method: 'sendTransaction', with memo instruction containing envelope
-      //
-      // Custom chain example:
-      //   method: 'sovereign_appendMessage'
-      //
-      // Ethereum example:
-      //   method: 'eth_sendRawTransaction'
-      // ─────────────────────────────────────────────────────────
-
-      const payload = {
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'sovereign_appendMessage',   // ← change to your chain method
-        params: {
-          topic,
-          blob: btoa(JSON.stringify(envelope)),  // base64 encoded encrypted blob
-          sender: this._myDid,
-        },
-      };
-
       const res = await fetch(this.cfg.CHAIN_RPC, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ jsonrpc:'2.0', id:1, method:'sovereign_appendMessage',
+          params:{ topic: await _topicFor(this.cfg.TOPIC_PREFIX, env.to), blob:btoa(JSON.stringify(env)), sender:this._myDid }}),
         signal: AbortSignal.timeout(8000),
       });
-
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-
-      if (data.error) throw new Error(data.error.message);
-
-      this.log(`[CHAIN] Appended: txid=${data.result?.txid || 'ok'}`);
-      return true;
-    } catch (err) {
-      this.log('[CHAIN] Append failed:', err.message);
-      return false;
-    }
+      if (!res.ok) return false;
+      const d = await res.json(); return !d.error;
+    } catch { return false; }
   }
 
   _startChainPoll() {
     if (this._pollTimer) clearInterval(this._pollTimer);
     this._pollTimer = setInterval(() => this._pollChain(), this.cfg.POLL_MS);
-    this.log(`[CHAIN] Polling every ${this.cfg.POLL_MS}ms`);
   }
 
   async _pollChain() {
     if (!this._myDid) return;
     try {
-      const topic = await this._topicFor(this._myDid);
-
-      // ── ADAPT THIS TO YOUR CHAIN ──────────────────────────────
-      // Replace 'sovereign_getMessages' with your chain's read method
-      // ─────────────────────────────────────────────────────────
-
       const res = await fetch(this.cfg.CHAIN_RPC, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jsonrpc: '2.0',
-          id: 1,
-          method: 'sovereign_getMessages',   // ← change to your chain method
-          params: { topic, since: this._lastPollTs || 0 },
-        }),
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ jsonrpc:'2.0', id:1, method:'sovereign_getMessages',
+          params:{ topic: await _topicFor(this.cfg.TOPIC_PREFIX, this._myDid), since:this._lastPollTs||0 }}),
         signal: AbortSignal.timeout(5000),
       });
-
       if (!res.ok) return;
-      const data = await res.json();
-      if (data.result?.messages) {
+      const d = await res.json();
+      if (d.result?.messages) {
         this._lastPollTs = Date.now();
-        data.result.messages.forEach(blob => {
-          try {
-            const envelope = JSON.parse(atob(blob));
-            this._handleIncoming(envelope, 'chain');
-          } catch {}
-        });
+        for (const blob of d.result.messages) { try { this._handleIncoming(JSON.parse(atob(blob)), 'chain'); } catch {} }
       }
-    } catch (err) {
-      this.log('[CHAIN POLL] Error:', err.message);
-    }
+    } catch {}
   }
 
-  // ── INCOMING MESSAGE HANDLER ───────────────
-
-  _handleIncoming(envelope, source) {
+  // ── Incoming ─────────────────────────────────────────────────────────
+  async _handleIncoming(envelope, source) {
     if (!envelope?.id) return;
-
-    // Dedup — same message can arrive via mesh + chain
     if (this._seenIds.has(envelope.id)) return;
     this._seenIds.add(envelope.id);
-    if (this._seenIds.size > 1000) {
-      // Prune oldest
-      const arr = [...this._seenIds];
-      arr.splice(0, 200).forEach(id => this._seenIds.delete(id));
-    }
-
-    this.log(`[INCOMING] msg ${envelope.id} via ${source}`);
-
-    // Notify matching listeners
-    this._listeners.forEach(({ did, callback }) => {
-      if (envelope.to === did || envelope.from === did) {
-        try { callback(this._unwrap(envelope), source); }
-        catch (err) { this.log('Listener error:', err); }
+    if (this._seenIds.size > 1000) { const a=[...this._seenIds]; a.splice(0,200).forEach(id=>this._seenIds.delete(id)); }
+    let msg;
+    try {
+      if (envelope.enc && this.ratchet.hasSession(envelope.from)) {
+        const pt = await this.ratchet.decrypt(envelope.from, envelope.dr_header, envelope.body, envelope.dr_iv);
+        msg = JSON.parse(new TextDecoder().decode(pt));
+      } else {
+        msg = JSON.parse(atob(envelope.body));
       }
+    } catch (err) { _log('Transport', 'decrypt failed', err.message); return; }
+    this._listeners.forEach(({ did, callback }) => {
+      if (envelope.to === did || envelope.from === did) { try { callback(msg, source); } catch {} }
     });
-
-    // Also fire a DOM event so any page can listen
-    window.dispatchEvent(new CustomEvent('sovereign:message', {
-      detail: { msg: this._unwrap(envelope), source },
-    }));
-  }
-
-  // ── HELPERS ────────────────────────────────
-
-  _wrap(msg) {
-    // In production: encrypt msg body with recipient pubkey before wrapping
-    // For now: structure the envelope
-    return {
-      id: msg.id,
-      from: msg.from,
-      to: msg.to,
-      ts: msg.ts,
-      hash: msg.hash,
-      sig: msg.sig,
-      // Production: replace body with encrypt(JSON.stringify(msg), recipientPubKey)
-      body: btoa(JSON.stringify(msg)),
-    };
-  }
-
-  _unwrap(envelope) {
-    // Production: decrypt body with your private key
-    try { return JSON.parse(atob(envelope.body)); }
-    catch { return envelope; }
-  }
-
-  async _topicFor(did) {
-    // Deterministic topic: sha256(PREFIX + DID)
-    const raw = new TextEncoder().encode(this.cfg.TOPIC_PREFIX + did);
-    const hashBuf = await crypto.subtle.digest('SHA-256', raw);
-    return Array.from(new Uint8Array(hashBuf))
-      .map(b => b.toString(16).padStart(2, '0')).join('');
+    window.dispatchEvent(new CustomEvent('sovereign:message', { detail:{ msg, source } }));
   }
 
   async _flushQueue() {
-    if (!this._pendingQueue.length) return;
-    this.log(`[QUEUE] Flushing ${this._pendingQueue.length} queued messages`);
-    const queue = [...this._pendingQueue];
-    this._pendingQueue = [];
-    for (const envelope of queue) {
-      await this._meshSend(envelope);
-      await this._chainAppend(envelope);
-    }
+    const q = [...this._pendingQueue]; this._pendingQueue = [];
+    for (const env of q) { await this._meshSend(env); await this._chainAppend(env); }
   }
 
-  _emit(event, detail) {
-    window.dispatchEvent(new CustomEvent(event, { detail }));
+  _onDHTPeer(peer, status) {
+    this._emit('transport:peer', { status, did:peer.did });
+    if (window.SovereignFSM) window.SovereignFSM.transport.send(status === 'found' ? 'PEER_FOUND' : 'PEER_LOST');
   }
 
-  log(...args) {
-    if (this.cfg.DEBUG) console.log('[SovereignTransport]', ...args);
-  }
+  _emit(event, detail) { window.dispatchEvent(new CustomEvent(event, { detail })); }
 }
 
-// ─────────────────────────────────────────────
-//  STATUS INDICATOR UI
-//  Injects a small status dot into any Sovereign page
-// ─────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+//  §6 — SHARED CRYPTO UTILITIES
+// ═══════════════════════════════════════════════════════════════════════════
+
+function _b64(buf) { return btoa(String.fromCharCode(...new Uint8Array(buf))); }
+function _fromB64(s) { return Uint8Array.from(atob(s), c => c.charCodeAt(0)); }
+function _str2b(s) { return new TextEncoder().encode(s); }
+function _concat(...arrs) {
+  const total = arrs.reduce((n, a) => n + a.byteLength, 0);
+  const out = new Uint8Array(total); let off = 0;
+  for (const a of arrs) { out.set(new Uint8Array(a), off); off += a.byteLength; }
+  return out;
+}
+async function _sha256bytes(data) { return new Uint8Array(await crypto.subtle.digest('SHA-256', data)); }
+async function _topicFor(prefix, did) {
+  const h = await crypto.subtle.digest('SHA-256', _str2b(prefix + did));
+  return Array.from(new Uint8Array(h)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+function _xorDist(a, b) { const o = new Uint8Array(a.length); for (let i=0;i<a.length;i++) o[i]=a[i]^b[i]; return o; }
+function _cmpBuf(a, b) { for (let i=0;i<Math.min(a.length,b.length);i++) { if(a[i]<b[i])return -1; if(a[i]>b[i])return 1; } return 0; }
+function _log(tag, ...a) { if (SOVEREIGN_CONFIG.DEBUG) console.log(`[Sovereign:${tag}]`, ...a); }
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  §7 — STATUS DOT UI
+// ═══════════════════════════════════════════════════════════════════════════
+
 function injectStatusDot() {
   const dot = document.createElement('div');
   dot.id = 'transport-dot';
-  dot.innerHTML = `
-    <style>
-      #transport-dot {
-        position: fixed; bottom: 12px; left: 12px; z-index: 9999;
-        display: flex; align-items: center; gap: 6px;
-        background: rgba(6,6,8,0.85); border: 1px solid #1a1a28;
-        border-radius: 20px; padding: 5px 10px;
-        font-family: 'Courier New', monospace; font-size: 9px;
-        color: #94a3b8; backdrop-filter: blur(8px);
-        transition: all 0.3s;
-        pointer-events: none;
-      }
-      #transport-dot .dot {
-        width: 6px; height: 6px; border-radius: 50%;
-        background: #334155;
-        transition: background 0.3s;
-      }
-      #transport-dot .dot.mesh  { background: #00ff88; box-shadow: 0 0 6px #00ff8866; }
-      #transport-dot .dot.chain { background: #00d4ff; box-shadow: 0 0 6px #00d4ff66; }
-      #transport-dot .dot.error { background: #ff3366; box-shadow: 0 0 6px #ff336666; }
-    </style>
-    <span class="dot" id="td-mesh" title="Mesh"></span>
-    <span class="dot" id="td-chain" title="Chain"></span>
-    <span id="td-label">TRANSPORT OFFLINE</span>
-  `;
+  dot.innerHTML = `<style>
+    #transport-dot{position:fixed;bottom:12px;left:12px;z-index:9999;display:flex;align-items:center;gap:6px;
+      background:rgba(6,6,8,.88);border:1px solid #1a1a28;border-radius:20px;padding:5px 10px;
+      font-family:'Courier New',monospace;font-size:9px;color:#94a3b8;backdrop-filter:blur(8px);pointer-events:none}
+    #transport-dot .dot{width:6px;height:6px;border-radius:50%;background:#334155;transition:background .3s}
+    #transport-dot .dot.kdf  {background:#fbbf24;box-shadow:0 0 6px #fbbf2466}
+    #transport-dot .dot.dht  {background:#00ff88;box-shadow:0 0 6px #00ff8866}
+    #transport-dot .dot.mesh {background:#a78bfa;box-shadow:0 0 6px #a78bfa66}
+    #transport-dot .dot.chain{background:#00d4ff;box-shadow:0 0 6px #00d4ff66}
+    #transport-dot .dot.err  {background:#ff3366;box-shadow:0 0 6px #ff336666}
+  </style>
+  <span class="dot" id="td-kdf" title="KDF"></span>
+  <span class="dot" id="td-dht" title="DHT/WebRTC"></span>
+  <span class="dot" id="td-mesh" title="Relay"></span>
+  <span class="dot" id="td-chain" title="Chain"></span>
+  <span id="td-label">SOVEREIGN OFFLINE</span>`;
   document.body.appendChild(dot);
-
-  window.addEventListener('transport:mesh', (e) => {
-    const el = document.getElementById('td-mesh');
-    if (!el) return;
-    el.className = 'dot ' + (e.detail.status === 'connected' ? 'mesh' : 'error');
-    updateLabel();
-  });
-
-  window.addEventListener('transport:status', (e) => {
-    const chainEl = document.getElementById('td-chain');
-    if (chainEl) chainEl.className = 'dot chain';
-    updateLabel();
-  });
-
-  function updateLabel() {
-    const meshOn  = document.getElementById('td-mesh')?.classList.contains('mesh');
-    const chainOn = document.getElementById('td-chain')?.classList.contains('chain');
-    const label   = document.getElementById('td-label');
-    if (!label) return;
-    if (meshOn && chainOn) label.textContent = 'MESH + CHAIN';
-    else if (meshOn)       label.textContent = 'MESH ONLY';
-    else if (chainOn)      label.textContent = 'CHAIN ONLY';
-    else                   label.textContent = 'LOCAL ONLY';
-  }
+  const $ = id => document.getElementById(id);
+  const upd = () => {
+    const dOn=($('td-dht')?.className||'').includes('dht'), mOn=($('td-mesh')?.className||'').includes('mesh'), cOn=($('td-chain')?.className||'').includes('chain');
+    const L=$('td-label'); if(!L)return;
+    if(dOn&&cOn) L.textContent='DHT + CHAIN'; else if(dOn) L.textContent='DHT ONLY';
+    else if(mOn) L.textContent='RELAY ONLY'; else if(cOn) L.textContent='CHAIN ONLY'; else L.textContent='LOCAL ONLY';
+  };
+  window.addEventListener('transport:kdf_ready',    () => { const e=$('td-kdf');   if(e) e.className='dot kdf';  upd(); });
+  window.addEventListener('transport:peer',   (ev) => { const e=$('td-dht');   if(e) e.className='dot '+(ev.detail.status==='found'?'dht':'err'); upd(); });
+  window.addEventListener('transport:mesh',   (ev) => { const e=$('td-mesh');  if(e) e.className='dot '+(ev.detail.status==='connected'?'mesh':'err'); upd(); });
+  window.addEventListener('transport:status', (ev) => { if(ev.detail.chain){const e=$('td-chain');if(e)e.className='dot chain';} upd(); });
 }
 
-// ─────────────────────────────────────────────
-//  AUTO-WIRE — patches sendMsg() and boots connect()
-//  Works if this script is loaded AFTER the page JS
-// ─────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+//  §8 — GLOBAL WIRING
+// ═══════════════════════════════════════════════════════════════════════════
+
 window.SovereignTransport = SovereignTransport;
-window._ST = null; // global transport instance
+window.SovereignKDF       = SovereignKDF;
+window.DoubleRatchet      = DoubleRatchet;
+window.SovereignDHT       = SovereignDHT;
+window._ST                = null;
 
 window.addEventListener('DOMContentLoaded', () => {
   injectStatusDot();
+  if (window.SovereignFSM) window.SovereignFSM.kdf.send('RESET');
 });
 
-// Called by your page after identity loads:
-// await window.sovereignConnect(myDID);
-window.sovereignConnect = async function(did) {
+/**
+ * Connect the transport layer.
+ * @param {string}      did
+ * @param {string}     [passphrase]  — required for honest security; runs KDF
+ * @param {Uint8Array} [salt]        — from previous session (non-secret, persist it)
+ */
+window.sovereignConnect = async function(did, passphrase = null, salt = null) {
   if (window._ST) window._ST.disconnect();
   window._ST = new SovereignTransport();
-  await window._ST.connect(did);
 
-  // Subscribe to incoming messages for this DID
+  if (window.SovereignFSM && passphrase) {
+    window.SovereignFSM.kdf.send('STRETCH');
+    window.addEventListener('transport:kdf_ready', () => {
+      window.SovereignFSM.kdf.send('STRETCH_OK');
+      window.SovereignFSM.vault.send('UNLOCK');
+    }, { once:true });
+  }
+
+  await window._ST.connect(did, passphrase, salt);
+
   window._ST.subscribe(did, (msg, source) => {
-    console.log(`[Sovereign] Incoming from ${source}:`, msg);
-    // If the page has a receive handler, call it
-    if (typeof window.onSovereignMessage === 'function') {
-      window.onSovereignMessage(msg, source);
-    }
+    if (typeof window.onSovereignMessage === 'function') window.onSovereignMessage(msg, source);
   });
 
   return window._ST;
 };
 
-// Patch to call after sendMsg() saves to local DB:
-// await window.sovereignSend(msg);
 window.sovereignSend = async function(msg) {
-  if (!window._ST) {
-    console.warn('[Sovereign] Transport not connected. Call sovereignConnect(did) first.');
-    return { queued: true };
-  }
+  if (!window._ST) { console.warn('[Sovereign] Not connected.'); return { queued:true }; }
   return window._ST.send(msg);
 };
 
-// ════════════════════════════════════════════════════════════════════════════
-//  SOVEREIGN TRANSPORT — Security Kernel Integration (Pattern 07 + SW Bridge)
-//  © James Chapman (XheCarpenXer) · Sovereign Technology IP Registry
-//
-//  This section wires the browser-side Transport to the SW Security Kernel:
-//    • SEND now routes through SW for jitter + cover traffic padding (Pattern 07)
-//    • PIR-style topic fetch helper (Pattern 14)
-//    • Vault unlock / sign / seal / open helpers (Pattern 01)
-//    • Heartbeat keepalive for deadman switch (Pattern 12)
-//    • SW event listener for kernel events
-// ════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════
+//  §9 — SW KERNEL BRIDGE  (unchanged API from v1)
+// ═══════════════════════════════════════════════════════════════════════════
 
 class SovereignKernelBridge {
   constructor() {
-    this._sw  = null;
-    this._cbs = new Map();  // event → [callbacks]
-    this._pending = new Map(); // nonce → { resolve, reject }
-    this._heartbeatTimer = null;
+    this._sw=null; this._cbs=new Map(); this._pending=new Map(); this._heartbeatTimer=null;
     this._init();
   }
-
   async _init() {
     if (!('serviceWorker' in navigator)) return;
     const reg = await navigator.serviceWorker.ready;
@@ -536,182 +739,65 @@ class SovereignKernelBridge {
     navigator.serviceWorker.addEventListener('message', (e) => this._onKernelEvent(e.data));
     this._startHeartbeat();
   }
-
-  // ── Vault ──────────────────────────────────────────────────────────────
-
-  async unlockVault(passphrase) {
-    return this._call('VAULT_UNLOCK', { passphrase });
-  }
-
-  async createVault(passphrase, isDecoy = false) {
-    return this._call('VAULT_CREATE', { passphrase, isDecoy });
-  }
-
-  async createDualVault(passphrase, decoyPassphrase) {
-    return this._call('VAULT_CREATE_DUAL', { passphrase, decoyPassphrase });
-  }
-
-  async lockVault() {
-    return this._call('VAULT_LOCK', {});
-  }
-
-  // ── Pattern 01: Key Oracle ─────────────────────────────────────────────
-
-  async sign(dataB64) {
-    return this._call('SIGN', { data: dataB64 });
-  }
-
-  async seal(plaintextB64, recipientPubKey) {
-    return this._call('SEAL', { plaintext: plaintextB64, recipientPubKey });
-  }
-
-  async open(ciphertextB64, iv, senderPubKey) {
-    return this._call('OPEN', { ciphertext: ciphertextB64, iv, senderPubKey });
-  }
-
-  // ── Pattern 02: Double Ratchet ─────────────────────────────────────────
-
-  async initRatchet(peerDid, theirIdentityPubKey, theirEphemeralPubKey) {
-    return this._call('RATCHET_INIT', { peerDid, theirIdentityPubKey, theirEphemeralPubKey });
-  }
-
-  async ratchetEncrypt(peerDid, plaintextB64) {
-    return this._call('RATCHET_ENCRYPT', { peerDid, plaintext: plaintextB64 });
-  }
-
-  async ratchetDecrypt(peerDid, n, ciphertextB64, iv) {
-    return this._call('RATCHET_DECRYPT', { peerDid, n, ciphertext: ciphertextB64, iv });
-  }
-
-  // ── Pattern 06: Onion Send ─────────────────────────────────────────────
-
-  async onionSend(targetDid, plaintextB64) {
-    return this._call('ONION_SEND', { targetDid, plaintext: plaintextB64 });
-  }
-
-  // ── Pattern 14: PIR Fetch ──────────────────────────────────────────────
-
-  async pirFetch(relayUrl, myTopicHash, decoyCount = 3) {
-    return this._call('PIR_FETCH', { relayUrl, myTopicHash, decoyCount });
-  }
-
-  // ── Pattern 09: Audit ─────────────────────────────────────────────────
-
-  async verifyAuditChain() {
-    return this._call('AUDIT_VERIFY', {});
-  }
-
-  async exportAuditChain() {
-    return this._call('AUDIT_EXPORT', {});
-  }
-
-  // ── Pattern 15: Threshold Signing ─────────────────────────────────────
-
-  async tssDkgRound1(myIndex, parties, threshold) {
-    return this._call('TSS_DKG_ROUND1', { myIndex, parties, threshold });
-  }
-
-  async tssPartialSign(sessionId, payloadB64) {
-    return this._call('TSS_PARTIAL_SIGN', { sessionId, payload: payloadB64 });
-  }
-
-  async tssAggregate(partials, payloadB64) {
-    return this._call('TSS_AGGREGATE', { partials, payload: payloadB64 });
-  }
-
-  // ── Firewall admin ────────────────────────────────────────────────────
-
-  async allowDomain(domain)  { return this._call('ALLOW_DOMAIN',  { domain }); }
-  async revokeDomain(domain) { return this._call('REVOKE_DOMAIN', { domain }); }
-
-  // ── Status ────────────────────────────────────────────────────────────
-
-  async getStatus() {
-    return this._call('STATUS', {});
-  }
-
-  // ── Pattern 12: Deadman heartbeat ─────────────────────────────────────
-
+  async unlockVault(p)          { return this._call('VAULT_UNLOCK',      { passphrase:p }); }
+  async createVault(p,d)        { return this._call('VAULT_CREATE',      { passphrase:p, isDecoy:d }); }
+  async createDualVault(p,dp)   { return this._call('VAULT_CREATE_DUAL', { passphrase:p, decoyPassphrase:dp }); }
+  async lockVault()             { return this._call('VAULT_LOCK',        {}); }
+  async sign(d)                 { return this._call('SIGN',              { data:d }); }
+  async seal(pt,rk)             { return this._call('SEAL',              { plaintext:pt, recipientPubKey:rk }); }
+  async open(ct,iv,spk)         { return this._call('OPEN',              { ciphertext:ct, iv, senderPubKey:spk }); }
+  async initRatchet(pd,ik,ek)   { return this._call('RATCHET_INIT',      { peerDid:pd, theirIdentityPubKey:ik, theirEphemeralPubKey:ek }); }
+  async ratchetEncrypt(pd,pt)   { return this._call('RATCHET_ENCRYPT',   { peerDid:pd, plaintext:pt }); }
+  async ratchetDecrypt(pd,n,ct,iv){ return this._call('RATCHET_DECRYPT', { peerDid:pd, n, ciphertext:ct, iv }); }
+  async onionSend(td,pt)        { return this._call('ONION_SEND',        { targetDid:td, plaintext:pt }); }
+  async pirFetch(ru,th,dc)      { return this._call('PIR_FETCH',         { relayUrl:ru, myTopicHash:th, decoyCount:dc }); }
+  async verifyAuditChain()      { return this._call('AUDIT_VERIFY',      {}); }
+  async exportAuditChain()      { return this._call('AUDIT_EXPORT',      {}); }
+  async tssDkgRound1(i,p,t)     { return this._call('TSS_DKG_ROUND1',    { myIndex:i, parties:p, threshold:t }); }
+  async tssPartialSign(sid,pb)  { return this._call('TSS_PARTIAL_SIGN',  { sessionId:sid, payload:pb }); }
+  async tssAggregate(pts,pb)    { return this._call('TSS_AGGREGATE',     { partials:pts, payload:pb }); }
+  async allowDomain(d)          { return this._call('ALLOW_DOMAIN',      { domain:d }); }
+  async revokeDomain(d)         { return this._call('REVOKE_DOMAIN',     { domain:d }); }
+  async getStatus()             { return this._call('STATUS',            {}); }
+  async panic()                 { return this._call('PANIC',             {}); }
   _startHeartbeat() {
-    const INTERVAL = 30 * 60 * 1000; // 30 min
-    this._heartbeatTimer = setInterval(() => {
-      this._send({ cmd: 'HEARTBEAT' });
-    }, INTERVAL);
-    // Send immediately on load
-    setTimeout(() => this._send({ cmd: 'HEARTBEAT' }), 2000);
+    this._heartbeatTimer = setInterval(() => this._send({ cmd:'HEARTBEAT' }), 30*60*1000);
+    setTimeout(() => this._send({ cmd:'HEARTBEAT' }), 2000);
   }
-
-  stopHeartbeat() {
-    if (this._heartbeatTimer) clearInterval(this._heartbeatTimer);
-  }
-
-  // ── Panic ─────────────────────────────────────────────────────────────
-
-  async panic() {
-    return this._call('PANIC', {});
-  }
-
-  // ── Event subscriptions ───────────────────────────────────────────────
-
+  stopHeartbeat() { clearInterval(this._heartbeatTimer); }
   on(event, cb) {
     if (!this._cbs.has(event)) this._cbs.set(event, []);
     this._cbs.get(event).push(cb);
     return () => this._cbs.set(event, this._cbs.get(event).filter(f => f !== cb));
   }
-
-  // ── Internals ─────────────────────────────────────────────────────────
-
   _send(msg) {
-    if (!this._sw) { navigator.serviceWorker.ready.then(r => { this._sw = r.active; this._sw.postMessage(msg); }); return; }
+    if (!this._sw) { navigator.serviceWorker.ready.then(r => { this._sw=r.active; this._sw.postMessage(msg); }); return; }
     this._sw.postMessage(msg);
   }
-
   _call(cmd, args) {
-    return new Promise((resolve, reject) => {
-      const nonce = Math.random().toString(36).slice(2);
-      this._pending.set(nonce, { resolve, reject });
-      setTimeout(() => { if (this._pending.has(nonce)) { this._pending.delete(nonce); reject(new Error('SW timeout: ' + cmd)); } }, 15000);
-      this._send({ cmd, nonce, ...args });
+    return new Promise((res, rej) => {
+      const n = Math.random().toString(36).slice(2);
+      this._pending.set(n, { resolve:res, reject:rej });
+      setTimeout(() => { if(this._pending.has(n)){this._pending.delete(n);rej(new Error('SW timeout:'+cmd));} }, 15000);
+      this._send({ cmd, nonce:n, ...args });
     });
   }
-
   _onKernelEvent(data) {
     const { event, nonce } = data || {};
-    // Resolve pending call if this is a direct response
     if (nonce && this._pending.has(nonce)) {
-      const { resolve, reject } = this._pending.get(nonce);
-      this._pending.delete(nonce);
-      if (event?.includes('ERROR')) reject(new Error(data.reason || event));
-      else resolve(data);
-      return;
+      const { resolve, reject } = this._pending.get(nonce); this._pending.delete(nonce);
+      if (event?.includes('ERROR')) reject(new Error(data.reason||event)); else resolve(data); return;
     }
-    // Also resolve by event name pattern for vault events
-    for (const [n, { resolve }] of this._pending.entries()) {
-      const responseMap = {
-        VAULT_UNLOCK: 'VAULT_UNLOCKED', VAULT_CREATE: 'VAULT_CREATED',
-        VAULT_CREATE_DUAL: 'DUAL_VAULT_CREATED', SIGN: 'SIGNED',
-        SEAL: 'SEALED', OPEN: 'OPENED', STATUS: 'STATUS',
-        AUDIT_VERIFY: 'AUDIT_VERIFIED', AUDIT_EXPORT: 'AUDIT_EXPORTED',
-        PIR_FETCH: 'PIR_RESULTS', ONION_SEND: 'ONION_SENT',
-        PANIC: 'PANIC_LOCKDOWN',
-      };
-      // Best-effort match without nonce
-    }
-    // Broadcast to all event listeners
-    const listeners = this._cbs.get(event) || [];
-    for (const cb of listeners) cb(data);
-    // Also fire wildcard listeners
-    for (const cb of (this._cbs.get('*') || [])) cb(data);
+    for (const cb of (this._cbs.get(event)||[])) cb(data);
+    for (const cb of (this._cbs.get('*')   ||[])) cb(data);
   }
 }
 
-// Expose globally
 window.SovereignKernel = new SovereignKernelBridge();
 
-// Convenience: boot SW with identity when available
 window.sovereignBoot = async function(did, pubKey) {
   const reg = await navigator.serviceWorker.ready;
-  reg.active?.postMessage({ cmd: 'BOOT', did, pubKey });
+  reg.active?.postMessage({ cmd:'BOOT', did, pubKey });
 };
 
-console.log('[Sovereign] Security Kernel bridge loaded — 15 patterns active');
+console.log('[Sovereign] Transport v2 — DHT + DoubleRatchet + KDF + FSM — 0 deps');
