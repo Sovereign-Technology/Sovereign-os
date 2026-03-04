@@ -442,6 +442,66 @@ textarea.field-input { resize:vertical; min-height:72px; font-size:11px; line-he
   /* Convo avatar in conversation list */
   .convo-av { width:32px; height:32px; border-radius:50%; background:var(--bg4); border:1px solid var(--border2); display:flex; align-items:center; justify-content:center; font-family:var(--mono); font-size:11px; color:var(--cyan); flex-shrink:0; }
 
+  
+  /* ── ONBOARDING WIZARD ── */
+  #onboarding-overlay {
+    position:fixed; inset:0; z-index:8000;
+    background:rgba(7,8,11,0.97); backdrop-filter:blur(20px);
+    display:flex; align-items:center; justify-content:center;
+    animation: fadeIn 0.4s ease;
+  }
+  @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+  .onboarding-card {
+    width:460px; max-width:94vw;
+    background:var(--bg2); border:1px solid var(--border2);
+    border-radius:16px; padding:36px 32px;
+    box-shadow: 0 40px 80px rgba(0,0,0,0.6);
+  }
+  .onboard-step { display:none; }
+  .onboard-step.active { display:block; }
+  .onboard-eyebrow { font-size:9px; letter-spacing:3px; color:var(--text3); font-family:var(--mono); margin-bottom:14px; }
+  .onboard-title { font-size:26px; font-weight:700; margin-bottom:8px; line-height:1.2; }
+  .onboard-title span { color:var(--cyan); }
+  .onboard-body { font-size:13px; color:var(--text2); line-height:1.7; margin-bottom:24px; }
+  .onboard-progress { display:flex; gap:6px; margin-bottom:28px; }
+  .onboard-dot { width:20px; height:3px; border-radius:2px; background:var(--border2); transition:background 0.3s; }
+  .onboard-dot.done { background:var(--cyan); }
+  .onboard-actions { display:flex; gap:10px; align-items:center; margin-top:20px; }
+  .onboard-skip { font-size:11px; color:var(--text3); cursor:pointer; margin-left:auto; }
+  .onboard-skip:hover { color:var(--text2); }
+  .onboard-feature { display:flex; gap:14px; align-items:flex-start; margin-bottom:14px; }
+  .onboard-feature-icon { font-size:22px; flex-shrink:0; margin-top:2px; }
+  .onboard-feature h4 { font-size:13px; font-weight:600; margin-bottom:2px; }
+  .onboard-feature p  { font-size:12px; color:var(--text2); line-height:1.5; }
+  .quick-connect-box {
+    background:var(--bg3); border:1px solid rgba(0,200,240,0.2);
+    border-radius:8px; padding:14px 16px; margin-top:16px;
+  }
+  .qc-label { font-size:10px; color:var(--cyan); letter-spacing:1px; font-family:var(--mono); margin-bottom:8px; }
+  .relay-option { display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--border); }
+  .relay-option:last-child { border-bottom:none; }
+  .relay-option-name { font-size:12px; font-weight:600; }
+  .relay-option-url  { font-size:10px; color:var(--text3); font-family:var(--mono); margin-top:1px; }
+  .relay-option-use  { font-size:11px; padding:4px 12px; }
+  /* Local-tab discovery banner on Connect panel */
+  .local-discovery-banner {
+    background:rgba(0,200,240,0.06); border:1px solid rgba(0,200,240,0.2);
+    border-radius:8px; padding:14px 16px; margin-bottom:16px;
+    display:flex; align-items:center; gap:14px;
+  }
+  .ldb-icon { font-size:24px; flex-shrink:0; }
+  .ldb-body { flex:1; }
+  .ldb-title { font-size:13px; font-weight:600; margin-bottom:2px; }
+  .ldb-desc  { font-size:11px; color:var(--text2); }
+  /* First-run empty state for messages */
+  .first-run-cta {
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    height:100%; gap:14px; padding:40px 24px; text-align:center;
+  }
+  .frc-icon  { font-size:48px; opacity:0.3; }
+  .frc-title { font-size:17px; font-weight:600; color:var(--text2); }
+  .frc-body  { font-size:12px; color:var(--text3); line-height:1.7; max-width:280px; }
+
   /* ── RESPONSIVE ── */
 @media (max-width:600px) {
   .nav-tab span:not(.icon) { display:none; }
@@ -594,6 +654,19 @@ textarea.field-input { resize:vertical; min-height:72px; font-size:11px; line-he
     <div class="pane-title">Connect to Peers</div>
     <div class="pane-sub">No central servers required. Peers connect directly or via a relay you choose.</div>
 
+    <!-- Quick actions bar -->
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;">
+      <button class="btn btn-primary btn-sm" onclick="localTabDiscover()" style="display:flex;align-items:center;gap:6px;">
+        ⬡ Discover local tabs
+      </button>
+      <button class="btn btn-ghost btn-sm" onclick="obUseRelay('wss://sovereign-relay.fly.dev');toast('Connecting to demo relay…','info');" style="display:flex;align-items:center;gap:6px;">
+        ↗ Demo relay
+      </button>
+      <button class="btn btn-ghost btn-sm" onclick="showGuide('connect')" style="display:flex;align-items:center;gap:6px;">
+        ? How connections work
+      </button>
+    </div>
+
     <!-- Relay -->
     <div class="card" style="margin-bottom:16px;">
       <div style="font-size:13px;font-weight:600;margin-bottom:3px;">Relay <span style="font-size:11px;color:var(--text3);font-weight:400;">(optional — helps across networks)</span></div>
@@ -692,9 +765,14 @@ textarea.field-input { resize:vertical; min-height:72px; font-size:11px; line-he
         </div>
       </div>
       <div class="msg-main" id="msg-main">
-        <div class="chat-empty">
+        <div class="chat-empty" id="msg-main-empty">
           <div class="chat-empty-icon">✉</div>
-          <div class="empty-label">Select a conversation</div>
+          <div class="empty-label">No conversation selected</div>
+          <div style="font-size:12px;color:var(--text3);text-align:center;max-width:260px;line-height:1.7;margin-top:6px;">
+            Connect a peer via the <strong style="color:var(--text2);">Connect</strong> tab,
+            then select them here to start messaging.
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="navigate('connect')" style="margin-top:12px;">Go to Connect →</button>
         </div>
       </div>
     </div>
@@ -2156,10 +2234,19 @@ async function addPeer(did, name) { return registerPeer(did, name, null); }
 // ══════════════════════════════════════════
 // RELAY (WebSocket)
 // ══════════════════════════════════════════
+function localTabDiscover() {
+  if (!SYS.identity) { toast('Create your identity first', 'error'); navigate('identity'); return; }
+  _localBus.postMessage({ type:'DISCOVER', from:SYS.identity.did, name:SYS.identity.username });
+  netLog('Local tab discovery broadcast sent — any Sovereign tabs on this device will respond');
+  toast('Discovery sent — other Sovereign tabs will appear as peers instantly', 'info');
+}
+
 function connectRelay() {
   const url = document.getElementById('relay-input').value.trim();
   if (!url) { toast('Enter a relay URL', 'error'); return; }
   if (SYS.relay) { SYS.relay.close(); }
+  // Save relay URL for next session
+  dbPut('settings', { key:'relay_url', value:url }).catch(()=>{});
   try {
     SYS.relay = new WebSocket(url);
     SYS.relayUrl = url;
@@ -2208,7 +2295,24 @@ function handleRelayMessage(msg) {
 // MESSAGING
 // ══════════════════════════════════════════
 const _localBus = new BroadcastChannel('sovereign_genesis_v2');
-_localBus.onmessage = e => receiveMessage(e.data);
+_localBus.onmessage = e => {
+  const d = e.data;
+  if (!d) return;
+  // Auto peer discovery across tabs
+  if (d.type === 'DISCOVER' && SYS.identity && d.from !== SYS.identity.did) {
+    registerPeer(d.from, d.name || d.from.slice(14,26), null);
+    // Respond so the discoverer knows we exist
+    _localBus.postMessage({ type: 'DISCOVER_ACK', from: SYS.identity.did, name: SYS.identity.username, to: d.from });
+    toast(`Local peer found: ${d.name || 'peer'}`, 'success');
+    return;
+  }
+  if (d.type === 'DISCOVER_ACK' && SYS.identity && d.to === SYS.identity.did) {
+    registerPeer(d.from, d.name || d.from.slice(14,26), null);
+    toast(`Local peer found: ${d.name || 'peer'}`, 'success');
+    return;
+  }
+  receiveMessage(d);
+};
 
 async function sendMsg() {
   const textarea = document.querySelector('.compose-input');
@@ -2575,6 +2679,11 @@ function closeNodeDetail() { document.getElementById('node-detail').classList.re
 // NAVIGATION
 // ══════════════════════════════════════════
 function navigate(panelId) {
+  // Gate connect/messages on having an identity
+  if (!SYS.identity && (panelId === 'connect' || panelId === 'messages')) {
+    toast('Create your identity first', 'error');
+    panelId = 'identity';
+  }
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.toggle('active', t.dataset.panel===panelId));
   document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id==='panel-'+panelId));
 }
@@ -2687,6 +2796,111 @@ const BOOT_LINES = [
   '> GENESIS NODE READY.',
 ];
 
+// ══════════════════════════════════════════════════════════
+// ONBOARDING WIZARD
+// ══════════════════════════════════════════════════════════
+let _obStep = 0;
+
+function showOnboarding() {
+  _obStep = 0;
+  document.getElementById('onboarding-overlay').style.display = 'flex';
+  obShowStep(0);
+}
+
+function obShowStep(n) {
+  _obStep = n;
+  document.querySelectorAll('.onboard-step').forEach((el,i) => el.classList.toggle('active', i===n));
+  document.querySelectorAll('.onboard-dot').forEach((el,i) => el.classList.toggle('done', i<=n));
+  // Focus first input on step 1
+  if (n===1) setTimeout(() => document.getElementById('ob-username')?.focus(), 100);
+}
+
+function obNext() { obShowStep(_obStep + 1); }
+
+async function obGenerateIdentity() {
+  const username = document.getElementById('ob-username').value.trim();
+  const pass     = document.getElementById('ob-passphrase').value;
+  const pass2    = document.getElementById('ob-passphrase2').value;
+  const status   = document.getElementById('ob-id-status');
+  const btn      = document.getElementById('ob-generate-btn');
+
+  if (!username)        { status.textContent = '> Enter a display name'; status.style.color='var(--red)'; return; }
+  if (pass.length < 8)  { status.textContent = '> Passphrase must be 8+ characters'; status.style.color='var(--red)'; return; }
+  if (pass !== pass2)   { status.textContent = '> Passphrases do not match'; status.style.color='var(--red)'; return; }
+  if (!window.SovereignKernel) { status.textContent = '> Kernel not ready — try again'; status.style.color='var(--red)'; return; }
+
+  btn.disabled = true; btn.textContent = 'Generating…';
+  status.textContent = '> Creating vault…'; status.style.color = 'var(--text3)';
+
+  // Mirror into the main identity form so generateIdentity() works
+  document.getElementById('create-username').value   = username;
+  document.getElementById('create-passphrase').value  = pass;
+  document.getElementById('create-passphrase2').value = pass2;
+
+  try {
+    await generateIdentity();
+    status.textContent = '> Identity created ✓'; status.style.color='var(--green)';
+    btn.textContent = 'Identity created ✓';
+    // Auto-discover local tabs immediately
+    if (SYS.identity) {
+      _localBus.postMessage({ type:'DISCOVER', from:SYS.identity.did, name:SYS.identity.username });
+    }
+    setTimeout(() => obShowStep(2), 800);
+  } catch(e) {
+    status.textContent = '> Error: ' + e.message; status.style.color='var(--red)';
+    btn.disabled = false; btn.textContent = 'Generate identity →';
+  }
+}
+
+function obOpenSecondTab() {
+  // Open a second tab and immediately broadcast discover so both tabs pair
+  const newTab = window.open(window.location.href, '_blank');
+  // Our own discover broadcast will be picked up by the new tab when it loads
+  setTimeout(() => {
+    if (SYS.identity) {
+      _localBus.postMessage({ type:'DISCOVER', from:SYS.identity.did, name:SYS.identity.username });
+      toast('Second tab opening — will auto-pair when loaded', 'success');
+    }
+  }, 500);
+}
+
+function obUseRelay(url) {
+  const statusEl = document.getElementById('ob-relay-status');
+  document.getElementById('relay-input').value = url;
+  statusEl.textContent = '> Connecting…'; statusEl.style.color = 'var(--text3)';
+  connectRelay();
+  // Watch for relay connect event
+  const check = setInterval(() => {
+    if (SYS.relay?.readyState === 1) {
+      clearInterval(check);
+      statusEl.textContent = '> Connected to ' + url.replace('wss://',''); statusEl.style.color='var(--green)';
+    } else if (SYS.relay?.readyState === 3) {
+      clearInterval(check);
+      statusEl.textContent = '> Connection failed — relay may be offline'; statusEl.style.color='var(--amber)';
+    }
+  }, 400);
+  setTimeout(() => clearInterval(check), 12000);
+}
+
+function dismissOnboarding() {
+  document.getElementById('onboarding-overlay').style.display = 'none';
+  // If they have an identity, navigate to connect; otherwise identity panel
+  if (SYS.identity) {
+    navigate('connect');
+    // Auto-discover any open tabs
+    _localBus.postMessage({ type:'DISCOVER', from:SYS.identity.did, name:SYS.identity.username });
+  } else {
+    navigate('identity');
+  }
+}
+
+// Enter key support in onboarding
+document.addEventListener('keydown', e => {
+  if (document.getElementById('onboarding-overlay')?.style.display !== 'none') {
+    if (e.key === 'Enter' && _obStep === 1) obGenerateIdentity();
+  }
+});
+
 async function boot() {
   const lines = document.getElementById('boot-lines');
   const bar = document.getElementById('boot-bar');
@@ -2744,6 +2958,20 @@ async function boot() {
   window.addEventListener('resize', resizeCanvas);
   resizeCanvas();
   drawCanvas();
+
+  // ── FIRST LAUNCH: no identity → show onboarding wizard ──
+  if (!SYS.identity) {
+    setTimeout(() => showOnboarding(), 800);
+  } else {
+    // ── RETURNING USER: auto-connect relay if saved ──
+    const savedRelay = await dbGet('settings', 'relay_url').catch(()=>null);
+    if (savedRelay?.value) {
+      document.getElementById('relay-input').value = savedRelay.value;
+      connectRelay();
+    }
+    // Ping local tabs for instant peer discovery
+    _localBus.postMessage({ type: 'DISCOVER', from: SYS.identity.did, name: SYS.identity.username });
+  }
 }
 
 // ══════════════════════════════════════════
@@ -2990,5 +3218,103 @@ window.unlockVaultFromBanner = unlockVaultFromBanner;
 boot();
 </script>
 <!-- transport.js inlined above -->
+
+<!-- ════════════════════════════════════════════
+     FIRST-LAUNCH ONBOARDING WIZARD
+     ════════════════════════════════════════════ -->
+<div id="onboarding-overlay" style="display:none;">
+  <div class="onboarding-card">
+    <div class="onboard-progress">
+      <div class="onboard-dot done" id="ob-dot-0"></div>
+      <div class="onboard-dot" id="ob-dot-1"></div>
+      <div class="onboard-dot" id="ob-dot-2"></div>
+    </div>
+
+    <!-- STEP 0: Welcome -->
+    <div class="onboard-step active" id="ob-step-0">
+      <div class="onboard-eyebrow">// WELCOME</div>
+      <div class="onboard-title">Own your <span>digital identity.</span></div>
+      <div class="onboard-body">
+        Sovereign gives you a cryptographic identity that lives on your device — not in someone else's database.
+        No account. No email. No phone number. Just math you control.
+      </div>
+      <div class="onboard-feature">
+        <div class="onboard-feature-icon">◈</div>
+        <div><h4>Your keys, your identity</h4><p>An Ed25519 keypair generated locally. You are your public key.</p></div>
+      </div>
+      <div class="onboard-feature">
+        <div class="onboard-feature-icon">🔒</div>
+        <div><h4>Encrypted at rest</h4><p>Private key wrapped with PBKDF2 + AES-KW behind your passphrase.</p></div>
+      </div>
+      <div class="onboard-feature">
+        <div class="onboard-feature-icon">⬡</div>
+        <div><h4>Peer-to-peer messaging</h4><p>Talk directly to other nodes. Works in the same browser, across tabs, or across the internet.</p></div>
+      </div>
+      <div class="onboard-actions">
+        <button class="btn btn-primary" onclick="obNext()">Get started →</button>
+        <span class="onboard-skip" onclick="dismissOnboarding()">Skip setup</span>
+      </div>
+    </div>
+
+    <!-- STEP 1: Create identity -->
+    <div class="onboard-step" id="ob-step-1">
+      <div class="onboard-eyebrow">// STEP 1 OF 2 — IDENTITY</div>
+      <div class="onboard-title">Create your <span>identity.</span></div>
+      <div class="onboard-body">This takes about two seconds. Your keys never leave this device.</div>
+      <label class="field-label">Display name</label>
+      <input type="text" class="field-input" id="ob-username" placeholder="e.g. alice, satoshi, 0x…" maxlength="32" style="margin-bottom:10px;">
+      <label class="field-label">Vault passphrase</label>
+      <input type="password" class="field-input" id="ob-passphrase" placeholder="8+ characters" style="margin-bottom:6px;" autocomplete="new-password">
+      <input type="password" class="field-input" id="ob-passphrase2" placeholder="Confirm passphrase" style="margin-bottom:4px;" autocomplete="new-password">
+      <div id="ob-id-status" style="font-size:11px;color:var(--text3);font-family:var(--mono);min-height:18px;margin-bottom:8px;"></div>
+      <div class="onboard-actions">
+        <button class="btn btn-primary" id="ob-generate-btn" onclick="obGenerateIdentity()">Generate identity →</button>
+        <span class="onboard-skip" onclick="dismissOnboarding()">Skip</span>
+      </div>
+    </div>
+
+    <!-- STEP 2: Connect -->
+    <div class="onboard-step" id="ob-step-2">
+      <div class="onboard-eyebrow">// STEP 2 OF 2 — CONNECT</div>
+      <div class="onboard-title">Find your first <span>peer.</span></div>
+      <div class="onboard-body">Pick a connection method. You can always add more later.</div>
+
+      <div class="quick-connect-box">
+        <div class="qc-label">INSTANT — SAME DEVICE</div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:10px;line-height:1.5;">
+          Open this page in a second browser tab. Both tabs will find each other automatically.
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="obOpenSecondTab()">Open second tab + auto-discover</button>
+      </div>
+
+      <div class="quick-connect-box" style="margin-top:10px;">
+        <div class="qc-label">ACROSS DEVICES — PUBLIC RELAY</div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:10px;line-height:1.5;">
+          Connect a relay so peers on other devices can find you. These are community-run nodes.
+        </div>
+        <div class="relay-option">
+          <div>
+            <div class="relay-option-name">Sovereign Demo Relay</div>
+            <div class="relay-option-url">wss://sovereign-relay.fly.dev</div>
+          </div>
+          <button class="btn btn-ghost btn-sm relay-option-use" onclick="obUseRelay('wss://sovereign-relay.fly.dev')">Use →</button>
+        </div>
+        <div class="relay-option">
+          <div>
+            <div class="relay-option-name">Self-host</div>
+            <div class="relay-option-url">relay.html from the repo</div>
+          </div>
+          <button class="btn btn-ghost btn-sm relay-option-use" onclick="dismissOnboarding();navigate('connect');">Configure →</button>
+        </div>
+        <div id="ob-relay-status" style="font-size:10px;font-family:var(--mono);color:var(--text3);margin-top:8px;min-height:16px;"></div>
+      </div>
+
+      <div class="onboard-actions">
+        <button class="btn btn-primary" onclick="dismissOnboarding()">Enter Sovereign →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
