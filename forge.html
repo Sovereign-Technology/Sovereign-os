@@ -1943,7 +1943,7 @@ const KeccakEngine = (() => {
     window.addEventListener('mousemove',mmv);
     setTimeout(()=>{
       window.removeEventListener('mousemove',mmv);
-      const ex=new Uint8Array(32);crypto.getRandomValues(ex);append(ex);
+      const ex=new Uint8Array(64);crypto.getRandomValues(ex);append(ex);
       _log('Collection complete','ok');
     },3000);
   }
