@@ -554,9 +554,11 @@ textarea.field-input { resize:vertical; min-height:72px; font-size:11px; line-he
         <div class="step-body">
           <div class="step-title">Generate your identity</div>
           <div class="step-desc">Creates a cryptographic keypair secured by your vault passphrase. Keys are held by the Security Kernel — they never appear in tab memory.</div>
+          <form onsubmit="return false;" style="display:contents;">
           <input type="password" id="create-passphrase" class="field-input" placeholder="Vault passphrase (8+ chars)" style="margin-bottom:6px;font-size:13px;" autocomplete="new-password">
           <input type="password" id="create-passphrase2" class="field-input" placeholder="Confirm passphrase" style="margin-bottom:8px;font-size:13px;" autocomplete="new-password">
           <button class="btn btn-primary" id="btn-generate" disabled onclick="generateIdentity()">Generate Identity</button>
+          </form>
           <div id="generate-status" style="margin-top:8px;font-size:11px;color:var(--text3);font-family:var(--mono);"></div>
         </div>
       </div>
@@ -2064,15 +2066,17 @@ function showVaultUnlockPrompt(did) {
   banner.innerHTML = [
     '<div style="color:var(--accent);font-weight:600;margin-bottom:6px;">⬡ Vault locked</div>',
     '<div style="margin-bottom:8px;">Enter your passphrase to unlock signing for this session.</div>',
+    '<form onsubmit="unlockVaultFromBanner();return false;" style="margin:0;">',
     '<div style="display:flex;gap:8px;align-items:center;">',
     '  <input type="password" id="vault-pass-input" placeholder="Vault passphrase"',
     '    style="flex:1;padding:8px 10px;background:var(--bg2);border:1px solid var(--border2);',
     '           border-radius:6px;color:var(--text);font-size:12px;outline:none;"',
-    '    onkeydown="if(event.key==='Enter')unlockVaultFromBanner()">',
-    '  <button onclick="unlockVaultFromBanner()" id="vault-unlock-btn"',
+    '    autocomplete="current-password">',
+    '  <button type="submit" id="vault-unlock-btn"',
     '    style="padding:8px 14px;background:var(--accent);border:none;border-radius:6px;',
     '           color:#fff;font-size:12px;font-weight:600;cursor:pointer;">Unlock</button>',
     '</div>',
+    '</form>',
     '<div id="vault-unlock-err" style="color:var(--red);font-size:11px;margin-top:6px;display:none;"></div>',
   ].join('');
 
