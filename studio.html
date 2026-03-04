@@ -1551,7 +1551,7 @@ Return ONLY valid JSON with this structure:
 
   function _sovShell(appName, cat, bodyHTML, scriptCode) {
     return '<!DOCTYPE html>\n<html lang="en"><head>\n'
-      + '<script src="sovereign_security.js"><' + '/script>\n'
+      + '<' + 'script src="sovereign_security.js"><' + '/script>\n'
       + '<meta charset="UTF-8">\n'
       + '<meta name="viewport" content="width=device-width,initial-scale=1.0">\n'
       + '<title>' + String(appName) + '</title>\n'
@@ -1561,7 +1561,7 @@ Return ONLY valid JSON with this structure:
       + '<div class="wrap"><div class="page">\n'
       + bodyHTML + '\n'
       + '</div></div>\n'
-      + '<script>\n' + SOV_JS + '\n' + scriptCode + '\n' + '<' + '/script>\n'
+      + '<' + 'script>\n' + SOV_JS + '\n' + scriptCode + '\n' + '<' + '/script>\n'
       + '</body></html>';
   }
 
@@ -2033,7 +2033,7 @@ Return ONLY valid JSON with this structure:
   // All generated apps use SOV_CSS/SOV_JS/_sovNav for a consistent look across the whole network
   function _appShell(name, cat, body, scriptBody) {
     return '<!DOCTYPE html>\n<html lang="en"><head>\n'
-      + '<script src="sovereign_security.js"><' + '/script>\n'
+      + '<' + 'script src="sovereign_security.js"><' + '/script>\n'
       + '<meta charset="UTF-8">\n'
       + '<meta name="viewport" content="width=device-width,initial-scale=1.0">\n'
       + '<title>' + String(name) + '</title>\n'
@@ -2043,7 +2043,7 @@ Return ONLY valid JSON with this structure:
       + '<div class="wrap"><div class="page">\n'
       + body + '\n'
       + '</div></div>\n'
-      + '<script>\n' + SOV_JS + '\n' + scriptBody + '\n' + '<' + '/script>\n'
+      + '<' + 'script>\n' + SOV_JS + '\n' + scriptBody + '\n' + '<' + '/script>\n'
       + '</body></html>';
   }
 
