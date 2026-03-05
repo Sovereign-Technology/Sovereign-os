@@ -113,7 +113,7 @@ To use your own relay instead, enter its WSS URL in **Connect → Relay** and pr
 
 The root of the system. Handles:
 
-- **Identity** — Ed25519 keypair generation, passphrase-encrypted vault, DID management
+- **Identity** — ECDSA P-256 keypair generation, passphrase-encrypted vault, DID management
 - **Network map** — Animated canvas showing all apps and their relationships in the mesh
 - **Peer connect** — WebRTC offer/answer handshake, relay discovery, QR code connect
 - **Messages** — P2P encrypted messaging with all connected peers
@@ -220,7 +220,7 @@ Five invariants are checked after every transition. Any violation emits `soverei
 
 ### Identity
 
-Ed25519 keypair, Web Crypto API, entirely in-browser. Private key protected by passphrase (PBKDF2-derived AES-256-GCM, 600,000 iterations), held exclusively in the Service Worker. Never in tab memory.
+ECDSA P-256 keypair (signing) + ECDH P-256 (key exchange), Web Crypto API, entirely in-browser. Private key protected by passphrase (PBKDF2-derived AES-KW-256, 600,000 iterations), held exclusively in the Service Worker. Never in tab memory.
 
 **Key recovery:** Shamir 3-of-5 — any 3 of 5 shares reconstruct the key. Below 3 shares, information-theoretic security applies.
 

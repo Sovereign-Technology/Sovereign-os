@@ -24,7 +24,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'sovereign-sw-v2.0.0';
+const SW_VERSION = 'sovereign-sw-v2.0.1';
 const SW_BUILD   = '2026-03';
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -66,7 +66,15 @@ let   _beaconRandom  = null;
 
 // Pattern 05 — Network firewall
 const _networkPolicy = {
-  allowed: new Set(['fonts.googleapis.com','fonts.gstatic.com','cdnjs.cloudflare.com']),
+  allowed: new Set([
+    'fonts.googleapis.com',
+    'fonts.gstatic.com',
+    'cdnjs.cloudflare.com',
+    'cdn.jsdelivr.net',
+    'sovereign-relay.fly.dev',   // default public relay
+    'openrelay.metered.ca',      // default STUN
+    'stun.relay.metered.ca',     // default STUN fallback
+  ]),
 };
 
 // Pattern 07 — Cover traffic & jitter
