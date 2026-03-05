@@ -1654,7 +1654,7 @@ class SovereignKernelBridge {
   _call(cmd, args) {
     return new Promise((resolve, reject) => {
       const nonce = Math.random().toString(36).slice(2);
-      this._pending.set(nonce, { resolve, reject });
+      this._pending.set(nonce, { resolve, reject, cmd });
       setTimeout(() => { if (this._pending.has(nonce)) { this._pending.delete(nonce); reject(new Error('SW timeout: ' + cmd)); } }, 15000);
       this._send({ cmd, nonce, ...args });
     });
@@ -1670,18 +1670,36 @@ class SovereignKernelBridge {
       else resolve(data);
       return;
     }
-    // Also resolve by event name pattern for vault events
-    for (const [n, { resolve }] of this._pending.entries()) {
-      const responseMap = {
-        VAULT_UNLOCK: 'VAULT_UNLOCKED', VAULT_CREATE: 'VAULT_CREATED',
-        VAULT_CREATE_DUAL: 'DUAL_VAULT_CREATED', SIGN: 'SIGNED',
-        SEAL: 'SEALED', OPEN: 'OPENED', STATUS: 'STATUS',
-        AUDIT_VERIFY: 'AUDIT_VERIFIED', AUDIT_EXPORT: 'AUDIT_EXPORTED',
-        PIR_FETCH: 'PIR_RESULTS', ONION_SEND: 'ONION_SENT',
-        REBUILD_MANIFEST: 'MANIFEST_REBUILT',
-        PANIC: 'PANIC_LOCKDOWN',
-      };
-      // Best-effort match without nonce
+    // Also resolve by event name pattern for vault events (fallback when SW sends no nonce)
+    const responseMap = {
+      VAULT_UNLOCK: 'VAULT_UNLOCKED', VAULT_CREATE: 'VAULT_CREATED',
+      VAULT_CREATE_DUAL: 'DUAL_VAULT_CREATED', SIGN: 'SIGNED',
+      SEAL: 'SEALED', OPEN: 'OPENED', STATUS: 'STATUS',
+      AUDIT_VERIFY: 'AUDIT_VERIFIED', AUDIT_EXPORT: 'AUDIT_EXPORTED',
+      PIR_FETCH: 'PIR_RESULTS', ONION_SEND: 'ONION_SENT',
+      REBUILD_MANIFEST: 'MANIFEST_REBUILT', PANIC: 'PANIC_LOCKDOWN',
+      ALLOW_DOMAIN: 'DOMAIN_ALLOWED', REVOKE_DOMAIN: 'DOMAIN_REVOKED',
+      BOOT: 'SW_READY', RATCHET_INIT: 'RATCHET_INITIALIZED',
+      RATCHET_ENCRYPT: 'RATCHET_ENCRYPTED', RATCHET_DECRYPT: 'RATCHET_DECRYPTED',
+    };
+    // Reverse map: response event → cmd name
+    const reverseMap = Object.fromEntries(Object.entries(responseMap).map(([k,v]) => [v,k]));
+    const matchingCmd = reverseMap[event];
+    if (matchingCmd) {
+      for (const [n, { resolve, reject }] of this._pending.entries()) {
+        // Find a pending call whose cmd maps to this response event
+        // The nonce is embedded in the pending map key — we stored it as { resolve, reject, cmd }
+        // but since we only stored resolve/reject, match the first pending entry for this cmd
+        // by checking if the pending entry was for the matching command
+        // (We rely on the cmd being stored — if not, resolve the oldest pending entry)
+        const entry = this._pending.get(n);
+        if (entry && (entry.cmd === matchingCmd || !entry.cmd)) {
+          this._pending.delete(n);
+          if (event?.includes('ERROR')) reject(new Error(data.reason || event));
+          else resolve(data);
+          break;
+        }
+      }
     }
     // Broadcast to all event listeners
     const listeners = this._cbs.get(event) || [];
