@@ -3,44 +3,52 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>⬡ SOVEREIGN OS v4.0 — Genesis Node</title>
+  <title>⬡ SOVEREIGN OS v5.0 — Genesis Node</title>
   <meta name="description" content="Self-sovereign, peer-to-peer operating environment. No servers. No surveillance." />
   <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self'; connect-src 'self' wss://sovereign-relay.fly.dev wss://broker.hivemq.com:8884; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;" />
+        content="default-src 'self'; connect-src 'self' wss://sovereign-relay.fly.dev; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet" />
 
   <style>
     /* ═══════════════════════════════════════════════════════════════════
-       SOVEREIGN DESIGN SYSTEM v4.0
-       Aesthetic: Cryptographic brutalism — the cypherpunks won.
+       SOVEREIGN DESIGN SYSTEM v5.0
+       Aesthetic: Cryptographic brutalism — precision over decoration.
+       Post-year-of-testing: Refined spacing, better contrast, improved
+       status legibility. Same identity, harder edges.
        ═══════════════════════════════════════════════════════════════════ */
 
     :root {
-      --bg-void:       #040407;
-      --bg-surface:    #080b10;
-      --bg-raised:     #0d1219;
-      --bg-panel:      #111820;
+      --bg-void:       #030306;
+      --bg-surface:    #070a0f;
+      --bg-raised:     #0c1018;
+      --bg-panel:      #101620;
+      --bg-input:      #0a0e16;
 
       --accent-green:  #00e87c;
       --accent-cyan:   #00c8ff;
-      --accent-amber:  #ff9f0a;
-      --accent-red:    #ff3b30;
-      --accent-purple: #bf5af2;
+      --accent-amber:  #ffb020;
+      --accent-red:    #ff4040;
+      --accent-purple: #c060ff;
+      --accent-teal:   #00d4aa;
 
-      --text-primary:  #e2e8f0;
-      --text-muted:    #475569;
-      --text-dim:      #2d3748;
+      --text-primary:  #dce8f4;
+      --text-muted:    #4a5e72;
+      --text-dim:      #243040;
 
-      --border:        rgba(0,232,124,0.12);
-      --border-bright: rgba(0,232,124,0.35);
+      --border:        rgba(0,232,124,0.10);
+      --border-mid:    rgba(0,232,124,0.20);
+      --border-bright: rgba(0,232,124,0.40);
 
-      --glow-green:    0 0 20px rgba(0,232,124,0.15);
-      --glow-cyan:     0 0 20px rgba(0,200,255,0.15);
+      --glow-green:    0 0 24px rgba(0,232,124,0.18);
+      --glow-cyan:     0 0 24px rgba(0,200,255,0.18);
 
       --font-mono:     'JetBrains Mono', 'Courier New', monospace;
       --font-display:  'Syne', system-ui, sans-serif;
+
+      --radius:        4px;
+      --radius-lg:     8px;
     }
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -51,186 +59,201 @@
       background: var(--bg-void);
       color: var(--text-primary);
       font-family: var(--font-mono);
-      font-size: 13px;
+      font-size: 12px;
       line-height: 1.6;
     }
 
-    body::before {
+    /* Scan-line texture */
+    body::after {
       content: '';
       position: fixed;
       inset: 0;
-      background:
-        repeating-linear-gradient(
-          0deg,
-          transparent,
-          transparent 2px,
-          rgba(0,0,0,0.08) 2px,
-          rgba(0,0,0,0.08) 4px
-        );
+      background: repeating-linear-gradient(
+        0deg, transparent, transparent 3px,
+        rgba(0,0,0,0.06) 3px, rgba(0,0,0,0.06) 4px
+      );
       pointer-events: none;
-      z-index: 9998;
+      z-index: 9997;
     }
 
+    /* ── HEADER ── */
     #header {
       position: fixed;
       top: 0; left: 0; right: 0;
-      height: 48px;
+      height: 46px;
       display: flex;
       align-items: center;
-      padding: 0 20px;
-      background: rgba(4,4,7,0.95);
+      padding: 0 16px;
+      background: rgba(3,3,6,0.97);
       border-bottom: 1px solid var(--border);
-      backdrop-filter: blur(12px);
-      z-index: 100;
-      gap: 24px;
+      backdrop-filter: blur(20px);
+      z-index: 500;
+      gap: 18px;
     }
 
     .header-logo {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 9px;
       text-decoration: none;
+      flex-shrink: 0;
     }
 
     .logo-hex {
-      width: 28px; height: 28px;
-      position: relative;
+      width: 26px; height: 26px;
       display: flex; align-items: center; justify-content: center;
     }
 
     .logo-hex svg {
       width: 100%; height: 100%;
-      filter: drop-shadow(0 0 8px var(--accent-green));
+      filter: drop-shadow(0 0 6px var(--accent-green));
     }
 
     .logo-text {
       font-family: var(--font-display);
-      font-size: 15px;
+      font-size: 14px;
       font-weight: 800;
       color: var(--accent-green);
-      letter-spacing: 0.05em;
+      letter-spacing: 0.08em;
+    }
+    .logo-version {
+      font-size: 9px;
+      color: var(--text-muted);
+      letter-spacing: 0.12em;
     }
 
-    .logo-version {
+    .header-sep { width: 1px; height: 18px; background: var(--border); flex-shrink: 0; }
+
+    .status-bar { display: flex; align-items: center; gap: 14px; flex: 1; }
+
+    .chip {
+      display: flex; align-items: center; gap: 5px;
       font-size: 10px;
       color: var(--text-muted);
-      font-weight: 400;
-      letter-spacing: 0.1em;
+      letter-spacing: 0.06em;
+      padding: 3px 8px;
+      border-radius: 20px;
+      border: 1px solid transparent;
+      transition: all 0.25s;
     }
-
-    .header-sep {
-      width: 1px; height: 20px;
-      background: var(--border);
-    }
-
-    .header-status {
-      display: flex; align-items: center; gap: 16px;
-      flex: 1;
-    }
-
-    .status-chip {
-      display: flex; align-items: center; gap: 5px;
-      font-size: 11px;
-      color: var(--text-muted);
-    }
-    .status-chip .dot {
-      width: 6px; height: 6px; border-radius: 50%;
+    .chip .dot {
+      width: 5px; height: 5px; border-radius: 50%;
       background: var(--text-dim);
-      transition: all 0.3s;
+      transition: all 0.25s;
+      flex-shrink: 0;
     }
-    .status-chip.ok .dot     { background: var(--accent-green); box-shadow: 0 0 6px var(--accent-green); }
-    .status-chip.warn .dot   { background: var(--accent-amber); box-shadow: 0 0 6px var(--accent-amber); }
-    .status-chip.error .dot  { background: var(--accent-red);   box-shadow: 0 0 6px var(--accent-red); }
+    .chip.ok   { border-color: rgba(0,232,124,0.15); background: rgba(0,232,124,0.04); }
+    .chip.ok .dot  { background: var(--accent-green); box-shadow: 0 0 5px var(--accent-green); }
+    .chip.warn { border-color: rgba(255,176,32,0.15); background: rgba(255,176,32,0.04); }
+    .chip.warn .dot { background: var(--accent-amber); box-shadow: 0 0 5px var(--accent-amber); animation: blink 1.4s ease-in-out infinite; }
+    .chip.err  { border-color: rgba(255,64,64,0.15); background: rgba(255,64,64,0.04); }
+    .chip.err .dot  { background: var(--accent-red); box-shadow: 0 0 5px var(--accent-red); }
 
-    .header-right {
-      display: flex; align-items: center; gap: 10px;
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+    .pulse { animation: pulse 2s ease-in-out infinite; }
+
+    .header-right { display: flex; align-items: center; gap: 8px; margin-left: auto; flex-shrink: 0; }
+
+    .peer-badge {
+      font-size: 10px; color: var(--text-muted);
+      padding: 2px 10px;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+    }
+    .peer-badge.live {
+      color: var(--accent-green);
+      border-color: var(--border-mid);
+      background: rgba(0,232,124,0.05);
     }
 
+    /* ── BUTTONS ── */
     .btn {
-      display: inline-flex; align-items: center; gap: 6px;
-      padding: 5px 12px;
-      border-radius: 4px;
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 5px 11px;
+      border-radius: var(--radius);
       border: 1px solid var(--border);
       background: transparent;
       color: var(--text-primary);
       font-family: var(--font-mono);
       font-size: 11px;
       cursor: pointer;
-      transition: all 0.15s;
+      transition: all 0.14s;
       white-space: nowrap;
+      user-select: none;
     }
-    .btn:hover { border-color: var(--border-bright); color: var(--accent-green); }
-    .btn.primary {
-      border-color: var(--accent-green);
-      color: var(--accent-green);
-    }
-    .btn.primary:hover {
-      background: rgba(0,232,124,0.08);
-      box-shadow: var(--glow-green);
-    }
-    .btn.danger  { border-color: var(--accent-red); color: var(--accent-red); }
-    .btn.danger:hover { background: rgba(255,59,48,0.08); }
+    .btn:hover { border-color: var(--border-mid); color: var(--accent-green); }
+    .btn:active { transform: scale(0.97); }
+    .btn.primary { border-color: rgba(0,232,124,0.35); color: var(--accent-green); background: rgba(0,232,124,0.04); }
+    .btn.primary:hover { background: rgba(0,232,124,0.10); box-shadow: var(--glow-green); border-color: var(--border-bright); }
+    .btn.danger  { border-color: rgba(255,64,64,0.3); color: var(--accent-red); }
+    .btn.danger:hover  { background: rgba(255,64,64,0.08); }
+    .btn-block { width: 100%; justify-content: center; padding: 8px; }
+    .btn-sm { padding: 3px 8px; font-size: 10px; }
 
+    /* ── LAYOUT ── */
     #layout {
       position: fixed;
-      top: 48px; left: 0; right: 0; bottom: 0;
+      top: 46px; left: 0; right: 0; bottom: 0;
       display: grid;
-      grid-template-columns: 56px 260px 1fr 300px;
-      grid-template-rows: 1fr;
+      grid-template-columns: 50px 248px 1fr 284px;
     }
 
+    /* ── RAIL ── */
     #rail {
       background: var(--bg-surface);
       border-right: 1px solid var(--border);
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 12px 0;
-      gap: 4px;
+      padding: 10px 0;
+      gap: 2px;
     }
 
     .rail-btn {
-      width: 40px; height: 40px;
-      border-radius: 6px;
+      width: 36px; height: 36px;
+      border-radius: var(--radius);
       border: 1px solid transparent;
       background: transparent;
       display: flex; align-items: center; justify-content: center;
       cursor: pointer;
       color: var(--text-muted);
-      font-size: 16px;
-      transition: all 0.15s;
+      font-size: 15px;
+      transition: all 0.14s;
       position: relative;
     }
     .rail-btn:hover, .rail-btn.active {
       border-color: var(--border);
       color: var(--accent-green);
-      background: rgba(0,232,124,0.06);
+      background: rgba(0,232,124,0.05);
     }
-    .rail-btn.active::after {
+    .rail-btn.active::before {
       content: '';
       position: absolute;
-      left: -1px; top: 25%; bottom: 25%;
+      left: 0; top: 20%; bottom: 20%;
       width: 2px;
       background: var(--accent-green);
       border-radius: 0 2px 2px 0;
+      box-shadow: 0 0 6px var(--accent-green);
     }
-    .rail-btn[data-tip]:hover::before {
+    .rail-btn:hover::after {
       content: attr(data-tip);
       position: absolute;
       left: calc(100% + 10px);
       top: 50%; transform: translateY(-50%);
       background: var(--bg-panel);
-      border: 1px solid var(--border);
+      border: 1px solid var(--border-mid);
       color: var(--text-primary);
       font-family: var(--font-mono);
-      font-size: 11px;
+      font-size: 10px;
       white-space: nowrap;
       padding: 4px 8px;
-      border-radius: 4px;
-      z-index: 200;
+      border-radius: var(--radius);
+      z-index: 600;
       pointer-events: none;
     }
 
+    /* ── SIDEBAR ── */
     #sidebar {
       background: var(--bg-surface);
       border-right: 1px solid var(--border);
@@ -238,16 +261,17 @@
       overflow: hidden;
     }
 
-    .panel-header {
-      padding: 14px 16px 10px;
+    .panel-hdr {
+      padding: 12px 14px 10px;
       border-bottom: 1px solid var(--border);
       display: flex; align-items: center; justify-content: space-between;
+      flex-shrink: 0;
     }
     .panel-title {
       font-family: var(--font-display);
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 700;
-      letter-spacing: 0.12em;
+      letter-spacing: 0.14em;
       text-transform: uppercase;
       color: var(--text-muted);
     }
@@ -255,325 +279,295 @@
     .tabs {
       display: flex;
       border-bottom: 1px solid var(--border);
-      padding: 0 8px;
+      padding: 0 6px;
+      flex-shrink: 0;
     }
     .tab {
-      padding: 8px 12px;
-      font-size: 11px;
+      padding: 7px 10px;
+      font-size: 10px;
       color: var(--text-muted);
       cursor: pointer;
       border-bottom: 2px solid transparent;
-      transition: all 0.15s;
-      white-space: nowrap;
+      transition: all 0.14s;
     }
     .tab:hover { color: var(--text-primary); }
-    .tab.active {
-      color: var(--accent-green);
-      border-bottom-color: var(--accent-green);
-    }
+    .tab.active { color: var(--accent-green); border-bottom-color: var(--accent-green); }
 
     .panel-body {
       flex: 1;
       overflow-y: auto;
-      padding: 12px;
+      padding: 10px;
       scrollbar-width: thin;
       scrollbar-color: var(--border) transparent;
     }
 
+    /* ── MAIN ── */
     #main {
       display: grid;
       grid-template-rows: 1fr auto;
       overflow: hidden;
       background: var(--bg-void);
-    }
-
-    #canvas-area {
       position: relative;
-      overflow: hidden;
     }
 
-    #network-canvas {
-      position: absolute;
-      inset: 0;
-      width: 100%; height: 100%;
-    }
+    #canvas-wrap { position: relative; overflow: hidden; }
+    #net-canvas  { position: absolute; inset: 0; width: 100%; height: 100%; }
 
+    /* ── VAULT CARD ── */
     #vault-card {
       position: absolute;
-      top: 24px; left: 50%; transform: translateX(-50%);
-      background: rgba(8,11,16,0.92);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 20px 28px;
-      backdrop-filter: blur(16px);
-      min-width: 380px;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -54%);
+      background: rgba(7,10,15,0.94);
+      border: 1px solid var(--border-mid);
+      border-radius: var(--radius-lg);
+      padding: 28px 32px 24px;
+      min-width: 360px;
+      max-width: 420px;
+      width: 90%;
       text-align: center;
-      transition: all 0.3s;
-      box-shadow: 0 8px 40px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.04);
+      backdrop-filter: blur(24px);
+      box-shadow: 0 12px 48px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.03);
+      transition: opacity 0.25s, transform 0.25s;
     }
+    #vault-card.hidden { opacity: 0; pointer-events: none; transform: translate(-50%,-58%); }
 
-    #vault-card.hidden { opacity: 0; pointer-events: none; transform: translateX(-50%) translateY(-10px); }
-
-    .vault-hex {
-      font-size: 32px;
-      margin-bottom: 8px;
-      filter: drop-shadow(0 0 12px var(--accent-green));
-    }
-
-    .vault-title {
+    .vault-icon { font-size: 28px; margin-bottom: 10px; filter: drop-shadow(0 0 10px var(--accent-green)); }
+    .vault-headline {
       font-family: var(--font-display);
-      font-size: 18px;
-      font-weight: 800;
+      font-size: 20px; font-weight: 800;
       color: var(--text-primary);
-      margin-bottom: 4px;
-      letter-spacing: 0.02em;
+      margin-bottom: 3px;
+      letter-spacing: 0.01em;
     }
+    .vault-sub { font-size: 11px; color: var(--text-muted); margin-bottom: 22px; line-height: 1.7; }
 
-    .vault-sub {
-      font-size: 11px;
-      color: var(--text-muted);
-      margin-bottom: 20px;
-    }
+    .field-group { display: flex; flex-direction: column; gap: 7px; margin-bottom: 10px; }
+    .field-label { font-size: 10px; color: var(--text-muted); letter-spacing: 0.08em; text-align: left; }
 
-    .input-group {
-      display: flex; gap: 8px; margin-bottom: 10px;
-    }
-
-    .sovereign-input {
-      flex: 1;
-      padding: 9px 12px;
-      background: var(--bg-raised);
+    .sv-input {
+      width: 100%;
+      padding: 9px 11px;
+      background: var(--bg-input);
       border: 1px solid var(--border);
-      border-radius: 4px;
+      border-radius: var(--radius);
       color: var(--text-primary);
       font-family: var(--font-mono);
       font-size: 12px;
       outline: none;
-      transition: border-color 0.15s;
+      transition: border-color 0.14s, box-shadow 0.14s;
     }
-    .sovereign-input:focus { border-color: var(--accent-green); }
-    .sovereign-input::placeholder { color: var(--text-dim); }
+    .sv-input:focus { border-color: rgba(0,232,124,0.5); box-shadow: 0 0 0 2px rgba(0,232,124,0.08); }
+    .sv-input::placeholder { color: var(--text-dim); }
 
-    .btn-full { width: 100%; justify-content: center; padding: 9px; }
+    .divider { display: flex; align-items: center; gap: 10px; margin: 12px 0; }
+    .divider span { font-size: 10px; color: var(--text-dim); }
+    .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 
-    #did-banner {
+    #vault-msg { font-size: 11px; margin-top: 8px; min-height: 18px; }
+
+    /* Password strength meter */
+    .strength-bar { height: 3px; border-radius: 2px; background: var(--bg-raised); margin-top: 6px; overflow: hidden; }
+    .strength-fill { height: 100%; border-radius: 2px; transition: width 0.25s, background 0.25s; width: 0; }
+
+    /* ── DID PILL ── */
+    #did-pill {
       position: absolute;
-      bottom: 16px; left: 50%; transform: translateX(-50%);
-      background: rgba(8,11,16,0.88);
-      border: 1px solid var(--border);
+      bottom: 14px; left: 50%; transform: translateX(-50%);
+      background: rgba(7,10,15,0.90);
+      border: 1px solid var(--border-mid);
       border-radius: 24px;
-      padding: 6px 16px;
+      padding: 5px 16px;
       font-size: 11px;
       color: var(--text-muted);
       backdrop-filter: blur(8px);
       display: none;
-    }
-    #did-banner span { color: var(--accent-green); }
-
-    .peer-item {
-      display: flex; align-items: center; gap: 10px;
-      padding: 8px 10px;
-      border-radius: 6px;
-      margin-bottom: 4px;
+      white-space: nowrap;
       cursor: pointer;
-      border: 1px solid transparent;
-      transition: all 0.15s;
     }
-    .peer-item:hover { background: rgba(0,232,124,0.04); border-color: var(--border); }
-    .peer-item.active { background: rgba(0,232,124,0.06); border-color: var(--border-bright); }
+    #did-pill:hover { border-color: var(--border-bright); color: var(--text-primary); }
+    #did-pill span { color: var(--accent-green); }
 
-    .peer-avatar {
-      width: 32px; height: 32px; border-radius: 50%;
-      background: var(--bg-raised);
-      border: 1px solid var(--border);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 14px;
-      flex-shrink: 0;
+    /* ── MSG BAR ── */
+    #msg-bar {
+      border-top: 1px solid var(--border);
+      padding: 8px 10px;
+      display: flex; gap: 7px;
+      background: var(--bg-surface);
     }
 
-    .peer-info { flex: 1; min-width: 0; }
-    .peer-did {
-      font-size: 10px; color: var(--accent-cyan);
-      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-      font-weight: 500;
-    }
-    .peer-transport {
-      font-size: 10px; color: var(--text-muted);
-    }
-
-    .peer-trust {
-      font-size: 10px;
-      padding: 2px 6px;
-      border-radius: 3px;
-      background: rgba(0,232,124,0.1);
-      color: var(--accent-green);
-      flex-shrink: 0;
-    }
-    .peer-trust.medium { background: rgba(255,159,10,0.1); color: var(--accent-amber); }
-    .peer-trust.low    { background: rgba(255,59,48,0.1);  color: var(--accent-red); }
-
-    .msg-item {
-      padding: 6px 10px;
-      margin-bottom: 4px;
-      border-radius: 4px;
-      border-left: 2px solid var(--border);
-    }
-    .msg-item.outbound { border-left-color: var(--accent-green); }
-    .msg-item.inbound  { border-left-color: var(--accent-cyan); }
-
-    .msg-meta {
-      display: flex; gap: 8px; margin-bottom: 2px;
-    }
-    .msg-from { font-size: 10px; color: var(--accent-cyan); font-weight: 600; }
-    .msg-ts   { font-size: 10px; color: var(--text-muted); }
-    .msg-body { font-size: 12px; color: var(--text-primary); word-break: break-word; }
-
-    #info-panel {
+    /* ── RIGHT PANEL ── */
+    #right-panel {
       border-left: 1px solid var(--border);
       background: var(--bg-surface);
       display: flex; flex-direction: column;
       overflow: hidden;
     }
 
-    .machine-row {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 5px 0;
-      border-bottom: 1px solid rgba(255,255,255,0.03);
-    }
-    .machine-name {
-      font-size: 11px;
-      color: var(--text-muted);
+    .section-hdr {
+      padding: 10px 12px 7px;
+      font-family: var(--font-display);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
       text-transform: uppercase;
-      letter-spacing: 0.08em;
+      color: var(--text-dim);
+      border-bottom: 1px solid var(--border);
     }
-    .machine-state {
-      font-size: 11px;
+
+    /* ── MACHINE BOARD ── */
+    .mrow {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 5px 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.025);
+    }
+    .mrow:last-child { border-bottom: none; }
+    .mname {
+      font-size: 10px;
+      color: var(--text-muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .mstate {
+      font-size: 10px;
       font-weight: 600;
-      padding: 1px 8px;
+      padding: 1px 7px;
       border-radius: 3px;
     }
-    .machine-state.ok     { color: var(--accent-green); background: rgba(0,232,124,0.08); }
-    .machine-state.locked { color: var(--text-muted);   background: rgba(255,255,255,0.04); }
-    .machine-state.error  { color: var(--accent-red);   background: rgba(255,59,48,0.08); }
-    .machine-state.warn   { color: var(--accent-amber); background: rgba(255,159,10,0.08); }
+    .mstate.s-ok     { color: var(--accent-green);  background: rgba(0,232,124,0.08); }
+    .mstate.s-idle   { color: var(--text-muted);     background: rgba(255,255,255,0.04); }
+    .mstate.s-warn   { color: var(--accent-amber);   background: rgba(255,176,32,0.08); }
+    .mstate.s-error  { color: var(--accent-red);     background: rgba(255,64,64,0.08); }
 
-    .audit-entry {
-      padding: 4px 0;
-      border-bottom: 1px solid rgba(255,255,255,0.03);
-      display: flex; gap: 8px;
-    }
-    .audit-ts  { font-size: 10px; color: var(--text-dim); flex-shrink: 0; }
-    .audit-type { font-size: 10px; color: var(--accent-amber); flex-shrink: 0; }
-    .audit-data { font-size: 10px; color: var(--text-muted); word-break: break-all; }
-
-    #msg-bar {
-      border-top: 1px solid var(--border);
-      padding: 10px 12px;
-      display: flex; gap: 8px;
-      background: var(--bg-surface);
-    }
-
-    .app-grid {
+    /* ── AUDIT LOG ── */
+    .alog { flex: 1; overflow-y: auto; padding: 4px 0; }
+    .arow {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
+      grid-template-columns: 52px 90px 1fr;
+      gap: 6px;
+      padding: 3px 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.02);
+      animation: slide-in 0.15s ease;
     }
-    .app-tile {
-      padding: 12px 10px;
+    @keyframes slide-in { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:translateY(0); } }
+    .arow:hover { background: rgba(255,255,255,0.02); }
+    .a-ts   { font-size: 9px; color: var(--text-dim); line-height: 1.8; }
+    .a-type { font-size: 9px; color: var(--accent-amber); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .a-data { font-size: 9px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* ── INVARIANT BOARD ── */
+    .inv-list { padding: 6px 12px; }
+    .inv-row {
+      font-size: 10px;
+      padding: 3px 7px;
+      border-radius: 3px;
+      margin-bottom: 3px;
+      display: flex; align-items: center; gap: 5px;
+    }
+    .inv-row.ok  { color: var(--accent-green); background: rgba(0,232,124,0.05); }
+    .inv-row.err { color: var(--accent-red); background: rgba(255,64,64,0.07); }
+
+    /* ── PEERS SIDEBAR ── */
+    .peer-row {
+      display: flex; align-items: center; gap: 9px;
+      padding: 7px 10px;
+      border-radius: var(--radius);
+      margin-bottom: 3px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.14s;
+    }
+    .peer-row:hover { background: rgba(0,232,124,0.03); border-color: var(--border); }
+    .peer-row.active { background: rgba(0,232,124,0.06); border-color: var(--border-mid); }
+
+    .peer-av {
+      width: 30px; height: 30px; border-radius: 50%;
+      background: var(--bg-raised);
       border: 1px solid var(--border);
-      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px;
+      flex-shrink: 0;
+      color: var(--accent-cyan);
+    }
+
+    .peer-info { flex: 1; min-width: 0; }
+    .peer-did   { font-size: 10px; color: var(--accent-cyan); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+    .peer-meta  { font-size: 9px; color: var(--text-muted); }
+
+    .trust-badge {
+      font-size: 9px;
+      padding: 1px 6px;
+      border-radius: 3px;
+      background: rgba(0,232,124,0.08);
+      color: var(--accent-green);
+      flex-shrink: 0;
+    }
+    .trust-badge.m { background: rgba(255,176,32,0.08); color: var(--accent-amber); }
+    .trust-badge.l { background: rgba(255,64,64,0.08);  color: var(--accent-red); }
+
+    /* ── MESSAGES ── */
+    .msg-bubble {
+      padding: 6px 10px;
+      margin-bottom: 5px;
+      border-radius: var(--radius);
+      border-left: 2px solid var(--border);
+      animation: slide-in 0.2s ease;
+    }
+    .msg-bubble.out { border-left-color: var(--accent-green); background: rgba(0,232,124,0.03); }
+    .msg-bubble.in  { border-left-color: var(--accent-cyan);  background: rgba(0,200,255,0.03); }
+
+    .msg-meta { display: flex; gap: 8px; margin-bottom: 2px; }
+    .msg-from { font-size: 10px; color: var(--accent-cyan); font-weight: 600; }
+    .msg-from.me { color: var(--accent-green); }
+    .msg-ts   { font-size: 10px; color: var(--text-muted); }
+    .msg-body { font-size: 12px; color: var(--text-primary); word-break: break-word; }
+
+    /* ── APP GRID ── */
+    .app-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+    .app-tile {
+      padding: 11px 9px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
       background: var(--bg-raised);
       cursor: pointer;
-      transition: all 0.15s;
+      transition: all 0.14s;
       text-decoration: none;
       display: block;
     }
-    .app-tile:hover {
-      border-color: var(--border-bright);
-      background: rgba(0,232,124,0.04);
-      box-shadow: var(--glow-green);
-    }
-    .app-tile-icon { font-size: 18px; margin-bottom: 4px; }
+    .app-tile:hover { border-color: var(--border-mid); background: rgba(0,232,124,0.03); box-shadow: var(--glow-green); }
+    .app-tile-icon { font-size: 16px; margin-bottom: 5px; }
     .app-tile-name { font-size: 11px; color: var(--text-primary); font-weight: 600; margin-bottom: 2px; }
-    .app-tile-desc { font-size: 10px; color: var(--text-muted); }
+    .app-tile-desc { font-size: 9px; color: var(--text-muted); }
 
-    .section-label {
-      font-size: 10px;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      color: var(--text-dim);
-      margin-bottom: 8px;
-      margin-top: 12px;
-    }
-    .section-label:first-child { margin-top: 0; }
-
-    .relay-row {
-      display: flex; gap: 6px; margin-bottom: 10px;
-    }
-
-    .connect-stat {
+    /* ── CONNECT STATS ── */
+    .stat-row {
       display: flex; justify-content: space-between; align-items: center;
-      padding: 5px 0;
-      font-size: 11px;
+      padding: 4px 0;
       border-bottom: 1px solid rgba(255,255,255,0.03);
+      font-size: 11px;
     }
-    .connect-stat-key { color: var(--text-muted); }
-    .connect-stat-val { color: var(--accent-green); font-weight: 600; }
+    .stat-key { color: var(--text-muted); }
+    .stat-val { color: var(--accent-green); font-weight: 600; }
+    .stat-val.muted { color: var(--text-muted); font-weight: 400; }
 
-    ::-webkit-scrollbar { width: 4px; height: 4px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-
-    @keyframes pulse-dot {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.3; }
+    /* ── SECTION LABEL ── */
+    .sec-lbl {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--text-dim);
+      margin: 12px 0 6px;
     }
-    .pulse { animation: pulse-dot 2s ease-in-out infinite; }
+    .sec-lbl:first-child { margin-top: 0; }
 
-    @keyframes fade-in {
-      from { opacity: 0; transform: translateY(4px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-    .fade-in { animation: fade-in 0.25s ease; }
-
-    @keyframes glow-pulse {
-      0%, 100% { box-shadow: 0 0 6px rgba(0,232,124,0.3); }
-      50% { box-shadow: 0 0 20px rgba(0,232,124,0.6); }
-    }
-    .glow-pulse { animation: glow-pulse 3s ease-in-out infinite; }
-
-    .help-text {
-      font-size: 11px; color: var(--text-muted); line-height: 1.7;
-    }
-
-    .qr-box {
-      width: 120px; height: 120px;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      display: flex; align-items: center; justify-content: center;
-      margin: 10px auto;
-      font-size: 10px; color: var(--text-dim);
-      background: var(--bg-raised);
-    }
-
-    .inv-chip {
-      font-size: 10px;
-      padding: 2px 8px;
-      border-radius: 3px;
-      margin-bottom: 4px;
-      display: block;
-    }
-    .inv-chip.ok  { background: rgba(0,232,124,0.08); color: var(--accent-green); }
-    .inv-chip.err { background: rgba(255,59,48,0.08); color: var(--accent-red); }
-
-    /* Notification toast */
+    /* ── TOAST ── */
     #toast {
       position: fixed;
-      bottom: 28px; right: 20px;
+      bottom: 24px; right: 18px;
       background: var(--bg-panel);
       border: 1px solid var(--border-bright);
-      border-radius: 6px;
-      padding: 10px 16px;
+      border-radius: var(--radius-lg);
+      padding: 9px 14px;
       font-size: 11px;
       color: var(--accent-green);
       z-index: 9999;
@@ -581,199 +575,244 @@
       transform: translateY(8px);
       transition: all 0.2s ease;
       pointer-events: none;
-      max-width: 280px;
+      max-width: 300px;
+      box-shadow: var(--glow-green), 0 4px 24px rgba(0,0,0,0.5);
     }
     #toast.show { opacity: 1; transform: translateY(0); }
+    #toast.warn { color: var(--accent-amber); border-color: rgba(255,176,32,0.4); }
+    #toast.err  { color: var(--accent-red); border-color: rgba(255,64,64,0.4); }
 
-    @media (max-width: 900px) {
-      #layout { grid-template-columns: 56px 1fr 0; }
-      #info-panel { display: none; }
-      #sidebar { display: none; }
+    /* ── SCROLLBARS ── */
+    ::-webkit-scrollbar { width: 3px; height: 3px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    /* ── OFFER TEXTAREA ── */
+    .sv-textarea {
+      width: 100%;
+      padding: 9px 11px;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      font-size: 10px;
+      outline: none;
+      resize: vertical;
+      min-height: 70px;
+    }
+    .sv-textarea:focus { border-color: rgba(0,232,124,0.4); }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 960px) {
+      #layout { grid-template-columns: 50px 1fr 0 0; }
+      #right-panel { display: none; }
+    }
+    @media (max-width: 600px) {
+      #layout { grid-template-columns: 0 1fr 0 0; }
+      #rail { display: none; }
+    }
+
+    /* ── IDENTITY SECURITY PROFILE ── */
+    .sec-profile {
+      background: var(--bg-raised);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 12px;
+      margin-bottom: 10px;
+    }
+    .sec-profile-row {
+      display: flex; justify-content: space-between;
+      font-size: 10px;
+      padding: 3px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.025);
+    }
+    .sec-profile-row:last-child { border-bottom: none; }
+    .sec-key   { color: var(--text-muted); }
+    .sec-val   { color: var(--accent-teal); font-weight: 600; }
+    .sec-val.ok     { color: var(--accent-green); }
+    .sec-val.warn   { color: var(--accent-amber); }
+
+    /* ── SHAMIR SHARE DISPLAY ── */
+    .share-item {
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 6px 9px;
+      margin-bottom: 5px;
+      font-size: 9px;
+      color: var(--accent-green);
+      word-break: break-all;
+      line-height: 1.6;
+      cursor: pointer;
+      transition: border-color 0.14s;
+    }
+    .share-item:hover { border-color: var(--border-bright); }
+    .share-label { font-size: 9px; color: var(--text-dim); margin-bottom: 2px; }
+
+    /* ── PROTO WARNING ── */
+    #proto-warn {
+      display: none;
+      position: fixed; top: 0; left: 0; right: 0;
+      z-index: 9998;
+      background: rgba(255,176,32,0.08);
+      border-bottom: 1px solid rgba(255,176,32,0.3);
+      padding: 7px 16px;
+      font-size: 10px;
+      color: var(--accent-amber);
+      align-items: center; gap: 10px; flex-wrap: wrap;
     }
   </style>
 </head>
 <body>
 
-  <!-- ── file:// protocol warning (hidden by default, shown via JS) ── -->
-  <div id="proto-warning" style="
-      display:none; position:fixed; top:0; left:0; right:0; z-index:10000;
-      background:rgba(255,159,10,0.12); border-bottom:1px solid rgba(255,159,10,0.4);
-      padding:8px 20px; font-family:'JetBrains Mono',monospace; font-size:11px;
-      color:#ff9f0a; gap:12px; align-items:center; flex-wrap:wrap;">
-    <span style="font-weight:700">⚠ file:// ORIGIN DETECTED</span>
-    <span style="color:#94a3b8">Service Workers require HTTP. The Security Kernel (key vault) is unavailable.
-    Serve this directory over HTTP to use vault features.</span>
-    <span style="color:#64748b; margin-left:auto">
-      Quick start: &nbsp;
-      <code style="background:rgba(255,255,255,0.06);padding:2px 6px;border-radius:3px">
-        python3 -m http.server 8080
-      </code>
-      &nbsp;then open &nbsp;
-      <code style="background:rgba(255,255,255,0.06);padding:2px 6px;border-radius:3px">
-        http://localhost:8080
-      </code>
-    </span>
-    <button onclick="document.getElementById('proto-warning').style.display='none'"
-            style="background:none;border:1px solid rgba(255,159,10,0.4);color:#ff9f0a;
-                   padding:3px 10px;border-radius:4px;cursor:pointer;font-family:inherit;font-size:11px;
-                   margin-left:8px">✕</button>
+  <!-- file:// protocol warning -->
+  <div id="proto-warn">
+    <span style="font-weight:700">⚠ file:// ORIGIN</span>
+    <span style="color:#8a99aa">Service Workers require HTTP — key isolation is unavailable in this mode.
+    Serve over HTTP for full security:
+    <code style="background:rgba(255,255,255,0.08);padding:1px 5px;border-radius:3px">python3 -m http.server 8080</code></span>
+    <button onclick="document.getElementById('proto-warn').style.display='none'"
+            style="margin-left:auto;background:none;border:1px solid rgba(255,176,32,0.3);color:var(--accent-amber);padding:2px 9px;border-radius:3px;cursor:pointer;font-family:inherit;font-size:10px">✕</button>
   </div>
 
-  <!-- ── TOP HEADER ── -->
+  <!-- TOP HEADER -->
   <header id="header">
     <a class="header-logo" href="index.html">
       <div class="logo-hex">
-        <svg viewBox="0 0 28 28" fill="none">
-          <path d="M14 2 L25 8.5 L25 21.5 L14 28 L3 21.5 L3 8.5 Z"
+        <svg viewBox="0 0 26 26" fill="none">
+          <path d="M13 2 L23 7.8 L23 19.2 L13 25 L3 19.2 L3 7.8 Z"
                 stroke="#00e87c" stroke-width="1.2" fill="rgba(0,232,124,0.04)"/>
-          <path d="M14 7 L21 11 L21 19 L14 23 L7 19 L7 11 Z"
-                stroke="#00e87c" stroke-width="0.6" fill="rgba(0,232,124,0.06)"/>
-          <circle cx="14" cy="15" r="2" fill="#00e87c"/>
+          <path d="M13 7 L19.5 10.8 L19.5 18.2 L13 22 L6.5 18.2 L6.5 10.8 Z"
+                stroke="#00e87c" stroke-width="0.5" fill="rgba(0,232,124,0.06)"/>
+          <circle cx="13" cy="14" r="2" fill="#00e87c"/>
         </svg>
       </div>
       <div>
         <div class="logo-text">SOVEREIGN</div>
-        <div class="logo-version">v4.0 · GENESIS NODE</div>
+        <div class="logo-version">v5.0 · GENESIS NODE</div>
       </div>
     </a>
 
     <div class="header-sep"></div>
 
-    <div class="header-status">
-      <div class="status-chip" id="chip-vault">
-        <div class="dot"></div>
-        <span>VAULT</span>
-      </div>
-      <div class="status-chip" id="chip-identity">
-        <div class="dot"></div>
-        <span>IDENTITY</span>
-      </div>
-      <div class="status-chip" id="chip-transport">
-        <div class="dot pulse"></div>
-        <span>RELAY</span>
-      </div>
-      <div class="status-chip" id="chip-onion">
-        <div class="dot"></div>
-        <span>ONION</span>
-      </div>
-      <div class="status-chip" id="chip-sw">
-        <div class="dot pulse"></div>
-        <span>KERNEL</span>
-      </div>
+    <div class="status-bar">
+      <div class="chip" id="chip-vault"><div class="dot pulse"></div><span>VAULT</span></div>
+      <div class="chip" id="chip-identity"><div class="dot"></div><span>ID</span></div>
+      <div class="chip" id="chip-transport"><div class="dot pulse"></div><span>RELAY</span></div>
+      <div class="chip" id="chip-onion"><div class="dot"></div><span>ONION</span></div>
+      <div class="chip" id="chip-sw"><div class="dot pulse"></div><span>KERNEL</span></div>
     </div>
 
     <div class="header-right">
-      <span id="peer-count-badge" style="font-size:11px;color:var(--text-muted)">0 peers</span>
-      <button class="btn" onclick="UI.lockVault()" id="btn-lock" style="display:none">🔒 Lock</button>
-      <button class="btn primary" onclick="UI.showConnectPanel()" id="btn-connect">⬡ Connect</button>
+      <span class="peer-badge" id="peer-badge">0 peers</span>
+      <button class="btn danger btn-sm" id="btn-lock" onclick="UI.lockVault()" style="display:none">🔒 Lock</button>
+      <button class="btn primary btn-sm" onclick="UI.switchView('connect',null)">⟳ Connect</button>
     </div>
   </header>
 
-  <!-- ── MAIN LAYOUT ── -->
+  <!-- LAYOUT -->
   <div id="layout">
 
-    <!-- Rail -->
+    <!-- RAIL -->
     <nav id="rail">
-      <button class="rail-btn active" data-view="network" data-tip="Network" onclick="UI.switchView('network', this)">⬡</button>
-      <button class="rail-btn" data-view="peers" data-tip="Peers" onclick="UI.switchView('peers', this)">◈</button>
-      <button class="rail-btn" data-view="messages" data-tip="Messages" onclick="UI.switchView('messages', this)">✉</button>
-      <button class="rail-btn" data-view="connect" data-tip="Connect" onclick="UI.switchView('connect', this)">⟳</button>
-      <button class="rail-btn" data-view="apps" data-tip="Apps" onclick="UI.switchView('apps', this)">⊞</button>
+      <button class="rail-btn active" data-view="network"  data-tip="Network"  onclick="UI.switchView('network',this)">⬡</button>
+      <button class="rail-btn"        data-view="peers"    data-tip="Peers"    onclick="UI.switchView('peers',this)">◈</button>
+      <button class="rail-btn"        data-view="messages" data-tip="Messages" onclick="UI.switchView('messages',this)">✉</button>
+      <button class="rail-btn"        data-view="connect"  data-tip="Connect"  onclick="UI.switchView('connect',this)">⟳</button>
+      <button class="rail-btn"        data-view="apps"     data-tip="Apps"     onclick="UI.switchView('apps',this)">⊞</button>
       <div style="flex:1"></div>
-      <button class="rail-btn" data-view="identity" data-tip="Identity" onclick="UI.switchView('identity', this)">⬟</button>
+      <button class="rail-btn"        data-view="identity" data-tip="Identity" onclick="UI.switchView('identity',this)">⬟</button>
     </nav>
 
-    <!-- Sidebar -->
-    <div id="sidebar">
-      <div id="sidebar-content"></div>
-    </div>
+    <!-- SIDEBAR -->
+    <div id="sidebar"><div id="sb-content"></div></div>
 
-    <!-- Main canvas -->
+    <!-- MAIN -->
     <div id="main">
-      <div id="canvas-area">
-        <canvas id="network-canvas"></canvas>
+      <div id="canvas-wrap">
+        <canvas id="net-canvas"></canvas>
 
-        <!-- Vault unlock / create card -->
+        <!-- VAULT CARD -->
         <div id="vault-card">
-          <div class="vault-hex">⬡</div>
-          <div class="vault-title">Genesis Node</div>
-          <div class="vault-sub">Your keys. Your mesh. Your sovereignty.</div>
+          <div class="vault-icon">⬡</div>
+          <div class="vault-headline">Genesis Node</div>
+          <div class="vault-sub">Your keys. Your mesh. Your sovereignty.<br>No servers. No accounts. No surveillance.</div>
 
-          <div id="vault-create-form">
-            <div class="input-group">
-              <input class="sovereign-input" type="password" id="passphrase-input"
-                     placeholder="Create a strong passphrase…" autocomplete="new-password" />
+          <!-- CREATE FORM -->
+          <div id="form-create">
+            <div class="field-group">
+              <div class="field-label">PASSPHRASE</div>
+              <input class="sv-input" type="password" id="in-pass"
+                     placeholder="Strong passphrase (min 8 chars)…"
+                     autocomplete="new-password"
+                     oninput="UI.strengthCheck(this.value)" />
+              <div class="strength-bar"><div class="strength-fill" id="strength-fill"></div></div>
             </div>
-            <div class="input-group">
-              <input class="sovereign-input" type="password" id="duress-input"
-                     placeholder="Duress passphrase (optional — decoy vault)" autocomplete="new-password" />
+            <div class="field-group">
+              <div class="field-label">DURESS PASSPHRASE <span style="color:var(--text-dim)">(optional — opens decoy vault)</span></div>
+              <input class="sv-input" type="password" id="in-duress"
+                     placeholder="Decoy passphrase…"
+                     autocomplete="new-password" />
             </div>
-            <button class="btn primary btn-full" onclick="UI.createVault()">
-              ⬡ Generate Identity
-            </button>
-            <div style="margin:10px 0; text-align:center; font-size:10px; color:var(--text-dim)">— or —</div>
-            <button class="btn btn-full" onclick="UI.showUnlockForm()">
-              Unlock Existing Vault
-            </button>
+            <button class="btn primary btn-block" onclick="UI.createVault()">⬡ Generate Identity</button>
+            <div class="divider"><span>or</span></div>
+            <button class="btn btn-block" onclick="UI.showUnlock()">Unlock Existing Vault</button>
           </div>
 
-          <div id="vault-unlock-form" style="display:none">
-            <div class="input-group">
-              <input class="sovereign-input" type="password" id="unlock-passphrase"
-                     placeholder="Enter your passphrase…" autocomplete="current-password" />
-              <button class="btn primary" onclick="UI.unlockVault()">Unlock</button>
+          <!-- UNLOCK FORM -->
+          <div id="form-unlock" style="display:none">
+            <div class="field-group">
+              <div class="field-label">PASSPHRASE</div>
+              <div style="display:flex;gap:7px">
+                <input class="sv-input" type="password" id="in-unlock"
+                       placeholder="Enter your passphrase…"
+                       autocomplete="current-password"
+                       style="flex:1" />
+                <button class="btn primary" onclick="UI.unlockVault()">↑</button>
+              </div>
             </div>
-            <button class="btn btn-full" onclick="UI.showCreateForm()" style="margin-top:6px;">
-              ← Create New Identity
-            </button>
+            <button class="btn btn-block" onclick="UI.showCreate()" style="margin-top:4px">← Create New Identity</button>
           </div>
 
-          <div id="vault-status-msg" style="font-size:11px;color:var(--accent-red);margin-top:8px;display:none"></div>
+          <div id="vault-msg" style="font-size:11px;margin-top:8px;min-height:16px;"></div>
         </div>
 
-        <!-- DID banner (shown when unlocked) -->
-        <div id="did-banner">
-          DID: <span id="did-value">—</span>
+        <!-- DID PILL -->
+        <div id="did-pill" onclick="UI.copyDid()" title="Click to copy DID">
+          DID: <span id="did-short">—</span>
         </div>
       </div>
 
-      <!-- Message input bar -->
+      <!-- MSG BAR -->
       <div id="msg-bar" style="display:none">
-        <input class="sovereign-input" id="msg-input"
-               placeholder="Select a peer then type a message… (Enter to send)"
+        <input class="sv-input" id="msg-in"
+               placeholder="Select a peer, then type a message… (Enter to send)"
                style="flex:1" />
         <button class="btn primary" onclick="UI.sendMessage()">Send ▶</button>
       </div>
     </div>
 
-    <!-- Right info panel -->
-    <div id="info-panel">
-      <div class="panel-header">
-        <span class="panel-title">System State</span>
-        <button class="btn" style="font-size:10px;padding:3px 8px" onclick="UI.refreshState()">↻</button>
+    <!-- RIGHT PANEL -->
+    <div id="right-panel">
+      <!-- FSM Machine Board -->
+      <div class="section-hdr" style="display:flex;justify-content:space-between;align-items:center">
+        <span>System State</span>
+        <button class="btn btn-sm" onclick="UI.refreshState()" style="padding:2px 7px;font-size:9px">↻</button>
       </div>
-
-      <!-- FSM state board -->
-      <div style="padding:12px; border-bottom:1px solid var(--border);">
-        <div id="machine-board"></div>
-      </div>
+      <div id="machine-board" style="flex-shrink:0"></div>
 
       <!-- Invariants -->
-      <div style="padding:12px; border-bottom:1px solid var(--border);">
-        <div class="panel-title" style="margin-bottom:8px">Invariants</div>
-        <div id="invariant-board"></div>
-      </div>
+      <div class="section-hdr">Invariants</div>
+      <div class="inv-list" id="inv-board" style="flex-shrink:0"></div>
 
-      <!-- Audit log -->
-      <div style="padding:12px; flex:1; overflow:hidden; display:flex; flex-direction:column;">
-        <div class="panel-title" style="margin-bottom:8px">Audit Log</div>
-        <div id="audit-log" style="flex:1; overflow-y:auto;"></div>
-      </div>
+      <!-- Audit Log -->
+      <div class="section-hdr">Audit Log</div>
+      <div class="alog" id="audit-log"></div>
     </div>
 
-  </div><!-- /#layout -->
+  </div>
 
-  <!-- Toast notification -->
   <div id="toast"></div>
 
   <!-- ══════════════════════════════════════════════════════════════════ -->
@@ -784,1232 +823,939 @@
   <script>
   'use strict';
 
-  // ─── Safety guards ────────────────────────────────────────────────────────
-  // These are normally defined in sovereign_security.js. If that file fails
-  // to load (wrong path, 404, network block, offline), we provide fallbacks
-  // here so nothing in this script ever throws a ReferenceError.
+  // ── Fallback guards (if sovereign_security.js fails to load) ─────────────
   if (typeof window.sanitize === 'undefined') {
-    window.sanitize = function sanitize(str) {
-      if (str == null) return '';
-      if (typeof str !== 'string') str = String(str);
-      try {
-        const doc = new DOMParser().parseFromString(str, 'text/html');
-        return doc.body?.textContent ?? str.replace(/<[^>]*>/g, '');
-      } catch (_) {
-        return str.replace(/<[^>]*>/g, '');
-      }
+    window.sanitize = (s) => {
+      if (s == null) return '';
+      s = String(s);
+      try { return new DOMParser().parseFromString(s,'text/html').body?.textContent ?? s.replace(/<[^>]*>/g,''); }
+      catch(_) { return s.replace(/<[^>]*>/g,''); }
     };
-    console.warn('[Sovereign] sovereign_security.js not loaded — using sanitize() fallback.');
   }
-
   if (typeof window.SovereignKernelBridge === 'undefined') {
-    window.SovereignKernelBridge = {
-      send: () => Promise.reject(
-        new Error('Security Kernel unavailable. Ensure genesis_sw.js is registered.')
-      ),
-    };
-    console.warn('[Sovereign] SovereignKernelBridge not available — vault operations will fail.');
+    window.SovereignKernelBridge = { send: () => Promise.reject(new Error('Kernel unavailable')) };
   }
 
-  // ─── FSM reference ────────────────────────────────────────────────────────
-  // sovereign_fsm.js is loaded synchronously before this script, so
-  // window.SovereignFSM is available immediately. K is a convenience alias.
-  // For FSM sends that the page drives (not SW-broadcast), call K.machine.send().
-  // For FSM sends that arrive via SW broadcast, sovereign_fsm.js handles them
-  // automatically — never duplicate those here.
+  // ── FSM reference ─────────────────────────────────────────────────────────
   const K = window.SovereignFSM ?? {
-    vault:       { send: () => {} },
-    identity:    { send: () => {} },
-    transport:   { send: () => {} },
-    kdf:         { send: () => {} },
-    governance:  { send: () => {} },
-    attestation: { send: () => {} },
-    onion:       { send: () => {} },
-    ratchet:     () => ({ send: () => {} }),
-    snapshot:    () => ({}),
-    checkInvariants: () => [],
+    vault:{send:()=>{}}, identity:{send:()=>{}}, transport:{send:()=>{}},
+    kdf:{send:()=>{}}, governance:{send:()=>{}}, attestation:{send:()=>{}},
+    onion:{send:()=>{}}, ratchet:()=>({send:()=>{}}),
+    snapshot:()=>({}), checkInvariants:()=>[],
   };
 
-  // ─── State ───────────────────────────────────────────────────────────────
-  const State = {
-    did:          null,
-    pubKey:       null,
-    activePeerId: null,
-    activeView:   'network',
-    peers:        [],
-    messages:     [],  // { from, body, ts, outbound }
-    relayUrl:     'wss://sovereign-relay.fly.dev',
-    auditEntries: [],
+  // ── App State ─────────────────────────────────────────────────────────────
+  const S = {
+    did: null, pubKey: null,
+    activePeer: null, activeView: 'network',
+    peers: [],             // { peerId, did, transport, trust, latencyMs }
+    messages: [],          // { from, body, ts, outbound }
+    auditBuf: [],
+    relayUrl: 'wss://sovereign-relay.fly.dev',
+    shamirShares: [],
   };
 
-  // ─── Canvas network graph ─────────────────────────────────────────────────
+  // ── Canvas ────────────────────────────────────────────────────────────────
   const Canvas = (() => {
-    const canvas = document.getElementById('network-canvas');
-    const ctx    = canvas.getContext('2d');
-    let nodes    = [];
-    let animId   = null;
-    let t        = 0;
+    const cvs = document.getElementById('net-canvas');
+    const ctx = cvs.getContext('2d');
+    let nodes = [], t = 0, raf = null;
 
     function resize() {
-      const area = document.getElementById('canvas-area');
-      canvas.width  = area.clientWidth;
-      canvas.height = area.clientHeight;
+      const w = document.getElementById('canvas-wrap');
+      cvs.width  = w.clientWidth;
+      cvs.height = w.clientHeight;
     }
 
-    function initNodes() {
-      const W = canvas.width, H = canvas.height;
-      const cx = W / 2, cy = H / 2;
-
+    function init() {
+      const W = cvs.width, H = cvs.height, cx = W/2, cy = H/2;
       nodes = [
-        { x: cx, y: cy, r: 14, label: 'YOU', color: '#00e87c', type: 'self', vx: 0, vy: 0 },
-        { x: cx - 180, y: cy - 80, r: 8, label: 'RELAY', color: '#00c8ff', type: 'relay', vx: 0, vy: 0 },
+        { x:cx, y:cy, r:12, label:'YOU', color:'#00e87c', type:'self' },
+        { x:cx-160, y:cy-70, r:7, label:'RELAY', color:'#00c8ff', type:'relay', vx:0, vy:0 },
       ];
-
       const apps = [
-        { label: 'OS',     color: '#bf5af2' },
-        { label: 'FORGE',  color: '#ff9f0a' },
-        { label: 'MAIL',   color: '#00c8ff' },
-        { label: 'BRIDGE', color: '#00e87c' },
-        { label: 'SEARCH', color: '#ff3b30' },
-        { label: 'ATTEST', color: '#bf5af2' },
+        {label:'OS',color:'#c060ff'},{label:'FORGE',color:'#ffb020'},
+        {label:'MAIL',color:'#00c8ff'},{label:'BRIDGE',color:'#00e87c'},
+        {label:'SEARCH',color:'#ff4040'},{label:'MSNGR',color:'#00d4aa'},
       ];
-      apps.forEach((a, i) => {
-        const angle = (i / apps.length) * Math.PI * 2 - Math.PI / 2;
-        const rad   = Math.min(W, H) * 0.28;
-        nodes.push({
-          x: cx + Math.cos(angle) * rad,
-          y: cy + Math.sin(angle) * rad,
-          r: 6, label: a.label, color: a.color, type: 'app',
-          angle, rad, speed: 0.0003 + Math.random() * 0.0002,
-          vx: 0, vy: 0,
-        });
+      apps.forEach((a,i) => {
+        const ang = (i/apps.length)*Math.PI*2 - Math.PI/2;
+        const rad = Math.min(W,H)*0.26;
+        nodes.push({ x:cx+Math.cos(ang)*rad, y:cy+Math.sin(ang)*rad,
+          r:5, label:a.label, color:a.color, type:'app',
+          angle:ang, rad, speed:0.00025+Math.random()*0.0002 });
       });
     }
 
-    function hexPath(ctx, cx, cy, r) {
+    function hexPath(x,y,r) {
       ctx.beginPath();
-      for (let i = 0; i < 6; i++) {
-        const a = (i / 6) * Math.PI * 2 - Math.PI / 6;
-        const x = cx + r * Math.cos(a);
-        const y = cy + r * Math.sin(a);
-        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      for (let i=0;i<6;i++) {
+        const a = (i/6)*Math.PI*2 - Math.PI/6;
+        i===0 ? ctx.moveTo(x+r*Math.cos(a),y+r*Math.sin(a))
+              : ctx.lineTo(x+r*Math.cos(a),y+r*Math.sin(a));
       }
       ctx.closePath();
     }
 
     function draw() {
-      const W = canvas.width, H = canvas.height;
-      ctx.clearRect(0, 0, W, H);
-      t += 0.008;
-
+      const W = cvs.width, H = cvs.height, cx = W/2, cy = H/2;
+      ctx.clearRect(0,0,W,H); t += 0.007;
       const self = nodes[0];
-      const cx = W / 2, cy = H / 2;
 
       nodes.forEach(n => {
         if (n.type === 'app') {
           n.angle += n.speed;
-          n.x = cx + Math.cos(n.angle) * n.rad;
-          n.y = cy + Math.sin(n.angle) * n.rad;
+          n.x = cx + Math.cos(n.angle)*n.rad;
+          n.y = cy + Math.sin(n.angle)*n.rad;
         }
       });
 
-      // Peer nodes
-      State.peers.forEach((peer, i) => {
-        const angle = (i / Math.max(State.peers.length, 1)) * Math.PI * 2;
-        const rad   = Math.min(W, H) * 0.18 + 40;
-        const px    = cx + Math.cos(angle + t * 0.3) * rad;
-        const py    = cy + Math.sin(angle + t * 0.3) * rad;
+      // Peer connections
+      S.peers.forEach((p,i) => {
+        const ang = (i / Math.max(S.peers.length,1))*Math.PI*2;
+        const rad = Math.min(W,H)*0.17 + 35;
+        const px  = cx + Math.cos(ang+t*0.28)*rad;
+        const py  = cy + Math.sin(ang+t*0.28)*rad;
+        const act = p.peerId === S.activePeer;
 
         ctx.beginPath();
-        ctx.strokeStyle = peer.peerId === State.activePeerId
-          ? 'rgba(0,200,255,0.45)'
-          : 'rgba(0,200,255,0.15)';
-        ctx.lineWidth   = 1;
-        ctx.setLineDash([4, 8]);
-        ctx.moveTo(self.x, self.y);
-        ctx.lineTo(px, py);
-        ctx.stroke();
-        ctx.setLineDash([]);
+        ctx.strokeStyle = act ? 'rgba(0,200,255,0.50)' : 'rgba(0,200,255,0.14)';
+        ctx.lineWidth = act ? 1.5 : 1;
+        ctx.setLineDash([4,8]);
+        ctx.moveTo(self.x,self.y); ctx.lineTo(px,py);
+        ctx.stroke(); ctx.setLineDash([]);
 
         ctx.beginPath();
-        ctx.arc(px, py, peer.peerId === State.activePeerId ? 9 : 7, 0, Math.PI * 2);
-        ctx.fillStyle = peer.peerId === State.activePeerId
-          ? 'rgba(0,200,255,0.35)'
-          : 'rgba(0,200,255,0.2)';
+        ctx.arc(px,py,act?9:7,0,Math.PI*2);
+        ctx.fillStyle = act ? 'rgba(0,200,255,0.25)' : 'rgba(0,200,255,0.12)';
         ctx.fill();
-        ctx.strokeStyle = '#00c8ff';
-        ctx.lineWidth = peer.peerId === State.activePeerId ? 1.5 : 1;
+        ctx.strokeStyle='#00c8ff'; ctx.lineWidth=act?1.5:1;
         ctx.stroke();
 
-        ctx.fillStyle = '#00c8ff';
-        ctx.font      = '9px JetBrains Mono';
-        ctx.textAlign = 'center';
-        ctx.fillText(peer.did?.slice(-8) ?? 'PEER', px, py + 20);
+        ctx.fillStyle='#00c8ff'; ctx.font='8px JetBrains Mono';
+        ctx.textAlign='center';
+        ctx.fillText(p.did?.slice(-7)??'PEER', px, py+18);
       });
 
-      // App connections
+      // App lines
       nodes.forEach(n => {
         if (n.type !== 'self') {
+          const alpha = n.type==='relay' ? 0.22 : 0.06 + 0.05*Math.sin(t+(n.angle??0));
           ctx.beginPath();
-          const alpha = n.type === 'relay' ? 0.25 : 0.08 + 0.05 * Math.sin(t + (n.angle ?? 0));
           ctx.strokeStyle = `rgba(0,232,124,${alpha})`;
-          ctx.lineWidth   = n.type === 'relay' ? 1.5 : 0.7;
-          ctx.setLineDash(n.type === 'relay' ? [] : [3, 6]);
-          ctx.moveTo(self.x, self.y);
-          ctx.lineTo(n.x, n.y);
-          ctx.stroke();
-          ctx.setLineDash([]);
+          ctx.lineWidth = n.type==='relay' ? 1.2 : 0.6;
+          ctx.setLineDash(n.type==='relay' ? [] : [3,7]);
+          ctx.moveTo(self.x,self.y); ctx.lineTo(n.x,n.y);
+          ctx.stroke(); ctx.setLineDash([]);
         }
       });
 
-      // All nodes
+      // Draw nodes
       nodes.forEach(n => {
         if (n.type === 'self') {
-          const pulse = 0.6 + 0.4 * Math.sin(t * 1.5);
+          const p = 0.6 + 0.4*Math.sin(t*1.4);
           ctx.save();
-          hexPath(ctx, n.x, n.y, n.r + 8);
-          ctx.strokeStyle = `rgba(0,232,124,${0.1 * pulse})`;
-          ctx.lineWidth   = 8;
-          ctx.stroke();
-          hexPath(ctx, n.x, n.y, n.r);
-          ctx.strokeStyle = `rgba(0,232,124,${0.6 + 0.4 * pulse})`;
-          ctx.lineWidth   = 1.5;
-          ctx.stroke();
-          ctx.fillStyle   = `rgba(0,232,124,0.12)`;
-          ctx.fill();
+          hexPath(n.x,n.y,n.r+10);
+          ctx.strokeStyle=`rgba(0,232,124,${0.08*p})`; ctx.lineWidth=10; ctx.stroke();
+          hexPath(n.x,n.y,n.r);
+          ctx.strokeStyle=`rgba(0,232,124,${0.5+0.4*p})`; ctx.lineWidth=1.5; ctx.stroke();
+          ctx.fillStyle='rgba(0,232,124,0.10)'; ctx.fill();
           ctx.restore();
-
-          ctx.fillStyle = '#00e87c';
-          ctx.font      = '700 10px JetBrains Mono';
-          ctx.textAlign = 'center';
-          ctx.fillText(n.label, n.x, n.y + 4);
+          ctx.fillStyle='#00e87c'; ctx.font='700 9px JetBrains Mono';
+          ctx.textAlign='center'; ctx.fillText('YOU',n.x,n.y+4);
         } else {
-          ctx.beginPath();
-          ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
-          ctx.fillStyle = n.color + '22';
-          ctx.fill();
-          ctx.strokeStyle = n.color;
-          ctx.lineWidth   = 1;
-          ctx.stroke();
-
+          ctx.beginPath(); ctx.arc(n.x,n.y,n.r,0,Math.PI*2);
+          ctx.fillStyle = n.color+'1a'; ctx.fill();
+          ctx.strokeStyle = n.color; ctx.lineWidth=1; ctx.stroke();
           if (n.r > 4) {
-            ctx.fillStyle = n.color;
-            ctx.font      = '9px JetBrains Mono';
-            ctx.textAlign = 'center';
-            ctx.fillText(n.label, n.x, n.y + n.r + 12);
+            ctx.fillStyle=n.color; ctx.font='8px JetBrains Mono';
+            ctx.textAlign='center'; ctx.fillText(n.label,n.x,n.y+n.r+11);
           }
         }
       });
 
-      animId = requestAnimationFrame(draw);
+      raf = requestAnimationFrame(draw);
     }
 
     return {
-      start() {
-        resize();
-        initNodes();
-        draw();
-        window.addEventListener('resize', () => { resize(); initNodes(); });
-      },
-      stop() { if (animId) cancelAnimationFrame(animId); },
+      start() { resize(); init(); draw(); window.addEventListener('resize',()=>{resize();init();}); },
+      stop()  { if(raf) cancelAnimationFrame(raf); },
     };
   })();
 
-  // ─── Toast helper ─────────────────────────────────────────────────────────
-  function showToast(msg, ms = 2500) {
+  // ── Toast ─────────────────────────────────────────────────────────────────
+  function toast(msg, type = '', ms = 2800) {
     const el = document.getElementById('toast');
-    if (!el) return;
     el.textContent = msg;
-    el.classList.add('show');
-    setTimeout(() => el.classList.remove('show'), ms);
+    el.className   = `show${type ? ' '+type : ''}`;
+    clearTimeout(el._t);
+    el._t = setTimeout(() => el.className = '', ms);
   }
 
-  // ─── UI Controller ────────────────────────────────────────────────────────
+  // ── Password strength ─────────────────────────────────────────────────────
+  function _strengthScore(p) {
+    if (!p) return 0;
+    let s = Math.min(p.length/20, 1) * 40;
+    if (/[A-Z]/.test(p)) s += 15;
+    if (/[0-9]/.test(p)) s += 15;
+    if (/[^A-Za-z0-9]/.test(p)) s += 20;
+    if (p.length >= 16) s += 10;
+    return Math.min(100, s);
+  }
+
+  // ── UI Controller ─────────────────────────────────────────────────────────
   const UI = {
 
-    // ── View switching ──────────────────────────────────────────────────────
     switchView(view, btn) {
-      State.activeView = view;
+      S.activeView = view;
       document.querySelectorAll('.rail-btn').forEach(b => b.classList.remove('active'));
       if (btn) btn.classList.add('active');
       else {
-        const railBtn = document.querySelector(`.rail-btn[data-view="${view}"]`);
-        if (railBtn) railBtn.classList.add('active');
+        const rb = document.querySelector(`.rail-btn[data-view="${view}"]`);
+        if (rb) rb.classList.add('active');
       }
       this.renderSidebar(view);
     },
 
     renderSidebar(view) {
-      const sb = document.getElementById('sidebar-content');
+      const sb = document.getElementById('sb-content');
       if (!sb) return;
-
-      const views = {
-        network:  this._renderNetworkView.bind(this),
-        peers:    this._renderPeersView.bind(this),
-        messages: this._renderMessagesView.bind(this),
-        connect:  this._renderConnectView.bind(this),
-        apps:     this._renderAppsView.bind(this),
-        identity: this._renderIdentityView.bind(this),
+      const map = {
+        network:  this._sbNetwork,
+        peers:    this._sbPeers,
+        messages: this._sbMessages,
+        connect:  this._sbConnect,
+        apps:     this._sbApps,
+        identity: this._sbIdentity,
       };
-
-      sb.innerHTML = '';
-      if (views[view]) sb.innerHTML = views[view]();
+      sb.innerHTML = (map[view] ?? map.network).call(this);
     },
 
-    _renderNetworkView() {
-      const peerCount = State.peers.length;
-      const stats     = window.SovereignTransport?.stats?.() ?? {};
-      const snap      = window.SovereignFSM?.snapshot?.() ?? {};
+    _sbNetwork() {
+      const st  = window.SovereignTransport?.stats?.() ?? {};
+      const sn  = window.SovereignFSM?.snapshot?.() ?? {};
       return `
-        <div class="panel-header">
-          <span class="panel-title">Network Overview</span>
-        </div>
+        <div class="panel-hdr"><span class="panel-title">Network Overview</span></div>
         <div class="panel-body">
-          <div class="connect-stat">
-            <span class="connect-stat-key">Status</span>
-            <span class="connect-stat-val">${peerCount > 0 ? 'CONNECTED' : 'OFFLINE'}</span>
-          </div>
-          <div class="connect-stat">
-            <span class="connect-stat-key">Direct Peers</span>
-            <span class="connect-stat-val">${peerCount}</span>
-          </div>
-          <div class="connect-stat">
-            <span class="connect-stat-key">Relay</span>
-            <span class="connect-stat-val">${sanitize(stats.relayState ?? '—')}</span>
-          </div>
-          <div class="connect-stat">
-            <span class="connect-stat-key">DHT Nodes</span>
-            <span class="connect-stat-val">${stats.dhtSize ?? '—'}</span>
-          </div>
-          <div class="connect-stat">
-            <span class="connect-stat-key">Onion Circuit</span>
-            <span class="connect-stat-val">${sanitize(snap.onion?.state ?? '—')}</span>
-          </div>
-          <div class="connect-stat">
-            <span class="connect-stat-key">BytesSent</span>
-            <span class="connect-stat-val">${stats.bytesSent ?? 0}</span>
-          </div>
-          <div class="connect-stat">
-            <span class="connect-stat-key">MsgSent / Recv</span>
-            <span class="connect-stat-val">${stats.msgSent ?? 0} / ${stats.msgRecv ?? 0}</span>
-          </div>
-
-          <div class="section-label" style="margin-top:16px">FSM Machines</div>
-          <div id="sidebar-machine-board"></div>
-        </div>
-      `;
-    },
-
-    _renderPeersView() {
-      const items = State.peers.map(p => {
-        const shortDid   = p.did ? `${p.did.slice(0,16)}…${p.did.slice(-8)}` : 'ANONYMOUS';
-        const trustScore = p.trust ?? 50;
-        const trustClass = trustScore >= 70 ? '' : trustScore >= 40 ? 'medium' : 'low';
-        const active     = p.peerId === State.activePeerId ? ' active' : '';
-        return `
-          <div class="peer-item${active}" onclick="UI.selectPeer('${sanitize(p.peerId)}')">
-            <div class="peer-avatar">◈</div>
-            <div class="peer-info">
-              <div class="peer-did">${sanitize(shortDid)}</div>
-              <div class="peer-transport">${sanitize(p.transport ?? 'webrtc')} · ${p.latencyMs != null ? p.latencyMs + 'ms' : 'N/A'}</div>
-            </div>
-            <span class="peer-trust ${trustClass}">${trustScore}</span>
-          </div>`;
-      }).join('');
-      return `
-        <div class="panel-header">
-          <span class="panel-title">Connected Peers (${State.peers.length})</span>
-        </div>
-        <div class="panel-body">
-          ${items || '<div style="color:var(--text-dim);font-size:11px;padding:8px 0">No peers connected. Share your DID or connect to a relay.</div>'}
+          <div class="stat-row"><span class="stat-key">Status</span>
+            <span class="stat-val ${S.peers.length>0?'':'muted'}">${S.peers.length>0?'CONNECTED':'OFFLINE'}</span></div>
+          <div class="stat-row"><span class="stat-key">Peers</span>
+            <span class="stat-val">${S.peers.length}</span></div>
+          <div class="stat-row"><span class="stat-key">Relay</span>
+            <span class="stat-val ${st.relayState==='OPEN'?'':'muted'}">${sanitize(st.relayState??'—')}</span></div>
+          <div class="stat-row"><span class="stat-key">DHT Nodes</span>
+            <span class="stat-val">${st.dhtSize??'—'}</span></div>
+          <div class="stat-row"><span class="stat-key">Onion Circuit</span>
+            <span class="stat-val">${sanitize(sn.onion?.state??'OFFLINE')}</span></div>
+          <div class="stat-row"><span class="stat-key">Msgs Sent / Recv</span>
+            <span class="stat-val">${st.msgSent??0} / ${st.msgRecv??0}</span></div>
+          <div class="sec-lbl">FSM Machines</div>
+          <div id="sb-fsm"></div>
         </div>`;
     },
 
-    _renderMessagesView() {
-      const activePeer = State.peers.find(p => p.peerId === State.activePeerId);
-      const header = activePeer
-        ? `<span class="panel-title">Thread · ${sanitize(activePeer.did?.slice(-12) ?? '?')}</span>`
-        : `<span class="panel-title">Messages</span>`;
-
-      const msgs = State.messages.map(m => {
-        const cls    = m.outbound ? 'outbound' : 'inbound';
-        const from   = m.outbound ? 'YOU' : (m.from?.slice(-8) ?? 'PEER');
-        const tsStr  = new Date(m.ts).toLocaleTimeString();
-        return `
-          <div class="msg-item ${cls} fade-in">
-            <div class="msg-meta">
-              <span class="msg-from">${sanitize(from)}</span>
-              <span class="msg-ts">${tsStr}</span>
-            </div>
-            <div class="msg-body">${sanitize(m.body)}</div>
-          </div>`;
+    _sbPeers() {
+      const rows = S.peers.map(p => {
+        const short = p.did ? `${p.did.slice(0,14)}…${p.did.slice(-6)}` : 'ANON';
+        const tc    = p.trust>=70?'':'m';
+        const ac    = p.peerId===S.activePeer?' active':'';
+        return `<div class="peer-row${ac}" onclick="UI.selectPeer('${sanitize(p.peerId)}')">
+          <div class="peer-av">◈</div>
+          <div class="peer-info">
+            <div class="peer-did">${sanitize(short)}</div>
+            <div class="peer-meta">${sanitize(p.transport??'webrtc')} · ${p.latencyMs!=null?p.latencyMs+'ms':'N/A'}</div>
+          </div>
+          <span class="trust-badge ${tc}">${p.trust??50}</span>
+        </div>`;
       }).join('');
       return `
-        <div class="panel-header">
-          ${header}
+        <div class="panel-hdr">
+          <span class="panel-title">Peers (${S.peers.length})</span>
         </div>
         <div class="panel-body">
-          ${msgs || '<div style="color:var(--text-dim);font-size:11px;padding:8px 0">No messages. Select a peer and send one.</div>'}
+          ${rows||'<div style="color:var(--text-dim);font-size:11px;padding:8px 0">No peers connected yet.<br>Use Connect → Relay or generate an offer.</div>'}
         </div>`;
     },
 
-    _renderConnectView() {
+    _sbMessages() {
+      const ap = S.peers.find(p => p.peerId === S.activePeer);
+      const bubbles = S.messages.map(m => {
+        const cl  = m.outbound ? 'out' : 'in';
+        const who = m.outbound ? 'YOU' : (m.from?.slice(-8)??'PEER');
+        const ts  = new Date(m.ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+        return `<div class="msg-bubble ${cl}">
+          <div class="msg-meta">
+            <span class="msg-from${m.outbound?' me':''}">${sanitize(who)}</span>
+            <span class="msg-ts">${ts}</span>
+          </div>
+          <div class="msg-body">${sanitize(m.body)}</div>
+        </div>`;
+      }).join('');
       return `
-        <div class="panel-header">
-          <span class="panel-title">Connect</span>
+        <div class="panel-hdr">
+          <span class="panel-title">${ap?'Thread · '+sanitize(ap.did?.slice(-10)??'?'):'Messages'}</span>
         </div>
         <div class="panel-body">
-          <div class="section-label">Relay URL</div>
-          <div class="relay-row">
-            <input class="sovereign-input" id="relay-url-input"
-                   value="${sanitize(State.relayUrl)}" style="flex:1;" />
-            <button class="btn primary" onclick="UI.connectRelay()">⟳</button>
-          </div>
-          <button class="btn btn-full" onclick="UI.disconnectRelay()" style="margin-bottom:12px">
-            ✕ Disconnect Relay
-          </button>
+          ${bubbles||'<div style="color:var(--text-dim);font-size:11px;padding:8px 0">No messages. Select a peer and send one.</div>'}
+        </div>`;
+    },
 
-          <div class="section-label">Manual Handshake (Offline / QR)</div>
-          <button class="btn btn-full" onclick="UI.generateOffer()" style="margin-bottom:6px">
-            Generate Offer
-          </button>
-          <textarea class="sovereign-input" id="offer-input" rows="3"
-                    placeholder="Paste offer / answer packet here…"
-                    style="width:100%;resize:vertical;"></textarea>
+    _sbConnect() {
+      return `
+        <div class="panel-hdr"><span class="panel-title">Connect</span></div>
+        <div class="panel-body">
+          <div class="sec-lbl">Relay URL</div>
+          <div style="display:flex;gap:6px;margin-bottom:6px">
+            <input class="sv-input" id="relay-in" value="${sanitize(S.relayUrl)}" style="flex:1" />
+            <button class="btn primary btn-sm" onclick="UI.connectRelay()">⟳</button>
+          </div>
+          <button class="btn btn-block" onclick="UI.disconnectRelay()" style="margin-bottom:14px">✕ Disconnect</button>
+
+          <div class="sec-lbl">Manual Handshake (Offline / QR)</div>
+          <button class="btn btn-block" onclick="UI.generateOffer()" style="margin-bottom:7px">⊕ Generate Offer</button>
+          <textarea class="sv-textarea" id="offer-in" placeholder="Paste offer or answer packet here…"></textarea>
           <div style="display:flex;gap:6px;margin-top:6px">
             <button class="btn" style="flex:1" onclick="UI.receiveOffer()">Receive Offer</button>
             <button class="btn" style="flex:1" onclick="UI.receiveAnswer()">Receive Answer</button>
           </div>
 
-          <div class="section-label">Your DID</div>
-          <div style="font-size:10px;color:var(--accent-green);word-break:break-all;padding:4px 0"
-               id="connect-did-display">${sanitize(State.did ?? '— unlock vault first —')}</div>
-          ${State.did ? `<button class="btn btn-full" style="margin-top:6px" onclick="UI.copyDid()">⎘ Copy DID</button>` : ''}
+          <div class="sec-lbl" style="margin-top:14px">Your DID</div>
+          <div style="font-size:10px;color:var(--accent-green);word-break:break-all;padding:3px 0;line-height:1.7">
+            ${sanitize(S.did??'— unlock vault first —')}
+          </div>
+          ${S.did?`<button class="btn btn-block btn-sm" style="margin-top:5px" onclick="UI.copyDid()">⎘ Copy DID</button>`:''}
 
-          <div class="section-label">Statistics</div>
-          <div id="connect-stats-board"></div>
+          <div class="sec-lbl" style="margin-top:14px">Transport Stats</div>
+          <div id="stat-board"></div>
         </div>`;
     },
 
-    _renderAppsView() {
+    _sbApps() {
       const apps = [
-        { name: 'Sovereign OS',    icon: '⬡', desc: 'Kernel · Governance · Trust',  href: 'os.html'        },
-        { name: 'Forge',           icon: '⚒', desc: 'Social · Studio · Market',     href: 'forge.html'     },
-        { name: 'Messenger',       icon: '✉', desc: 'P2P Double-Ratchet chat',       href: 'messenger.html' },
-        { name: 'Sovereign Mail',  icon: '✦', desc: 'Layered encrypted mail',        href: 'mail.html'      },
-        { name: 'Protocol Bridge', icon: '⇌', desc: 'Nostr · Matrix · ActivityPub', href: 'bridge.html'    },
-        { name: 'Search',          icon: '⌕', desc: 'Distributed private search',   href: 'search.html'    },
-        { name: 'Attack Command',  icon: '⚔', desc: 'Audit · Fuzzer · Analyzer',   href: 'attack.html'    },
-        { name: 'Relay Admin',     icon: '⟳', desc: 'Relay dashboard',              href: 'relay.html'     },
-        { name: 'Portal',          icon: '◈', desc: 'Onboarding · Profile',         href: 'portal.html'    },
-        { name: 'Forge Square',    icon: '⊞', desc: 'Community hub · Channels',     href: 'square.html'    },
+        {name:'Sovereign OS',   icon:'⬡',desc:'Kernel · Governance · Trust',   href:'os.html'},
+        {name:'Forge',          icon:'⚒',desc:'Social · Studio · Market',      href:'forge.html'},
+        {name:'Messenger',      icon:'✉',desc:'P2P Double-Ratchet chat',        href:'messenger.html'},
+        {name:'Sovereign Mail', icon:'✦',desc:'Layered encrypted mail',         href:'mail.html'},
+        {name:'Protocol Bridge',icon:'⇌',desc:'Nostr · Matrix · ActivityPub',  href:'bridge.html'},
+        {name:'Search',         icon:'⌕',desc:'Distributed private search',    href:'search.html'},
+        {name:'Attack Command', icon:'⚔',desc:'Audit · Fuzzer · Analyzer',    href:'attack.html'},
+        {name:'Relay Admin',    icon:'⟳',desc:'Relay dashboard',               href:'relay.html'},
+        {name:'Portal',         icon:'◈',desc:'Onboarding · Profile',          href:'portal.html'},
+        {name:'Forge Square',   icon:'⊞',desc:'Community hub · Channels',      href:'square.html'},
       ];
-      const tiles = apps.map(a => `
-        <a class="app-tile" href="${a.href}">
-          <div class="app-tile-icon">${a.icon}</div>
-          <div class="app-tile-name">${a.name}</div>
-          <div class="app-tile-desc">${a.desc}</div>
-        </a>`).join('');
       return `
-        <div class="panel-header">
-          <span class="panel-title">Applications</span>
-        </div>
+        <div class="panel-hdr"><span class="panel-title">Applications</span></div>
         <div class="panel-body">
-          <div class="app-grid">${tiles}</div>
+          <div class="app-grid">
+            ${apps.map(a=>`<a class="app-tile" href="${a.href}">
+              <div class="app-tile-icon">${a.icon}</div>
+              <div class="app-tile-name">${a.name}</div>
+              <div class="app-tile-desc">${a.desc}</div>
+            </a>`).join('')}
+          </div>
         </div>`;
     },
 
-    _renderIdentityView() {
-      const did = State.did;
+    _sbIdentity() {
+      if (!S.did) {
+        return `
+          <div class="panel-hdr"><span class="panel-title">Identity</span></div>
+          <div class="panel-body">
+            <div style="font-size:11px;color:var(--text-muted);line-height:1.8">
+              Unlock or create your vault to view identity information.<br><br>
+              Your keys live exclusively in the Security Kernel (Service Worker) —
+              they never enter tab memory.
+            </div>
+          </div>`;
+      }
+
+      const shares = S.shamirShares.length > 0
+        ? `<div class="sec-lbl">Shamir Shares (store separately!)</div>
+           ${S.shamirShares.map((s,i)=>`
+             <div class="share-label">Share ${i+1} of ${S.shamirShares.length}</div>
+             <div class="share-item" onclick="navigator.clipboard?.writeText(this.textContent.trim())" title="Click to copy">${sanitize(s)}</div>
+           `).join('')}`
+        : '';
+
       return `
-        <div class="panel-header">
-          <span class="panel-title">Identity</span>
-        </div>
+        <div class="panel-hdr"><span class="panel-title">Identity</span></div>
         <div class="panel-body">
-          ${did ? `
-            <div class="section-label">Your DID</div>
-            <div style="font-size:10px;color:var(--accent-green);word-break:break-all;line-height:1.8;">${sanitize(did)}</div>
+          <div class="sec-lbl">DID</div>
+          <div style="font-size:10px;color:var(--accent-green);word-break:break-all;line-height:1.8">${sanitize(S.did)}</div>
 
-            <div class="section-label" style="margin-top:16px">Public Key (ECDSA P-256)</div>
-            <div style="font-size:10px;color:var(--text-muted);word-break:break-all;">
-              ${sanitize((State.pubKey ?? '').slice(0, 64))}…
-            </div>
+          <div class="sec-lbl" style="margin-top:12px">Security Profile</div>
+          <div class="sec-profile">
+            <div class="sec-profile-row"><span class="sec-key">Vault</span><span class="sec-val ok">UNLOCKED</span></div>
+            <div class="sec-profile-row"><span class="sec-key">KDF</span><span class="sec-val ok">PBKDF2 · 700k iter</span></div>
+            <div class="sec-profile-row"><span class="sec-key">Signing</span><span class="sec-val ok">ECDSA P-256</span></div>
+            <div class="sec-profile-row"><span class="sec-key">Key Exchange</span><span class="sec-val ok">ECDH P-256</span></div>
+            <div class="sec-profile-row"><span class="sec-key">Messaging</span><span class="sec-val ok">Double Ratchet</span></div>
+            <div class="sec-profile-row"><span class="sec-key">Hybrid KEM</span><span class="sec-val ok">P-256 + P-384 HKDF</span></div>
+            <div class="sec-profile-row"><span class="sec-key">Encryption</span><span class="sec-val ok">AES-256-GCM</span></div>
+            <div class="sec-profile-row"><span class="sec-key">Key Isolation</span><span class="sec-val ok">Service Worker heap</span></div>
+            <div class="sec-profile-row"><span class="sec-key">Patterns</span><span class="sec-val ok">20 / 20 active</span></div>
+          </div>
 
-            <div class="section-label" style="margin-top:16px">Security Profile</div>
-            <div class="connect-stat">
-              <span class="connect-stat-key">Vault</span>
-              <span class="connect-stat-val">UNLOCKED</span>
-            </div>
-            <div class="connect-stat">
-              <span class="connect-stat-key">KDF</span>
-              <span class="connect-stat-val">PBKDF2 · 700k</span>
-            </div>
-            <div class="connect-stat">
-              <span class="connect-stat-key">Encryption</span>
-              <span class="connect-stat-val">AES-256-GCM</span>
-            </div>
-            <div class="connect-stat">
-              <span class="connect-stat-key">Signing</span>
-              <span class="connect-stat-val">ECDSA P-256</span>
-            </div>
-            <div class="connect-stat">
-              <span class="connect-stat-key">KEM</span>
-              <span class="connect-stat-val">X25519 + P-384 hybrid</span>
-            </div>
-            <div class="connect-stat">
-              <span class="connect-stat-key">Key isolation</span>
-              <span class="connect-stat-val">Service Worker</span>
-            </div>
-            <div class="connect-stat">
-              <span class="connect-stat-key">Patterns active</span>
-              <span class="connect-stat-val">20 / 20</span>
-            </div>
+          <div class="sec-lbl">Actions</div>
+          <button class="btn btn-block" style="margin-bottom:6px" onclick="UI.exportShamir()">
+            ⊙ Export Shamir Shares (3-of-5)
+          </button>
+          <button class="btn btn-block" style="margin-bottom:6px" onclick="UI.buildOnion()">
+            ⊛ Build Onion Circuit
+          </button>
+          <button class="btn btn-block" style="margin-bottom:6px" onclick="UI.attestIdentity()">
+            ✦ Attest Identity
+          </button>
+          <button class="btn danger btn-block" onclick="UI.lockVault()">
+            🔒 Lock Vault
+          </button>
 
-            <div class="section-label" style="margin-top:16px">Actions</div>
-            <button class="btn btn-full" style="margin-bottom:6px" onclick="UI.exportShamir()">
-              Export Shamir Shares (3-of-5)
-            </button>
-            <button class="btn btn-full" style="margin-bottom:6px" onclick="UI.buildOnionCircuit()">
-              ⊛ Build Onion Circuit
-            </button>
-            <button class="btn btn-full" style="margin-bottom:6px" onclick="UI.attestIdentity()">
-              ✦ Attest Identity
-            </button>
-            <button class="btn danger btn-full" onclick="UI.lockVault()">
-              🔒 Lock Vault
-            </button>
-          ` : `
-            <div class="help-text">
-              Unlock or create your vault to access identity information.<br><br>
-              Your keys are generated in the isolated Security Kernel (Service Worker)
-              and never leave that context.
-            </div>
-          `}
+          ${shares}
         </div>`;
     },
 
-    // ── Vault actions ───────────────────────────────────────────────────────
+    // ── Vault actions ─────────────────────────────────────────────────────
+
     async createVault() {
-      const pass   = document.getElementById('passphrase-input')?.value;
-      const duress = document.getElementById('duress-input')?.value;
+      const pass   = document.getElementById('in-pass')?.value;
+      const duress = document.getElementById('in-duress')?.value;
       if (!pass || pass.length < 8) {
-        this.setVaultMsg('Passphrase must be at least 8 characters.', 'error');
+        this.vaultMsg('Passphrase must be at least 8 characters.', 'err');
         return;
       }
-      this.setVaultMsg('Generating identity…', 'info');
-
-      // NOTE: Do NOT manually fire FSM events here.
-      // sovereign_fsm.js has a SW message bridge that fires the correct
-      // FSM transitions (CREATE_OK, KDF_COMPLETE, IDENTITY_GENERATED, etc.)
-      // when the SW broadcasts them. Firing them here too causes double-transitions.
-
+      this.vaultMsg('Generating identity… (this takes a moment)', 'ok');
       try {
         const res = await SovereignKernelBridge.send({
-          cmd: 'CREATE_VAULT',
-          passphrase: pass,
+          cmd: 'CREATE_VAULT', passphrase: pass,
           duressPassphrase: duress || undefined,
         });
         if (res.event === 'VAULT_CREATED') {
-          this.onIdentityReady(res.did, res.pubKey);
+          this._onIdentityReady(res.did, res.pubKey);
         } else {
-          this.setVaultMsg(res.error ?? 'Failed to create vault.', 'error');
+          this.vaultMsg(res.error ?? 'Failed to create vault.', 'err');
         }
       } catch (err) {
-        this.setVaultMsg(err.message, 'error');
+        this.vaultMsg(err.message, 'err');
       }
     },
 
     async unlockVault() {
-      const pass = document.getElementById('unlock-passphrase')?.value;
+      const pass = document.getElementById('in-unlock')?.value;
       if (!pass) return;
-      this.setVaultMsg('Unlocking…', 'info');
-
-      // SW bridge handles: UNLOCK_OK, LOAD, LOAD_OK, UNLOCK_FAIL, KDF_COMPLETE
-      // Do NOT duplicate those here.
-
+      this.vaultMsg('Unlocking…', 'ok');
       try {
-        const res = await SovereignKernelBridge.send({
-          cmd: 'UNLOCK_VAULT',
-          passphrase: pass,
-        });
+        const res = await SovereignKernelBridge.send({ cmd: 'UNLOCK_VAULT', passphrase: pass });
         if (res.event === 'VAULT_UNLOCKED') {
-          this.onIdentityReady(res.did, res.pubKey);
+          if (res.duress) toast('⚠ Duress vault unlocked — decoy identity active.', 'warn', 5000);
+          this._onIdentityReady(res.did, res.pubKey);
         } else {
-          this.setVaultMsg(
-            res.error === 'WRONG_PASSPHRASE'
-              ? `Wrong passphrase. ${res.remaining} attempt(s) remaining.`
-              : (res.error === 'NO_VAULT'
-                  ? 'No vault found — create one first.'
-                  : (res.error ?? 'Unlock failed.')),
-            'error'
-          );
+          const msg = res.error === 'WRONG_PASSPHRASE'
+            ? `Wrong passphrase. ${res.remaining??'?'} attempt(s) remaining.`
+            : (res.error === 'NO_VAULT' ? 'No vault found — create one first.' : (res.error ?? 'Unlock failed.'));
+          this.vaultMsg(msg, 'err');
         }
       } catch (err) {
-        this.setVaultMsg(err.message, 'error');
+        this.vaultMsg(err.message, 'err');
       }
     },
 
     async lockVault() {
-      try {
-        await SovereignKernelBridge.send({ cmd: 'LOCK_VAULT' });
-        // SW will broadcast VAULT_LOCKED; SW bridge in sovereign_fsm.js
-        // handles vault.LOCK, identity.LOCK, transport.DISCONNECT, onion.TEARDOWN
-      } catch (_) {}
-
-      State.did    = null;
-      State.pubKey = null;
-      State.peers  = [];
-      State.activePeerId = null;
+      try { await SovereignKernelBridge.send({ cmd: 'LOCK_VAULT' }); } catch (_) {}
+      S.did = null; S.pubKey = null; S.peers = []; S.activePeer = null;
+      S.messages = []; S.shamirShares = [];
       window.SOVEREIGN_DID = null;
 
-      this.showVaultCard();
-      this.updateChip('vault', '');
-      this.updateChip('identity', '');
-      this.updateChip('transport', '');
-      this.updateChip('onion', '');
+      document.getElementById('vault-card').classList.remove('hidden');
+      this.showCreate();
+      document.getElementById('did-pill').style.display = 'none';
       document.getElementById('btn-lock').style.display = 'none';
-      document.getElementById('did-banner').style.display = 'none';
       document.getElementById('msg-bar').style.display = 'none';
-
-      this.addAuditEntry({ type: 'VAULT_LOCKED', data: {} });
+      ['vault','identity','transport','onion'].forEach(c => this.setChip(c,''));
+      this.audit({ type:'VAULT_LOCKED', data:{} });
       this.refreshState();
-      showToast('🔒 Vault locked.');
+      toast('🔒 Vault locked.');
     },
 
-    onIdentityReady(did, pubKey) {
-      State.did    = did;
-      State.pubKey = pubKey;
+    _onIdentityReady(did, pubKey) {
+      S.did = did; S.pubKey = pubKey;
       window.SOVEREIGN_DID = did;
 
       document.getElementById('vault-card').classList.add('hidden');
-      document.getElementById('did-banner').style.display = 'block';
-      document.getElementById('did-value').textContent = `${did.slice(0, 24)}…${did.slice(-12)}`;
+      document.getElementById('did-pill').style.display = 'block';
+      document.getElementById('did-short').textContent = `${did.slice(0,20)}…${did.slice(-10)}`;
       document.getElementById('btn-lock').style.display = 'inline-flex';
       document.getElementById('msg-bar').style.display = 'flex';
 
-      this.updateChip('vault', 'ok');
-      this.updateChip('identity', 'ok');
-      this.setVaultMsg('', 'info');
+      this.setChip('vault','ok');
+      this.setChip('identity','ok');
+      this.vaultMsg('', '');
 
       window.dispatchEvent(new CustomEvent('sovereign:identity:ready', { detail: { did } }));
-      this.renderSidebar(State.activeView);
+      this.renderSidebar(S.activeView);
       this.refreshState();
-      this.addAuditEntry({ type: 'IDENTITY_READY', data: { did: did.slice(-16) } });
-      showToast(`⬡ Identity ready: ${did.slice(-12)}`);
+      this.audit({ type:'IDENTITY_READY', data:{ did:did.slice(-16) } });
+      toast(`⬡ Identity: ${did.slice(-12)}`);
     },
 
-    setVaultMsg(msg, type = 'info') {
-      const el = document.getElementById('vault-status-msg');
+    vaultMsg(msg, type) {
+      const el = document.getElementById('vault-msg');
       if (!el) return;
-      el.style.display = msg ? 'block' : 'none';
-      el.style.color   = type === 'error' ? 'var(--accent-red)' : 'var(--accent-green)';
-      el.textContent   = msg;
+      el.style.color = type==='err' ? 'var(--accent-red)' : 'var(--accent-green)';
+      el.textContent = msg;
     },
 
-    showVaultCard() {
-      document.getElementById('vault-card').classList.remove('hidden');
-      this.showCreateForm();
+    strengthCheck(pass) {
+      const score = _strengthScore(pass);
+      const fill  = document.getElementById('strength-fill');
+      if (!fill) return;
+      fill.style.width = score + '%';
+      fill.style.background = score < 40 ? 'var(--accent-red)' : score < 70 ? 'var(--accent-amber)' : 'var(--accent-green)';
     },
 
-    showUnlockForm() {
-      document.getElementById('vault-create-form').style.display = 'none';
-      document.getElementById('vault-unlock-form').style.display = 'block';
-      setTimeout(() => document.getElementById('unlock-passphrase')?.focus(), 50);
+    showCreate() {
+      document.getElementById('form-create').style.display = 'block';
+      document.getElementById('form-unlock').style.display = 'none';
+      setTimeout(() => document.getElementById('in-pass')?.focus(), 50);
     },
 
-    showCreateForm() {
-      document.getElementById('vault-create-form').style.display = 'block';
-      document.getElementById('vault-unlock-form').style.display = 'none';
-      setTimeout(() => document.getElementById('passphrase-input')?.focus(), 50);
+    showUnlock() {
+      document.getElementById('form-create').style.display = 'none';
+      document.getElementById('form-unlock').style.display = 'block';
+      setTimeout(() => document.getElementById('in-unlock')?.focus(), 50);
     },
 
-    // ── Connect actions ─────────────────────────────────────────────────────
-    showConnectPanel() {
-      this.switchView('connect', document.querySelector('[data-view="connect"]'));
-    },
+    // ── Connect actions ────────────────────────────────────────────────────
 
     connectRelay() {
-      const url = document.getElementById('relay-url-input')?.value?.trim();
+      const url = document.getElementById('relay-in')?.value?.trim();
       if (!url) return;
-      State.relayUrl = url;
+      S.relayUrl = url;
       window.SovereignTransport?.connectRelay(url);
-      this.addAuditEntry({ type: 'RELAY_CONNECT', data: { url } });
+      this.audit({ type:'RELAY_CONNECT', data:{ url } });
     },
 
     disconnectRelay() {
       window.SovereignTransport?.disconnectRelay();
-      this.updateChip('transport', '');
-      this.addAuditEntry({ type: 'RELAY_DISCONNECT', data: {} });
+      this.setChip('transport','');
+      this.audit({ type:'RELAY_DISCONNECT', data:{} });
     },
 
     async generateOffer() {
       if (!window.SovereignTransport) return;
       try {
         const { packet } = await SovereignTransport.generateOffer();
-        const el = document.getElementById('offer-input');
+        const el = document.getElementById('offer-in');
         if (el) { el.value = packet; el.select(); }
-        showToast('Offer generated — copy and share it.');
-      } catch (err) {
-        showToast(`Offer failed: ${err.message}`);
-      }
+        toast('Offer generated — copy and share it.');
+      } catch (err) { toast(`Offer failed: ${err.message}`, 'err'); }
     },
 
     async receiveOffer() {
-      const packet = document.getElementById('offer-input')?.value?.trim();
-      if (!packet || !window.SovereignTransport) return;
+      const pkt = document.getElementById('offer-in')?.value?.trim();
+      if (!pkt || !window.SovereignTransport) return;
       try {
-        const answer = await SovereignTransport.receiveOffer(packet);
-        const el = document.getElementById('offer-input');
-        if (el) { el.value = answer; el.select(); }
-        showToast('Answer generated — send it back to the initiator.');
-      } catch (err) {
-        showToast(`Receive offer failed: ${err.message}`);
-      }
+        const ans = await SovereignTransport.receiveOffer(pkt);
+        const el  = document.getElementById('offer-in');
+        if (el) { el.value = ans; el.select(); }
+        toast('Answer generated — send it back to initiator.');
+      } catch (err) { toast(`Error: ${err.message}`, 'err'); }
     },
 
     async receiveAnswer() {
-      const packet = document.getElementById('offer-input')?.value?.trim();
-      if (!packet || !window.SovereignTransport) return;
+      const pkt = document.getElementById('offer-in')?.value?.trim();
+      if (!pkt || !window.SovereignTransport) return;
       try {
-        await SovereignTransport.receiveAnswer(packet);
-        showToast('Answer received — waiting for connection…');
-      } catch (err) {
-        showToast(`Receive answer failed: ${err.message}`);
-      }
+        await SovereignTransport.receiveAnswer(pkt);
+        toast('Answer received — waiting for connection…');
+      } catch (err) { toast(`Error: ${err.message}`, 'err'); }
     },
 
-    // ── Peer actions ─────────────────────────────────────────────────────────
+    // ── Peer / message actions ─────────────────────────────────────────────
+
     selectPeer(peerId) {
-      State.activePeerId = peerId;
-      const peer = State.peers.find(p => p.peerId === peerId);
-      if (peer) {
-        const msgInput = document.getElementById('msg-input');
-        if (msgInput) {
-          msgInput.placeholder = `Message ${sanitize(peer.did?.slice(-12) ?? 'peer')}… (Enter to send)`;
-        }
-      }
-      this.renderSidebar('messages');
+      S.activePeer = peerId;
+      const p = S.peers.find(x => x.peerId === peerId);
+      const mi = document.getElementById('msg-in');
+      if (mi && p) mi.placeholder = `Message ${sanitize(p.did?.slice(-12)??'peer')}… (Enter)`;
       this.switchView('messages', document.querySelector('[data-view="messages"]'));
-      this.addAuditEntry({ type: 'PEER_SELECTED', data: { did: peerId.slice(-12) } });
     },
 
     async sendMessage() {
-      const input = document.getElementById('msg-input');
+      const input = document.getElementById('msg-in');
       const body  = input?.value?.trim();
       if (!body) return;
+      if (!S.activePeer) { toast('Select a peer first.', 'warn'); return; }
+      const p = S.peers.find(x => x.peerId === S.activePeer);
+      if (!p) { toast('Peer disconnected.', 'warn'); return; }
 
-      if (!State.activePeerId) {
-        showToast('Select a peer first (Peers view → click a peer).');
-        return;
-      }
-
-      const peer = State.peers.find(p => p.peerId === State.activePeerId);
-      if (!peer) {
-        showToast('Peer no longer connected.');
-        return;
-      }
-
-      const msg = { body, ts: Date.now(), outbound: true, from: State.did };
-      State.messages.push(msg);
+      S.messages.push({ from: S.did, body, ts: Date.now(), outbound: true });
       if (input) input.value = '';
-
       if (window.SovereignTransport) {
-        const ok = await SovereignTransport.send(peer.did, { type: 'text', body });
-        if (!ok) showToast('Message queued — peer may be offline.');
+        const ok = await SovereignTransport.send(p.did, { type:'text', body });
+        if (!ok) toast('Message queued — peer may be offline.', 'warn');
       }
-
       this.renderSidebar('messages');
-      this.addAuditEntry({ type: 'MSG_SENT', data: { to: peer.did?.slice(-8), len: body.length } });
+      this.audit({ type:'MSG_SENT', data:{ len:body.length } });
     },
 
-    // ── Identity actions ─────────────────────────────────────────────────────
     copyDid() {
-      if (!State.did) return;
-      navigator.clipboard?.writeText(State.did)
-        .then(() => showToast('DID copied to clipboard.'))
-        .catch(() => showToast('Copy failed — use manual selection.'));
+      if (!S.did) return;
+      navigator.clipboard?.writeText(S.did)
+        .then(()=>toast('DID copied.'))
+        .catch(()=>toast('Copy failed — use manual selection.','warn'));
     },
+
+    // ── Identity actions ───────────────────────────────────────────────────
 
     async exportShamir() {
-      if (!State.did) { showToast('Unlock vault first.'); return; }
+      if (!S.did) { toast('Unlock vault first.', 'warn'); return; }
       try {
-        const res = await SovereignKernelBridge.send({ cmd: 'EXPORT_SHAMIR', t: 3, n: 5 });
-        showToast(res.note ?? `Shamir export complete (${res.t}-of-${res.n}).`);
-        this.addAuditEntry({ type: 'SHAMIR_EXPORT', data: { t: res.t, n: res.n } });
-        if (res.shares?.length) {
-          console.log('[Sovereign] Shamir shares (keep these safe!):', res.shares);
+        const res = await SovereignKernelBridge.send({ cmd:'EXPORT_SHAMIR', t:3, n:5 });
+        if (res.event === 'SHAMIR_EXPORTED' && res.shares?.length) {
+          S.shamirShares = res.shares;
+          this.renderSidebar('identity');
+          toast(`⊙ ${res.n} Shamir shares exported — store each separately!`, '', 5000);
+          this.audit({ type:'SHAMIR_EXPORT', data:{ t:res.t, n:res.n } });
+        } else {
+          toast(res.note ?? res.error ?? 'Export failed.', 'warn');
         }
-      } catch (err) {
-        showToast(`Export failed: ${err.message}`);
-      }
+      } catch (err) { toast(err.message, 'err'); }
     },
 
-    async buildOnionCircuit() {
-      if (!window.SovereignTransport) { showToast('Transport not ready.'); return; }
-      // FSM onion transitions are driven by sovereign:transport:onion-ready event
-      // and the SW bridge — don't fire them manually.
-      try {
-        const circuit = await SovereignTransport.buildOnionCircuit();
-        if (circuit) {
-          showToast('⊛ Onion circuit established.');
-        } else {
-          showToast('Onion circuit failed — need 3+ peers connected.');
-        }
-      } catch (err) {
-        showToast(`Onion error: ${err.message}`);
+    async buildOnion() {
+      if (!window.SovereignTransport) { toast('Transport not ready.', 'warn'); return; }
+      K.onion.send('BOOTSTRAP');
+      const id = await SovereignTransport.buildOnionCircuit();
+      if (id) {
+        toast('⊛ Onion circuit established.');
+        this.audit({ type:'ONION_BUILT', data:{ id:id.slice(0,10) } });
+      } else {
+        K.onion.send('FAIL');
+        toast('Need 3+ peers for onion circuit.', 'warn');
       }
     },
 
     async attestIdentity() {
-      if (!State.did) { showToast('Unlock vault first.'); return; }
+      if (!S.did) { toast('Unlock vault first.', 'warn'); return; }
       const nonce = Array.from(crypto.getRandomValues(new Uint8Array(16)))
-        .map(b => b.toString(16).padStart(2,'0')).join('');
-
-      // These pre-SW transitions are safe — they're page-driven, not SW-broadcast
+        .map(b=>b.toString(16).padStart(2,'0')).join('');
       K.attestation.send('CHALLENGE', { nonce });
       K.attestation.send('SEND');
-
       try {
-        const res = await SovereignKernelBridge.send({
-          cmd: 'ATTEST',
-          nonce,
-          claims: { did: State.did, ts: Date.now() },
-        });
+        const res = await SovereignKernelBridge.send({ cmd:'ATTEST', nonce, claims:{ did:S.did, ts:Date.now() } });
         if (res.event === 'ATTESTED') {
-          // SW bridge handles ATTESTATION_VERIFIED → attestation.VERIFIED
-          // but ATTEST cmd doesn't broadcast that event — fire it here directly
-          K.attestation.send('VERIFIED', { ts: Date.now() });
-          showToast('✦ Identity attested — signature valid.');
-          this.addAuditEntry({ type: 'ATTEST_OK', data: { nonce: nonce.slice(0, 12) } });
+          K.attestation.send('VERIFIED', { ts:Date.now() });
+          toast('✦ Identity attested — signature valid.');
+          this.audit({ type:'ATTEST_OK', data:{ nonce:nonce.slice(0,12) } });
         } else {
           K.attestation.send('REJECT');
-          showToast(`Attestation failed: ${res.error ?? 'unknown'}`);
+          toast(`Attestation failed: ${res.error??'unknown'}`, 'err');
         }
       } catch (err) {
         K.attestation.send('TIMEOUT');
-        showToast(`Attestation error: ${err.message}`);
+        toast(err.message, 'err');
       }
     },
 
-    // ── Chip & state ────────────────────────────────────────────────────────
-    updateChip(name, status) {
-      const chip = document.getElementById(`chip-${name}`);
-      if (!chip) return;
-      chip.className = `status-chip${status ? ' ' + status : ''}`;
+    // ── Chips + state ──────────────────────────────────────────────────────
+
+    setChip(name, status) {
+      const el = document.getElementById(`chip-${name}`);
+      if (!el) return;
+      el.className = `chip${status ? ' '+status : ''}`;
     },
 
     refreshState() {
-      const fsm  = window.SovereignFSM;
-      const snap = fsm?.snapshot?.() ?? {};
-      const violations = fsm?.checkInvariants?.() ?? [];
+      const sn = K.snapshot?.() ?? {};
+      const V  = sn.vault?.state, I = sn.identity?.state;
+      const T  = sn.transport?.state, O = sn.onion?.state;
 
-      // Sync chips to FSM states
-      const V = snap.vault?.state;
-      const I = snap.identity?.state;
-      const T = snap.transport?.state;
-      const O = snap.onion?.state;
+      this.setChip('vault',    V==='UNLOCKED'?'ok':V==='REKEYING'?'warn':'');
+      this.setChip('identity', I==='READY'?'ok':'');
+      this.setChip('transport',T==='CONNECTED'?'ok':T==='DEGRADED'?'warn':'');
+      this.setChip('onion',    O==='READY'?'ok':O==='BOOTSTRAPPING'?'warn':'');
 
-      this.updateChip('vault',    V === 'UNLOCKED' ? 'ok' : V === 'REKEYING' ? 'warn' : '');
-      this.updateChip('identity', I === 'READY' ? 'ok' : '');
-      this.updateChip('transport',
-        T === 'CONNECTED' ? 'ok' : T === 'DEGRADED' ? 'warn' : '');
-      this.updateChip('onion', O === 'READY' ? 'ok' : O === 'BOOTSTRAPPING' ? 'warn' : '');
+      // SW ping
+      SovereignKernelBridge.send({ cmd:'STATUS' }).then(s => {
+        this.setChip('sw','ok');
+      }).catch(()=>{});
 
-      // SW chip
-      SovereignKernelBridge.send({ cmd: 'STATUS' }).then(s => {
-        this.updateChip('sw', 'ok');
-        this.addAuditEntry({ type: 'STATUS_POLL', data: {
-          patterns: s.patterns,
-          audit: s.auditEntries,
-          ratchets: s.ratchets,
-        }});
-      }).catch(() => {});
+      // Machine board
+      this._renderMachineBoard(sn);
 
-      // Render boards
-      this._renderMachineBoard(snap);
-      this._renderInvariantBoard(violations);
-
-      // Sidebar machine board (network view)
-      if (State.activeView === 'network') {
-        setTimeout(() => {
-          const sb = document.getElementById('sidebar-machine-board');
-          if (sb) this._renderMachineBoardInto(sb, snap);
-
-          const statsBoard = document.getElementById('connect-stats-board');
-          if (statsBoard) {
-            const st = window.SovereignTransport?.stats?.() ?? {};
-            statsBoard.innerHTML = Object.entries(st).map(([k,v]) => `
-              <div class="connect-stat">
-                <span class="connect-stat-key">${sanitize(k)}</span>
-                <span class="connect-stat-val">${sanitize(String(v))}</span>
-              </div>`).join('');
-          }
-        }, 0);
+      // Invariant board
+      const vs = K.checkInvariants?.() ?? [];
+      const ib = document.getElementById('inv-board');
+      if (ib) {
+        ib.innerHTML = vs.length
+          ? vs.map(v=>`<div class="inv-row err">⚠ ${sanitize(v.id??String(v))}: ${sanitize(v.desc??'')}</div>`).join('')
+          : '<div class="inv-row ok">✓ All 8 invariants satisfied</div>';
       }
 
-      // Peer count badge
-      const badge = document.getElementById('peer-count-badge');
-      if (badge) badge.textContent = `${State.peers.length} peer${State.peers.length !== 1 ? 's' : ''}`;
+      // Sidebar FSM if network view
+      if (S.activeView === 'network') {
+        const sf = document.getElementById('sb-fsm');
+        if (sf) this._renderMachineBoardInto(sf, sn);
+        const sb = document.getElementById('stat-board');
+        if (sb) {
+          const st = window.SovereignTransport?.stats?.() ?? {};
+          sb.innerHTML = Object.entries(st).map(([k,v])=>
+            `<div class="stat-row"><span class="stat-key">${sanitize(k)}</span><span class="stat-val muted">${sanitize(String(v))}</span></div>`
+          ).join('');
+        }
+      }
 
-      // Invariant count chip
-      const invDisp = document.getElementById('inv-count-disp');
-      if (invDisp) invDisp.textContent =
-        violations.length ? `⚠ ${violations.length}` : '✓ Clear';
+      const pb = document.getElementById('peer-badge');
+      if (pb) {
+        pb.textContent = `${S.peers.length} peer${S.peers.length!==1?'s':''}`;
+        pb.className   = `peer-badge${S.peers.length>0?' live':''}`;
+      }
     },
 
-    _renderMachineBoard(snap) {
-      const el = document.getElementById('machine-board');
-      if (el) this._renderMachineBoardInto(el, snap);
+    _renderMachineBoard(sn) {
+      const mb = document.getElementById('machine-board');
+      if (mb) this._renderMachineBoardInto(mb, sn);
     },
 
-    _renderMachineBoardInto(el, snap) {
+    _renderMachineBoardInto(el, sn) {
       const machines = ['vault','kdf','identity','transport','governance','attestation','onion'];
-      const cls = (s) => {
-        if (['UNLOCKED','READY','CONNECTED','VERIFIED','RATIFIED','ACTIVE','KEYED'].includes(s)) return 'ok';
-        if (['DEGRADED','STALE','REKEYING','BOOTSTRAPPING','PROPOSED','VOTING','TALLYING','AWAITING','CHALLENGING'].includes(s)) return 'warn';
-        if (['PANICKED','FAILED','DESTROYED'].includes(s)) return 'error';
-        return 'locked';
+      const cls = s => {
+        if (['UNLOCKED','READY','CONNECTED','VERIFIED','RATIFIED','ACTIVE','KEYED'].includes(s)) return 's-ok';
+        if (['DEGRADED','STALE','REKEYING','BOOTSTRAPPING','PROPOSED','VOTING','TALLYING','AWAITING','CHALLENGING'].includes(s)) return 's-warn';
+        if (['PANICKED','FAILED','DESTROYED'].includes(s)) return 's-error';
+        return 's-idle';
       };
       el.innerHTML = machines.map(m => {
-        const s = snap[m]?.state ?? 'LOCKED';
-        return `<div class="machine-row">
-          <span class="machine-name">${m}</span>
-          <span class="machine-state ${cls(s)}">${sanitize(s)}</span>
-        </div>`;
+        const st = sn[m]?.state ?? '—';
+        return `<div class="mrow"><span class="mname">${m}</span><span class="mstate ${cls(st)}">${sanitize(st)}</span></div>`;
       }).join('');
     },
 
-    _renderInvariantBoard(violations) {
-      const board = document.getElementById('invariant-board');
-      if (!board) return;
-      if (!violations?.length) {
-        board.innerHTML = '<span class="inv-chip ok">✓ All invariants satisfied</span>';
-      } else {
-        board.innerHTML = violations.map(v =>
-          `<span class="inv-chip err">⚠ ${sanitize(String(v))}</span>`
-        ).join('');
-      }
-    },
-
-    addAuditEntry(entry) {
-      State.auditEntries.unshift(entry);
-      if (State.auditEntries.length > 200) State.auditEntries.pop();
+    audit(entry) {
+      S.auditBuf.unshift({ ...entry, ts: Date.now() });
+      if (S.auditBuf.length > 300) S.auditBuf.pop();
 
       const log = document.getElementById('audit-log');
       if (!log) return;
-
-      const el = document.createElement('div');
-      el.className = 'audit-entry fade-in';
-
-      const ts  = new Date(entry.ts ?? Date.now()).toLocaleTimeString('en-US', { hour12: false });
+      const row = document.createElement('div');
+      row.className = 'arow';
+      const ts  = new Date(entry.ts ?? Date.now()).toLocaleTimeString('en-US',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
       const dat = typeof entry.data === 'object'
-        ? Object.entries(entry.data ?? {}).map(([k, v]) => `${k}:${sanitize(String(v))}`).join(' ').slice(0, 80)
-        : sanitize(String(entry.data ?? ''));
-
-      el.innerHTML = `
-        <span class="audit-ts">${ts}</span>
-        <span class="audit-type">${sanitize(entry.type ?? '?')}</span>
-        <span class="audit-data">${dat}</span>`;
-
-      log.prepend(el);
-      while (log.children.length > 120) log.lastChild?.remove();
+        ? Object.entries(entry.data ?? {}).map(([k,v])=>`${k}:${String(v)}`).join(' ').slice(0,70)
+        : String(entry.data ?? '');
+      row.innerHTML = `<span class="a-ts">${ts}</span><span class="a-type">${sanitize(entry.type??'?')}</span><span class="a-data">${sanitize(dat)}</span>`;
+      log.prepend(row);
+      while (log.children.length > 150) log.lastChild?.remove();
     },
 
   }; // end UI
 
-  // ─── Transport events ─────────────────────────────────────────────────────
-  window.addEventListener('sovereign:transport:peer-connected', (e) => {
+  // ── Transport events ──────────────────────────────────────────────────────
+
+  window.addEventListener('sovereign:transport:peer-connected', e => {
     const { peerId, did, transport } = e.detail ?? {};
-    if (!State.peers.find(p => p.peerId === peerId)) {
-      State.peers.push({ peerId, did, transport, trust: 50, latencyMs: null });
+    if (!S.peers.find(p => p.peerId === peerId)) {
+      S.peers.push({ peerId, did, transport, trust:50, latencyMs:null });
     }
-    UI.addAuditEntry({ type: 'PEER_CONNECTED', data: { did: did?.slice(-12), via: transport } });
+    UI.audit({ type:'PEER_CONNECTED', data:{ did:did?.slice(-12), via:transport } });
     UI.refreshState();
-    if (State.activeView === 'peers') UI.renderSidebar('peers');
-    showToast(`◈ Peer connected: ${did?.slice(-10) ?? 'unknown'}`);
+    if (S.activeView === 'peers') UI.renderSidebar('peers');
+    toast(`◈ Peer: ${did?.slice(-10)??'?'}`);
   });
 
-  window.addEventListener('sovereign:transport:peer-disconnected', (e) => {
+  window.addEventListener('sovereign:transport:peer-disconnected', e => {
     const { peerId, did } = e.detail ?? {};
-    State.peers = State.peers.filter(p => p.peerId !== peerId);
-    if (State.activePeerId === peerId) State.activePeerId = null;
-    UI.addAuditEntry({ type: 'PEER_DISCONNECTED', data: { did: did?.slice(-12) } });
+    S.peers = S.peers.filter(p => p.peerId !== peerId);
+    if (S.activePeer === peerId) S.activePeer = null;
+    UI.audit({ type:'PEER_GONE', data:{ did:did?.slice(-12) } });
     UI.refreshState();
-    if (State.activeView === 'peers') UI.renderSidebar('peers');
+    if (S.activeView === 'peers') UI.renderSidebar('peers');
   });
 
-  window.addEventListener('sovereign:transport:message', (e) => {
+  window.addEventListener('sovereign:transport:message', e => {
     const { from, payload } = e.detail ?? {};
     if (!payload) return;
-    const body = typeof payload === 'string'
-      ? payload
-      : (payload.body ?? JSON.stringify(payload));
-    State.messages.push({ from, body, ts: Date.now(), outbound: false });
-    UI.addAuditEntry({ type: 'MSG_RECV', data: { from: from?.slice(-8), len: body.length } });
-    if (State.activeView === 'messages') UI.renderSidebar('messages');
-    // Visual pulse: flash transport chip
-    const chip = document.getElementById('chip-transport');
-    if (chip) {
-      chip.style.opacity = '0.4';
-      setTimeout(() => { chip.style.opacity = ''; }, 200);
-    }
+    const body = typeof payload === 'string' ? payload : (payload.body ?? JSON.stringify(payload));
+    S.messages.push({ from, body, ts:Date.now(), outbound:false });
+    UI.audit({ type:'MSG_RECV', data:{ from:from?.slice(-8), len:body.length } });
+    if (S.activeView === 'messages') UI.renderSidebar('messages');
+    // Flash transport chip
+    const c = document.getElementById('chip-transport');
+    if (c) { c.style.opacity='0.4'; setTimeout(()=>c.style.opacity='',200); }
   });
 
-  window.addEventListener('sovereign:transport:relay-connected', (e) => {
-    UI.updateChip('transport', 'ok');
-    UI.addAuditEntry({ type: 'RELAY_CONNECTED', data: { url: e.detail?.relayUrl } });
-    window.SovereignFSM?.transport?.send('RELAY_UP');
+  window.addEventListener('sovereign:transport:relay-connected', e => {
+    UI.setChip('transport','ok');
+    UI.audit({ type:'RELAY_CONNECTED', data:{ url:e.detail?.relayUrl } });
+    K.transport?.send('RELAY_UP');
     UI.refreshState();
-    showToast('⟳ Relay connected.');
+    toast('⟳ Relay connected.');
   });
 
   window.addEventListener('sovereign:transport:relay-disconnected', () => {
-    UI.updateChip('transport', 'warn');
-    UI.addAuditEntry({ type: 'RELAY_DISCONNECTED', data: {} });
+    UI.setChip('transport','warn');
+    UI.audit({ type:'RELAY_DISCONNECTED', data:{} });
     UI.refreshState();
   });
 
-  window.addEventListener('sovereign:transport:dht-updated', (e) => {
-    const el = document.getElementById('dht-count');
-    if (el) el.textContent = e.detail?.peerCount ?? '—';
+  window.addEventListener('sovereign:transport:onion-ready', e => {
+    UI.setChip('onion','ok');
+    K.onion?.send('CIRCUIT_OK');
+    UI.audit({ type:'ONION_READY', data:{ id:e.detail?.circuitId?.slice(0,12) } });
+    toast('⊛ Onion circuit ready.');
   });
 
-  window.addEventListener('sovereign:transport:onion-ready', (e) => {
-    UI.updateChip('onion', 'ok');
-    UI.addAuditEntry({ type: 'ONION_READY', data: { id: e.detail?.circuitId?.slice(0,12) } });
-    window.SovereignFSM?.onion?.send('CIRCUIT_OK');
-    showToast('⊛ Onion circuit ready.');
-  });
+  // ── FSM events ────────────────────────────────────────────────────────────
 
-  // ─── FSM transition and invariant events ─────────────────────────────────
-  window.addEventListener('sovereign:fsm:TRANSITION', (e) => {
+  window.addEventListener('sovereign:fsm:TRANSITION', e => {
     const { machine, from, to } = e.detail ?? {};
-    if (machine && from && to) {
-      UI.addAuditEntry({ type: `FSM:${machine.toUpperCase()}`, data: { from, to } });
-      UI.refreshState();
-    }
+    if (machine) UI.audit({ type:`FSM:${machine.toUpperCase()}`, data:{ from, to } });
+    UI.refreshState();
   });
 
-  window.addEventListener('sovereign:fsm:INVARIANT_VIOLATION', (e) => {
-    const { violation } = e.detail ?? {};
-    UI.addAuditEntry({ type: 'INV_VIOLATION', data: { v: String(violation).slice(0, 60) } });
-    UI.updateChip('vault', 'error');
-    showToast(`⚠ Invariant violation: ${String(violation).slice(0, 50)}`);
+  window.addEventListener('sovereign:fsm:INVARIANT_VIOLATION', e => {
+    const vs = e.detail?.violations ?? [];
+    vs.forEach(v => UI.audit({ type:'INV_VIOLATION', data:{ id:v.id, desc:v.desc } }));
+    UI.setChip('vault','err');
+    toast(`⚠ Invariant: ${vs[0]?.id??'?'}`, 'err', 5000);
   });
 
-  // ─── SW-broadcast events (PANIC, etc.) ───────────────────────────────────
+  // ── SW events ─────────────────────────────────────────────────────────────
+
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.addEventListener('message', (e) => {
+    navigator.serviceWorker.addEventListener('message', e => {
       const { event, reason } = e.data ?? {};
       if (event === 'PANIC_LOCKDOWN') {
-        UI.addAuditEntry({ type: 'PANIC', data: { reason } });
+        UI.audit({ type:'PANIC', data:{ reason } });
         UI.lockVault();
-        showToast(`🚨 PANIC: ${reason ?? 'unknown'}`, 5000);
+        toast(`🚨 PANIC: ${reason??'unknown'}`, 'err', 6000);
       }
-      if (event === 'VAULT_LOCKED') {
-        // SW-initiated lock (deadman, timeout)
-        if (State.did) UI.lockVault();
+      if (event === 'VAULT_LOCKED' && S.did) {
+        UI.lockVault();
+      }
+      if (event === 'INTEGRITY_VIOLATION') {
+        toast(`⚠ Integrity violation: ${e.data.url?.split('/').pop()}`, 'err', 8000);
+        UI.audit({ type:'INTEGRITY_FAIL', data:{ url:e.data.url } });
       }
     });
   }
 
-  // ─── SW ready ─────────────────────────────────────────────────────────────
   window.addEventListener('sovereign:sw:ready', () => {
-    UI.updateChip('sw', 'ok');
-    UI.addAuditEntry({ type: 'KERNEL_ONLINE', data: { scope: './' } });
+    UI.setChip('sw','ok');
+    UI.audit({ type:'KERNEL_ONLINE', data:{ scope:'./' } });
 
-    // Query SW status to learn if a vault already exists in IndexedDB.
-    // If the vault exists but is locked, show the unlock form.
-    // If no vault yet (first run), keep the create form visible (default).
-    SovereignKernelBridge.send({ cmd: 'STATUS' }).then(s => {
-      UI.addAuditEntry({ type: 'SW_STATUS', data: {
-        patterns:    s.patterns,
-        vaultLocked: s.vaultLocked,
-        ratchets:    s.ratchets,
-        audit:       s.auditEntries,
+    SovereignKernelBridge.send({ cmd:'STATUS' }).then(s => {
+      UI.audit({ type:'SW_STATUS', data:{
+        patterns: s.patterns,
+        ratchets: s.ratchets,
+        entries:  s.auditEntries,
+        v:        s.version,
       }});
-      // A DID in SW status means a vault was previously created and is now locked
-      // (the SW holds the DID even when locked, loaded from IDB at boot).
-      // If vaultLocked === true and did is non-null, an existing vault is present.
+      // If a vault exists but is locked, switch to unlock form
       if (s.vaultLocked && s.did) {
-        // Pre-populate a hint and switch to unlock form
-        UI.showUnlockForm();
-        UI.addAuditEntry({ type: 'VAULT_EXISTS', data: { did: s.did?.slice(-12) } });
+        UI.showUnlock();
+        UI.audit({ type:'VAULT_EXISTS', data:{ did:s.did.slice(-12) } });
       }
-      // If vaultLocked && !s.did → no vault created yet, stay on create form
-    }).catch(() => {
-      // SW not responding to STATUS (first activation, not yet serving) — ignore
-    });
+    }).catch(() => {});
   });
 
-  // ─── Keyboard shortcuts ───────────────────────────────────────────────────
-  document.addEventListener('keydown', (e) => {
-    // Enter in message input
-    if (e.key === 'Enter' && document.activeElement?.id === 'msg-input') {
-      UI.sendMessage();
-      return;
-    }
-    // Enter in passphrase inputs
-    if (e.key === 'Enter' && document.activeElement?.id === 'unlock-passphrase') {
-      UI.unlockVault();
-      return;
-    }
-    if (e.key === 'Enter' && document.activeElement?.id === 'passphrase-input') {
-      // Move focus to duress input or submit if duress empty
-      const duress = document.getElementById('duress-input');
-      if (duress && !duress.value) {
-        duress.focus();
-      } else {
-        UI.createVault();
-      }
-      return;
-    }
-    // Ctrl/Cmd + L = lock vault
-    if ((e.ctrlKey || e.metaKey) && e.key === 'l') {
-      e.preventDefault();
-      if (State.did) UI.lockVault();
-    }
-    // Ctrl/Cmd + K = focus message input
-    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-      e.preventDefault();
-      document.getElementById('msg-input')?.focus();
-    }
+  // ── Keyboard shortcuts ────────────────────────────────────────────────────
+
+  document.addEventListener('keydown', e => {
+    if (e.key==='Enter' && document.activeElement?.id==='msg-in')     { UI.sendMessage(); return; }
+    if (e.key==='Enter' && document.activeElement?.id==='in-unlock')  { UI.unlockVault(); return; }
+    if (e.key==='Enter' && document.activeElement?.id==='in-pass')    { UI.createVault(); return; }
+    if ((e.ctrlKey||e.metaKey) && e.key==='l') { e.preventDefault(); if (S.did) UI.lockVault(); }
+    if ((e.ctrlKey||e.metaKey) && e.key==='k') { e.preventDefault(); document.getElementById('msg-in')?.focus(); }
   });
 
-  // ─── Inactivity auto-lock (mirrors SW deadman) ────────────────────────────
-  let _lastActivity = Date.now();
-  const INACTIVITY_MS = 30 * 60 * 1000; // 30 min
-  ['click','keydown','mousemove','touchstart'].forEach(ev => {
-    document.addEventListener(ev, () => { _lastActivity = Date.now(); }, { passive: true });
-  });
-  setInterval(() => {
-    if (State.did && Date.now() - _lastActivity > INACTIVITY_MS) {
+  // ── Inactivity auto-lock ──────────────────────────────────────────────────
+
+  let _lastAct = Date.now();
+  const INACT  = 30 * 60 * 1000;
+  ['click','keydown','mousemove','touchstart'].forEach(ev =>
+    document.addEventListener(ev, ()=>{ _lastAct = Date.now(); }, { passive:true })
+  );
+  setInterval(()=>{
+    if (S.did && Date.now()-_lastAct > INACT) {
       UI.lockVault();
-      UI.addAuditEntry({ type: 'INACTIVITY_LOCK', data: { after: INACTIVITY_MS / 60000 + 'min' } });
+      UI.audit({ type:'INACTIVITY_LOCK', data:{ after:'30min' } });
     }
   }, 60_000);
 
-  // ─── Periodic state refresh ───────────────────────────────────────────────
-  setInterval(() => {
-    if (State.did) UI.refreshState();
-  }, 5_000);
+  // ── Periodic refresh ──────────────────────────────────────────────────────
+  setInterval(() => { if (S.did) UI.refreshState(); }, 5_000);
 
-  // ─── Boot ─────────────────────────────────────────────────────────────────
+  // ── Boot ──────────────────────────────────────────────────────────────────
+
   document.addEventListener('DOMContentLoaded', () => {
-
-    // Start animated network canvas
     Canvas.start();
-
-    // Initial sidebar
     UI.renderSidebar('network');
-
-    // Initial FSM board render (all machines show LOCKED/IDLE)
     UI.refreshState();
-
-    // Boot audit trail
-    UI.addAuditEntry({ type: 'GENESIS_BOOT', data: {
-      ua:   navigator.userAgent.slice(0, 40),
+    UI.audit({ type:'GENESIS_BOOT', data:{
+      v:'5.0',
       sw:   'serviceWorker' in navigator,
       wrtc: typeof RTCPeerConnection !== 'undefined',
       wt:   typeof WebTransport !== 'undefined',
+      sha:  typeof SovereignShamir !== 'undefined',
     }});
 
-    // Storage persistence check
-    navigator.storage?.persist?.().then(granted => {
-      UI.addAuditEntry({ type: 'STORAGE_PERSIST', data: { granted } });
-      if (!granted) showToast('⚠ Storage persistence denied — vault may be evicted in private mode.');
+    // Storage persistence
+    navigator.storage?.persist?.().then(g => {
+      UI.audit({ type:'STORAGE_PERSIST', data:{ granted:g } });
+      if (!g) toast('⚠ Storage persistence denied — export identity regularly.', 'warn', 5000);
     });
 
-    // ── file:// / null-origin detection ──────────────────────────────────
-    const isFileOrigin = location.protocol === 'file:' || location.origin === 'null';
-    if (isFileOrigin) {
-      // Show the amber warning banner (push header down to accommodate it)
-      const warn = document.getElementById('proto-warning');
-      if (warn) {
-        warn.style.display = 'flex';
-        document.getElementById('header').style.top = warn.offsetHeight + 'px';
-        document.getElementById('layout').style.top =
-          (48 + warn.offsetHeight) + 'px';
-      }
-      UI.addAuditEntry({ type: 'PROTO_WARNING', data: { protocol: location.protocol } });
+    // file:// detection
+    if (location.protocol === 'file:' || location.origin === 'null') {
+      const pw = document.getElementById('proto-warn');
+      if (pw) { pw.style.display = 'flex'; document.getElementById('header').style.top = pw.offsetHeight+'px'; }
+      UI.audit({ type:'PROTO_WARNING', data:{ protocol:location.protocol } });
 
-      // Replace the KernelBridge with a pure-WebCrypto shim so vault
-      // create / unlock work without a Service Worker. Keys are held in
-      // a module-scoped closure (same security model as a normal page;
-      // weaker than SW isolation but fully functional for local dev).
+      // SW-less shim for file:// dev mode
       (() => {
-        const _store = {};   // in-memory vault (survives page JS, not refresh)
-        let _did = null, _pubKey = null, _locked = true;
+        const mem = {};
+        let _did=null, _pub=null, _locked=true;
 
         window.SovereignKernelBridge = {
-          async send(cmd) {
-            const { cmd: c, passphrase, duressPassphrase } = cmd;
+          async send(c) {
+            if (c.cmd==='STATUS')
+              return { vaultLocked:_locked, did:_did, patterns:0, ratchets:0, auditEntries:0 };
 
-            if (c === 'STATUS') {
-              return { vaultLocked: _locked, did: _did, patterns: 0,
-                       auditEntries: 0, ratchets: 0, note: 'SW-less shim' };
-            }
-
-            if (c === 'CREATE_VAULT') {
-              if (!passphrase || passphrase.length < 8)
-                return { error: 'PASSPHRASE_TOO_SHORT' };
-
-              const sigPair = await crypto.subtle.generateKey(
-                { name:'ECDSA', namedCurve:'P-256' }, true, ['sign','verify']);
-              const pubRaw  = await crypto.subtle.exportKey('raw', sigPair.publicKey);
-              const hashBuf = await crypto.subtle.digest('SHA-256', pubRaw);
-              const hashHex = Array.from(new Uint8Array(hashBuf))
-                .map(b => b.toString(16).padStart(2,'0')).join('');
-              _did    = `did:sovereign:${hashHex.slice(0,48)}`;
-              _pubKey = btoa(String.fromCharCode(...new Uint8Array(pubRaw)));
+            if (c.cmd==='CREATE_VAULT') {
+              if (!c.passphrase || c.passphrase.length<8) return { error:'PASSPHRASE_TOO_SHORT' };
+              const kp = await crypto.subtle.generateKey({name:'ECDSA',namedCurve:'P-256'},true,['sign','verify']);
+              const pub = await crypto.subtle.exportKey('raw',kp.publicKey);
+              const h   = await crypto.subtle.digest('SHA-256',pub);
+              _did  = `did:sovereign:${Array.from(new Uint8Array(h)).map(b=>b.toString(16).padStart(2,'0')).join('').slice(0,48)}`;
+              _pub  = btoa(String.fromCharCode(...new Uint8Array(pub)));
               _locked = false;
-              _store.signingKey = sigPair.privateKey;
-              return { event: 'VAULT_CREATED', did: _did, pubKey: _pubKey };
+              mem.sk = kp.privateKey;
+              return { event:'VAULT_CREATED', did:_did, pubKey:_pub };
             }
-
-            if (c === 'UNLOCK_VAULT') {
-              // Shim: re-use the in-memory key if already created this session
-              if (_store.signingKey && _did) {
-                _locked = false;
-                return { event: 'VAULT_UNLOCKED', did: _did, pubKey: _pubKey };
-              }
-              return { error: 'NO_VAULT',
-                detail: 'SW-less shim has no persistent vault. Create one first.' };
+            if (c.cmd==='UNLOCK_VAULT') {
+              if (mem.sk && _did) { _locked=false; return { event:'VAULT_UNLOCKED', did:_did, pubKey:_pub }; }
+              return { error:'NO_VAULT' };
             }
-
-            if (c === 'LOCK_VAULT') {
-              _locked = true;
-              return { event: 'VAULT_LOCKED' };
+            if (c.cmd==='LOCK_VAULT') { _locked=true; return { event:'VAULT_LOCKED' }; }
+            if (c.cmd==='ATTEST') {
+              if (!mem.sk) return { error:'NOT_READY' };
+              const pl = JSON.stringify({ did:_did, nonce:c.nonce, ts:Date.now() });
+              const s  = await crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'},mem.sk,new TextEncoder().encode(pl));
+              return { event:'ATTESTED', payload:pl, signature:btoa(String.fromCharCode(...new Uint8Array(s))), pubKey:_pub };
             }
-
-            if (c === 'ATTEST') {
-              if (!_store.signingKey) return { error: 'NOT_READY' };
-              const payload = JSON.stringify({ did: _did, nonce: cmd.nonce, ts: Date.now() });
-              const sig = await crypto.subtle.sign(
-                { name:'ECDSA', hash:'SHA-256' }, _store.signingKey,
-                new TextEncoder().encode(payload));
-              return { event: 'ATTESTED', payload, signature: btoa(String.fromCharCode(...new Uint8Array(sig))), pubKey: _pubKey };
-            }
-
-            if (c === 'EXPORT_SHAMIR') {
-              return { event: 'SHAMIR_EXPORTED', shares: [], t: 3, n: 5,
-                note: 'Shamir unavailable in SW-less shim (file:// mode).' };
-            }
-
-            // Audit passthrough — no-op
-            if (c === 'AUDIT_ENTRY') return { ok: true };
-
-            return { error: `SW-less shim: command "${c}" not implemented.` };
-          },
+            if (c.cmd==='EXPORT_SHAMIR')
+              return { event:'SHAMIR_EXPORTED', shares:[], t:3, n:5, note:'Shamir unavailable in file:// mode.' };
+            if (c.cmd==='AUDIT_ENTRY') return { ok:true };
+            return { error:`SW-less shim: ${c.cmd} not implemented` };
+          }
         };
-
-        console.warn('[Sovereign] Running in SW-less shim mode (file:// origin).',
-          'Keys are NOT isolated. Serve over HTTP for full security.');
-        UI.addAuditEntry({ type: 'SW_SHIM_ACTIVE', data: { reason: 'file_origin' } });
+        console.warn('[Sovereign v5.0] SW-less shim active (file:// origin). NOT isolated.');
+        UI.audit({ type:'SW_SHIM', data:{ reason:'file_origin' } });
       })();
     }
 
-    console.log('[Sovereign OS v4.0] Genesis Node booted. All systems nominal.');
+    console.log('[Sovereign OS v5.0] Genesis Node booted. 20 patterns. Real Ratchet. Real Shamir.');
   });
 
   </script>

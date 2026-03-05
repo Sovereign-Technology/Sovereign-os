@@ -56,7 +56,9 @@
   const DEFAULT_RELAY   = 'wss://sovereign-relay.fly.dev';
   const RELAY_FALLBACKS = [
     'wss://sovereign-relay.fly.dev',
-    'wss://broker.hivemq.com:8884/mqtt',   // MQTT-over-WSS fallback
+    // Note: additional relay URLs should implement the Sovereign relay protocol
+    // (HELLO / HELLO_ACK / OFFER / ANSWER / ICE message types).
+    // MQTT brokers are incompatible — do not add them here.
   ];
   const ICE_SERVERS     = window.SOVEREIGN_ICE_SERVERS ?? [
     { urls: 'stun:openrelay.metered.ca:80' },
