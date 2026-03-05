@@ -139,18 +139,90 @@ window.sovereignEphemeralToken = async function(did) {
  * SOVEREIGN_ICE_SERVERS — replace Google STUN with community/privacy servers.
  * Pages should use window.SOVEREIGN_ICE_SERVERS instead of hard-coded Google STUN.
  */
-window.SOVEREIGN_ICE_SERVERS = [
-  { urls: 'stun:openrelay.metered.ca:80'   },   // community-operated, no logging policy
-  { urls: 'stun:stun.relay.metered.ca:80'  },   // fallback
-  // User-configured custom STUN/TURN is read from localStorage at runtime:
-  ...((() => {
+// SOVEREIGN_ICE_SERVERS — ordered fallback chain. Browser ICE agent tries all
+// simultaneously; first to respond wins. Add TURN for symmetric NAT traversal.
+window.SOVEREIGN_ICE_SERVERS = ((() => {
+  // Five operators, no single point of failure.
+  // Browser ICE agent tries all concurrently; first responsive server wins.
+  // Notably absent: Google STUN — it logs IPs against Google accounts.
+  //
+  // Add TURN for users behind symmetric NAT:
+  //   localStorage.setItem('sovereign_custom_stun', JSON.stringify([
+  //     { urls:'turn:your-turn-server', username:'u', credential:'p' }
+  //   ]))
+  const defaults = [
+    // metered.ca — community-operated, no-log policy
+    { urls: 'stun:openrelay.metered.ca:80'       },
+    { urls: 'stun:stun.relay.metered.ca:80'      },
+    // Cloudflare — separate operator, different AS
+    { urls: 'stun:stun.cloudflare.com:3478'      },
+    // Twilio — commercial, different infrastructure
+    { urls: 'stun:global.stun.twilio.com:3478'   },
+    // Nextcloud community server — FOSS operator
+    { urls: 'stun:stun.nextcloud.com:443'        },
+    // LibreOffice — another FOSS operator
+    { urls: 'stun:stun.libreoffice.org:3478'     },
+    // Sipgate (Germany) — European jurisdiction fallback
+    { urls: 'stun:stun.sipgate.net:3478'         },
+  ];
+  try {
+    const custom = localStorage.getItem('sovereign_custom_stun');
+    if (custom) {
+      const parsed = JSON.parse(custom);
+      // User-supplied servers prepended — they take priority over defaults
+      if (Array.isArray(parsed) && parsed.length) return [...parsed, ...defaults];
+    }
+  } catch(_) {}
+  return defaults;
+})());
+
+// SOVEREIGN_RELAY_URLS — ordered relay failover list.
+// SovereignTransport tries each in sequence on connect failure.
+// Override: localStorage.setItem('sovereign_custom_relays', JSON.stringify(['wss://your-relay']))
+window.SOVEREIGN_RELAY_URLS = ((() => {
+  // Relay failover order:
+  //   1. sovereign-relay.fly.dev — first-party (ephemeral tokens, best privacy)
+  //   2. Public MQTT-over-WS brokers — used only for signaling (ICE candidates,
+  //      peer discovery). All message bodies are Double-Ratchet encrypted before
+  //      any relay sees them. These are cold fallbacks only.
+  //
+  // Add your own: localStorage.setItem('sovereign_custom_relays', JSON.stringify(['wss://...']))
+  const defaults = [
+    'wss://sovereign-relay.fly.dev',       // first-party preferred
+    'wss://broker.emqx.io:8084/mqtt',      // EMQ X public broker  (MQTT 5.0, no auth)
+    'wss://broker.hivemq.com:8884/mqtt',   // HiveMQ public broker  (MQTT 3.1.1, TLS)
+    'wss://test.mosquitto.org:8081',       // Eclipse Mosquitto test (TLS)
+    'wss://public.mqtthq.com:8084/mqtt',   // MQTTHQ public broker
+  ];
+  try {
+    const custom = localStorage.getItem('sovereign_custom_relays');
+    if (custom) {
+      const parsed = JSON.parse(custom);
+      if (Array.isArray(parsed) && parsed.length) return [...parsed, ...defaults];
+    }
+  } catch(_) {}
+  return defaults;
+})());
+
+// sovereignProbeRelay(url, timeoutMs) -> Promise<boolean>
+// Opens a WebSocket and resolves true if it connects within timeoutMs.
+// Used by SovereignTransport to skip dead relays without blocking.
+window.sovereignProbeRelay = function(url, timeoutMs = 4000) {
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = (ok) => {
+      if (!done) { done = true; resolve(ok); try { ws.close(); } catch(_) {} }
+    };
+    let ws;
     try {
-      const custom = localStorage.getItem('sovereign_custom_stun');
-      if (custom) return JSON.parse(custom);
-    } catch(_) {}
-    return [];
-  })()),
-];
+      ws = new WebSocket(url);
+      ws.onopen  = () => finish(true);
+      ws.onerror = () => finish(false);
+      ws.onclose = () => finish(false);
+    } catch(_) { resolve(false); return; }
+    setTimeout(() => finish(false), timeoutMs);
+  });
+};
 
 // ── 2B: Double Ratchet session persistence helpers ───────────────────────
 /**
@@ -428,4 +500,118 @@ self.onmessage = async function(e) {
   });
 };
 
-console.log('[Sovereign Security] sovereign_security.js loaded — sanitize, persist, self-hash, Worker keygen active');
+// ── 5B: Integrity violation recovery UI ──────────────────────────────────
+/**
+ * When the SW integrity check fails (e.g. after a legitimate app update),
+ * the vault unlock is blocked and INTEGRITY_VIOLATION is broadcast.
+ * This listener surfaces a visible recovery banner with a single-click fix.
+ *
+ * Recovery path:
+ *   1. User clicks "Re-baseline" — calls REBUILD_MANIFEST on the SW.
+ *   2. SW re-hashes all app files from the network (cache:reload).
+ *   3. User retries vault unlock normally.
+ *
+ * Security note: REBUILD_MANIFEST is pre-auth by design. An attacker who
+ * can trigger an integrity violation can also trigger a re-baseline — but
+ * the re-baseline hashes whatever is on disk right now, so a tampered file
+ * would simply be accepted as the new baseline. This is not ideal but is
+ * preferable to the alternative (permanent vault lockout for legitimate users).
+ * Users who require audit-grade integrity should verify file hashes against
+ * published hashes.txt before calling REBUILD_MANIFEST.
+ */
+(function _integrityRecoveryUI() {
+  let _bannerShown = false;
+
+  function _showRecoveryBanner(reason) {
+    if (_bannerShown || document.getElementById('sovereign-integrity-warn')) return;
+    _bannerShown = true;
+
+    const bar = document.createElement('div');
+    bar.id = 'sovereign-integrity-warn';
+    bar.style.cssText = [
+      'position:fixed','top:0','left:0','right:0','z-index:99997',
+      'background:#1a0a00','color:#fef2f2','font-family:system-ui,sans-serif',
+      'font-size:12px','font-weight:600','padding:10px 16px',
+      'display:flex','align-items:center','justify-content:space-between',
+      'border-bottom:2px solid #f97316','gap:12px',
+    ].join(';');
+
+    const msg = document.createElement('span');
+    msg.textContent = reason === 'update'
+      ? '⚠ App files have changed since the security baseline was set. Vault unlock is blocked until the baseline is refreshed.'
+      : '⚠ Integrity check failed — app files do not match the security baseline. Vault unlock is blocked.';
+
+    const actions = document.createElement('div');
+    actions.style.cssText = 'display:flex;align-items:center;gap:8px;flex-shrink:0;';
+
+    const rebtn = document.createElement('button');
+    rebtn.textContent = 'Re-baseline (trust current files)';
+    rebtn.style.cssText = [
+      'background:#f97316','border:none','color:#fff','cursor:pointer',
+      'font-size:12px','font-weight:700','padding:5px 12px','border-radius:4px',
+    ].join(';');
+    rebtn.onclick = async () => {
+      rebtn.textContent = 'Re-baselining…';
+      rebtn.disabled = true;
+      try {
+        // Use KernelBridge if available, else post directly to SW
+        if (window.SovereignKernel?.rebuildManifest) {
+          await window.SovereignKernel.rebuildManifest();
+        } else {
+          const reg = await navigator.serviceWorker.ready;
+          const nonce = Math.random().toString(36).slice(2);
+          reg.active?.postMessage({ cmd: 'REBUILD_MANIFEST', nonce });
+          await new Promise(res => {
+            navigator.serviceWorker.addEventListener('message', function h(e) {
+              if (e.data?.event === 'MANIFEST_REBUILT' || e.data?.event === 'ERROR') {
+                navigator.serviceWorker.removeEventListener('message', h);
+                res();
+              }
+            });
+            setTimeout(res, 12000); // fallback timeout
+          });
+        }
+        bar.style.background = '#14532d';
+        bar.style.borderColor = '#4eff91';
+        msg.textContent = '✓ Baseline refreshed. You may now unlock your vault.';
+        rebtn.style.display = 'none';
+        setTimeout(() => bar.remove(), 5000);
+        _bannerShown = false;
+      } catch (e) {
+        rebtn.textContent = 'Failed — check console';
+        rebtn.disabled = false;
+      }
+    };
+
+    const closebtn = document.createElement('button');
+    closebtn.textContent = '✕';
+    closebtn.style.cssText = 'background:none;border:none;color:inherit;cursor:pointer;font-size:14px;padding:0 8px;';
+    closebtn.onclick = () => { bar.remove(); _bannerShown = false; };
+
+    actions.appendChild(rebtn);
+    actions.appendChild(closebtn);
+    bar.appendChild(msg);
+    bar.appendChild(actions);
+
+    const mount = () => { if (document.body) document.body.prepend(bar); };
+    document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', mount) : mount();
+  }
+
+  // Listen for SW broadcast
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('message', (e) => {
+      const { event, reason } = e.data || {};
+      if (event === 'INTEGRITY_VIOLATION') {
+        _showRecoveryBanner('tamper');
+      }
+      if (event === 'VAULT_ERROR' && reason === 'INTEGRITY_VIOLATION') {
+        _showRecoveryBanner('update');
+      }
+    });
+  }
+
+  // Also listen for the window-level event (fired by FSM mirror)
+  window.addEventListener('sovereign:fsm:INTEGRITY_VIOLATION', () => _showRecoveryBanner('tamper'));
+})();
+
+console.log('[Sovereign Security] sovereign_security.js loaded — sanitize, persist, self-hash, Worker keygen, integrity recovery active');

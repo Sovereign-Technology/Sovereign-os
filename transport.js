@@ -3,7 +3,14 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 const SOVEREIGN_CONFIG = {
-  MESH_WS_URL:           'wss://sovereign-relay.fly.dev',
+  // Relay failover list — read at connect time from window.SOVEREIGN_RELAY_URLS
+  // (set by sovereign_security.js). Override via:
+  //   localStorage.setItem('sovereign_custom_relays', JSON.stringify(['wss://your-relay']))
+  // or assign window.SOVEREIGN_RELAY_URLS directly before calling sovereignConnect().
+  get MESH_WS_URLS() {
+    return window.SOVEREIGN_RELAY_URLS || ['wss://sovereign-relay.fly.dev'];
+  },
+  get MESH_WS_URL() { return this.MESH_WS_URLS[0]; }, // backward-compat
   CHAIN_RPC:             'http://localhost:8899',
   POLL_MS:               3000,
   TOPIC_PREFIX:          'sovereign:msg:',
@@ -15,7 +22,7 @@ const SOVEREIGN_CONFIG = {
   DHT_TTL_MS:            60000,
   KDF_PBKDF2_ITERATIONS: 600000,
   KDF_SALT_BYTES:        32,
-  KDF_PREFER_ARGON2:     true,
+  KDF_PREFER_ARGON2:     false, // argon2 CDN removed — PBKDF2 is the sole KDF (zero external deps)
   DR_MAX_SKIP:           100,
 };
 
@@ -42,12 +49,8 @@ class SovereignKDF {
    */
   async stretch(passphrase, salt = null, onProgress = null) {
     salt = salt || crypto.getRandomValues(new Uint8Array(this.cfg.KDF_SALT_BYTES));
-    if (this.cfg.KDF_PREFER_ARGON2) {
-      try {
-        const r = await this._argon2Stretch(passphrase, salt, onProgress);
-        return { ...r, salt, algorithm: 'argon2id' };
-      } catch { /* fall through */ }
-    }
+    // Sole KDF: hardened double-round PBKDF2-SHA-256. Zero external dependencies.
+    // argon2-browser CDN dependency removed — see §2 comment below.
     const r = await this._pbkdf2Stretch(passphrase, salt, onProgress);
     return { ...r, salt, algorithm: 'pbkdf2' };
   }
@@ -57,43 +60,55 @@ class SovereignKDF {
   }
 
   async _pbkdf2Stretch(passphrase, salt, onProgress) {
-    if (onProgress) onProgress(0.05);
+    // Two-round PBKDF2 with interleaved salts.
+    // Round 1: standard PBKDF2-SHA-256, 600 000 iterations.
+    // Round 2: PBKDF2-SHA-256 using round-1 output as the "password" and a
+    //   HKDF-derived secondary salt. Doubles the sequential work per guess
+    //   with zero external dependencies.
+    if (onProgress) onProgress(0.02);
     const enc     = new TextEncoder().encode(passphrase);
     const baseKey = await crypto.subtle.importKey('raw', enc, 'PBKDF2', false, ['deriveBits']);
-    if (onProgress) onProgress(0.15);
-    // Yield to UI between yielded segments to keep the page alive
-    const SEGS = 5;
-    for (let i = 0; i < SEGS - 1; i++) {
-      await new Promise(r => setTimeout(r, 0));
-      if (onProgress) onProgress(0.15 + (i / SEGS) * 0.8);
-    }
-    const bits = await crypto.subtle.deriveBits(
+    if (onProgress) onProgress(0.05);
+
+    // Yield to UI so page stays alive during heavy computation
+    await new Promise(r => setTimeout(r, 0));
+    if (onProgress) onProgress(0.1);
+
+    // Round 1
+    const bits1 = await crypto.subtle.deriveBits(
       { name:'PBKDF2', salt, iterations: this.cfg.KDF_PBKDF2_ITERATIONS, hash:'SHA-256' },
       baseKey, 256
     );
+    const r1 = new Uint8Array(bits1);
+    if (onProgress) onProgress(0.55);
+    await new Promise(r => setTimeout(r, 0));
+
+    // Derive secondary salt: HKDF-expand(r1, info='sovereign-kdf-round2', salt)
+    const hkdfKey  = await crypto.subtle.importKey('raw', r1, 'HKDF', false, ['deriveBits']);
+    const salt2buf = await crypto.subtle.deriveBits(
+      { name:'HKDF', hash:'SHA-256', salt, info: new TextEncoder().encode('sovereign-kdf-round2') },
+      hkdfKey, 256
+    );
+    const salt2 = new Uint8Array(salt2buf);
+    if (onProgress) onProgress(0.6);
+    await new Promise(r => setTimeout(r, 0));
+
+    // Round 2 — uses round-1 output as the password material
+    const r1Key = await crypto.subtle.importKey('raw', r1, 'PBKDF2', false, ['deriveBits']);
+    const bits2 = await crypto.subtle.deriveBits(
+      { name:'PBKDF2', salt: salt2, iterations: this.cfg.KDF_PBKDF2_ITERATIONS, hash:'SHA-256' },
+      r1Key, 256
+    );
     if (onProgress) onProgress(1.0);
-    return { keyBytes: new Uint8Array(bits) };
+    return { keyBytes: new Uint8Array(bits2) };
   }
 
-  async _loadArgon2() {
-    if (this._argon2) return this._argon2;
-    return new Promise((res, rej) => {
-      const s  = document.createElement('script');
-      s.src    = 'https://cdnjs.cloudflare.com/ajax/libs/argon2-browser/1.18.0/argon2.js';
-      s.onload = () => { if (window.argon2) { this._argon2 = window.argon2; res(this._argon2); } else rej(new Error('argon2 missing')); };
-      s.onerror = rej;
-      document.head.appendChild(s);
-    });
-  }
-
-  async _argon2Stretch(passphrase, salt, onProgress) {
-    if (onProgress) onProgress(0.05);
-    const lib = await this._loadArgon2();
-    if (onProgress) onProgress(0.2);
-    const result = await lib.hash({ pass: passphrase, salt, time:3, mem:65536, hashLen:32, parallelism:1, type: lib.ArgonType.Argon2id });
-    if (onProgress) onProgress(1.0);
-    return { keyBytes: result.hash };
-  }
+  // §2 NOTE — Argon2 CDN dependency removed.
+  // argon2-browser previously fetched from cdnjs at runtime, introducing a
+  // supply-chain risk in the password-hardening path. Removed entirely.
+  // Replacement: double-round PBKDF2-SHA-256 with HKDF-derived secondary salt.
+  // 2 × 600 000 iterations doubles sequential work per guess with zero external
+  // dependencies, staying entirely within the SubtleCrypto API surface.
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -595,29 +610,101 @@ class SovereignTransport {
 
   get kdfResult() { return this._kdfResult; }
 
-  // ── Relay (fallback) ─────────────────────────────────────────────────
+  // ── Relay — probe-first failover across all SOVEREIGN_RELAY_URLS ────────
+  //
+  // Strategy:
+  //   1. On each connect attempt, probe all configured URLs with a 3-second
+  //      WebSocket handshake test.  Skip any that don't respond.
+  //   2. Try the first live URL.  If it later drops, reconnect cycles through
+  //      the full list again — the primary may have recovered.
+  //   3. If every relay is unreachable, emit 'all_failed' and operate on
+  //      DHT + BroadcastChannel alone.  No silent breakage.
+
   async _connectMesh() {
+    const urls = this.cfg.MESH_WS_URLS;   // runtime getter → window.SOVEREIGN_RELAY_URLS
+    if (!urls || !urls.length) { this._emit('transport:mesh', { status:'no_relays' }); return false; }
+
+    // Probe all URLs concurrently — resolve with first alive one, or null
+    const probe = window.sovereignProbeRelay
+      ? (url) => window.sovereignProbeRelay(url, 3000)
+      : (url) => Promise.resolve(true);   // security.js not loaded — skip probe, try anyway
+
+    const probeResults = await Promise.all(urls.map(async (url) => {
+      const alive = await probe(url);
+      return alive ? url : null;
+    }));
+    const liveUrls = probeResults.filter(Boolean);
+
+    if (!liveUrls.length) {
+      _log('Transport', 'all relays unreachable after probe — DHT/BroadcastChannel only');
+      this._emit('transport:mesh', { status:'all_failed', tried: urls });
+      this._scheduleReconnect();
+      return false;
+    }
+
+    // Try live URLs in order until one accepts our full WebSocket connection
+    for (const url of liveUrls) {
+      const ok = await this._openRelay(url);
+      if (ok) return true;
+    }
+
+    // All probed-alive relays refused the full handshake (unlikely but possible)
+    this._emit('transport:mesh', { status:'all_failed', tried: liveUrls });
+    this._scheduleReconnect();
+    return false;
+  }
+
+  // Open one relay WebSocket and wire events.  Resolves true on open, false on failure.
+  _openRelay(url) {
     return new Promise((res) => {
-      try {
-        this._meshSocket = new WebSocket(this.cfg.MESH_WS_URL);
-        this._meshSocket.onopen  = () => {
-          this._meshReady = true; this._reconnectCount = 0;
-          _log('Transport', 'relay connected (fallback)');
-          this._listeners.forEach(l => this._meshSubscribe(l.did));
-          this._flushQueue();
-          this._emit('transport:mesh', { status:'connected' }); res(true);
-        };
-        this._meshSocket.onmessage = (e) => { try { this._handleIncoming(JSON.parse(e.data), 'mesh'); } catch {} };
-        this._meshSocket.onclose   = () => { this._meshReady = false; this._emit('transport:mesh', { status:'disconnected' }); this._scheduleReconnect(); res(false); };
-        this._meshSocket.onerror   = () => res(false);
-      } catch { res(false); }
+      _log('Transport', `relay connecting: ${url}`);
+      let ws;
+      try { ws = new WebSocket(url); } catch { res(false); return; }
+
+      const onOpen = () => {
+        this._meshSocket     = ws;
+        this._meshReady      = true;
+        this._reconnectCount = 0;
+        _log('Transport', `relay connected: ${url}`);
+        this._listeners.forEach(l => this._meshSubscribe(l.did));
+        this._flushQueue();
+        this._emit('transport:mesh', { status:'connected', url });
+        res(true);
+      };
+      const onMsg   = (e) => { try { this._handleIncoming(JSON.parse(e.data), 'mesh'); } catch {} };
+      const onClose = () => {
+        if (this._meshSocket === ws) {        // ignore close from a superseded socket
+          this._meshReady = false;
+          this._emit('transport:mesh', { status:'disconnected', url });
+          this._scheduleReconnect();
+        }
+        res(false);
+      };
+      const onError = () => res(false);
+
+      ws.addEventListener('open',    onOpen);
+      ws.addEventListener('message', onMsg);
+      ws.addEventListener('close',   onClose);
+      ws.addEventListener('error',   onError);
+
+      // Hard timeout — don't stall if a relay hangs on the handshake
+      setTimeout(() => { if (ws.readyState !== WebSocket.OPEN) { ws.close(); res(false); } }, 6000);
     });
   }
 
   _scheduleReconnect() {
-    if (this._reconnectCount >= this.cfg.MAX_RECONNECT_ATTEMPTS) return;
-    this._reconnectCount++;
-    setTimeout(() => this._connectMesh(), this.cfg.RECONNECT_DELAY_MS);
+    this._reconnectCount = (this._reconnectCount || 0) + 1;
+    if (this._reconnectCount > this.cfg.MAX_RECONNECT_ATTEMPTS) {
+      _log('Transport', 'relay reconnect attempts exhausted — staying on DHT');
+      return;
+    }
+    // Exponential backoff capped at 60 s
+    const ms = Math.min(
+      this.cfg.RECONNECT_DELAY_MS * Math.pow(2, this._reconnectCount - 1),
+      60000
+    );
+    _log('Transport', `relay reconnect in ${ms}ms (attempt ${this._reconnectCount})`);
+    setTimeout(() => this._connectMesh(), ms);
   }
 
   async _meshSend(env) {
@@ -886,6 +973,15 @@ class SovereignKernelBridge {
   async revokeDomain(d)         { return this._call('REVOKE_DOMAIN',     { domain:d }); }
   async getStatus()             { return this._call('STATUS',            {}); }
   async panic()                 { return this._call('PANIC',             {}); }
+  /**
+   * rebuildIntegrityManifest() — re-hash all app files and update the SW's
+   * integrity baseline.  Call this after deploying an update so the next
+   * vault unlock does not fail with INTEGRITY_VIOLATION.
+   *
+   * Safe to call before unlock — it is an open (pre-auth) command.
+   * Returns { files: N, errors: [] } on success.
+   */
+  async rebuildIntegrityManifest() { return this._call('REBUILD_MANIFEST', {}); }
   _startHeartbeat() {
     this._heartbeatTimer = setInterval(() => this._send({ cmd:'HEARTBEAT' }), 30*60*1000);
     setTimeout(() => this._send({ cmd:'HEARTBEAT' }), 2000);

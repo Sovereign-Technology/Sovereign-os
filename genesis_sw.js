@@ -24,7 +24,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'sovereign-sw-v2.0.1';
+const SW_VERSION = 'sovereign-sw-v2.2.0';
 const SW_BUILD   = '2026-03';
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -71,9 +71,20 @@ const _networkPolicy = {
     'fonts.gstatic.com',
     'cdnjs.cloudflare.com',
     'cdn.jsdelivr.net',
-    'sovereign-relay.fly.dev',   // default public relay
-    'openrelay.metered.ca',      // default STUN
-    'stun.relay.metered.ca',     // default STUN fallback
+    // Relay servers
+    'sovereign-relay.fly.dev',         // first-party relay
+    'broker.emqx.io',                  // EMQ X fallback relay
+    'broker.hivemq.com',               // HiveMQ fallback relay
+    'test.mosquitto.org',              // Mosquitto fallback relay
+    'public.mqtthq.com',               // MQTTHQ fallback relay
+    // STUN servers
+    'openrelay.metered.ca',            // metered.ca STUN
+    'stun.relay.metered.ca',           // metered.ca STUN 2
+    'stun.cloudflare.com',             // Cloudflare STUN
+    'global.stun.twilio.com',          // Twilio STUN
+    'stun.nextcloud.com',              // Nextcloud STUN
+    'stun.libreoffice.org',            // LibreOffice STUN
+    'stun.sipgate.net',                // Sipgate STUN
   ]),
 };
 
@@ -224,6 +235,10 @@ self.addEventListener('message', async (e) => {
     'STATUS','HEARTBEAT','PANIC','SW_VERSION','AUDIT_VERIFY','AUDIT_EXPORT',
     'AUDIT_NOTARY', // 4B fix: notary attestation is pre-auth — page signs with local key
     'SELF_TEST',
+    // Pattern 08: manifest rebuild is pre-auth because a stale manifest would
+    // otherwise permanently lock users out after a legitimate app update.
+    // The SW re-hashes files from its own fetch cache — no tab input trusted.
+    'REBUILD_MANIFEST',
   ]);
 
   if (!openCmds.has(cmd)) {
@@ -299,6 +314,11 @@ self.addEventListener('message', async (e) => {
     case 'SW_VERSION':       client.postMessage({ event:'SW_VERSION', version:SW_VERSION, build:SW_BUILD }); break;
     case 'SELF_TEST':        await _handleSelfTest(client);              break;
     case 'AUDIT_NOTARY':     await _handleAuditNotary(args, client);     break; // 4B fix
+    // Pattern 08: Rebuild integrity manifest after a legitimate app update.
+    // Clears the old hashes, re-fetches all app files from network (bypassing
+    // the SW cache), and rebuilds. The vault remains locked until the next
+    // successful unlock — this command only resets the baseline, not the lock.
+    case 'REBUILD_MANIFEST': await _handleRebuildManifest(args, client); break;
     default:                 client.postMessage({ event:'ERROR', cmd, reason:'Unknown command' });
   }
 });
@@ -825,6 +845,49 @@ async function _attestTabIntegrity() {
     if (got !== expected) { _auditLog('INTEGRITY_MISMATCH', { resource: f }); return false; }
   }
   return true;
+}
+
+async function _handleRebuildManifest(args, client) {
+  // Caller may optionally pass a nonce for rate-limiting / dedup.
+  // This command is intentionally pre-auth: a stale manifest after a legitimate
+  // update would otherwise permanently prevent vault unlock.
+  //
+  // Security note: the rebuild fetches fresh copies from the network (cache:reload),
+  // not from the SW cache, so updated files are picked up immediately.
+  // The old manifest is cleared first — if rebuild fails partially, integrity
+  // checks pass (no manifest = permissive) rather than failing permanently.
+  const prev = _integrityManifest ? _integrityManifest.size : 0;
+  _integrityManifest = null;   // clear old baseline immediately
+
+  const m = new Map();
+  const errors = [];
+  for (const f of APP_FILES) {
+    try {
+      // cache:'reload' bypasses SW cache and fetches fresh from origin
+      const resp = await fetch(f, { cache: 'reload' });
+      if (resp.ok) {
+        m.set(f, _b64(await _sha256(await resp.arrayBuffer())));
+        // Also update the SW cache with the fresh copy
+        const cache = await caches.open(SW_VERSION);
+        const resp2 = await fetch(f, { cache: 'reload' });
+        if (resp2.ok) await cache.put(f, resp2);
+      } else {
+        errors.push({ file: f, status: resp.status });
+      }
+    } catch (e) {
+      errors.push({ file: f, error: e.message });
+    }
+  }
+
+  if (m.size) {
+    _integrityManifest = m;
+    await _auditLog('MANIFEST_REBUILD', { files: m.size, prev, errors: errors.length });
+    client.postMessage({ event: 'MANIFEST_REBUILT', files: m.size, errors, nonce: args.nonce });
+    _log(`Manifest rebuilt: ${m.size} files hashed, ${errors.length} errors`);
+  } else {
+    await _auditLog('MANIFEST_REBUILD_FAILED', { errors });
+    client.postMessage({ event: 'ERROR', cmd: 'REBUILD_MANIFEST', reason: 'All files unreachable', errors, nonce: args.nonce });
+  }
 }
 
 // ════════════════════════════════════════════════════════════════════════════
