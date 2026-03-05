@@ -2098,7 +2098,7 @@ contract Token {
     </div>
   </div>
 
-  <div class="log" id="inv-log" style="margin-top:12px;height:90px;"></div><div class="ll ok">[11:25:15.886] IDENTITY: PASS</div><div class="ll info">[11:25:16.803] Starting full invariant verification…</div><div class="ll ok">[11:25:16.803] IDENTITY: PASS — ok</div><div class="ll ok">[11:25:16.804] ENTROPY: PASS — ok</div><div class="ll ok">[11:25:16.805] ATOMICITY: PASS — empty ledger</div><div class="ll ok">[11:25:16.805] REPAYMENT: PASS — Balance: 0 · Supply: 100Q · No negative balance detected</div><div class="ll ok">[11:25:16.806] SIGNATURE: PASS — key present</div><div class="ll ok">[11:25:16.807] PROJECTION: PASS — determinism verified live</div><div class="ll err">[11:25:16.807] RECOVERY: FAIL — exception: Shamir is not defined</div><div class="ll ok">[11:25:16.810] EXPLOIT: PASS — no violations</div><div class="ll err">[11:25:16.811] Verification complete: 7 pass · 0 warn · 1 fail</div><div class="ll info">[11:25:19.902] Verifying entropy…</div><div class="ll ok">[11:25:19.902] ENTROPY: PASS</div><div class="ll info">[11:25:21.669] Verifying repayment…</div><div class="ll ok">[11:25:21.670] REPAYMENT: PASS</div><div class="ll info">[11:25:22.853] Verifying atomicity…</div><div class="ll ok">[11:25:22.853] ATOMICITY: PASS</div><div class="ll info">[11:25:23.585] Verifying identity…</div><div class="ll ok">[11:25:23.585] IDENTITY: PASS</div><div class="ll info">[11:25:24.185] Starting full invariant verification…</div><div class="ll ok">[11:25:24.185] IDENTITY: PASS — ok</div><div class="ll ok">[11:25:24.186] ENTROPY: PASS — ok</div><div class="ll ok">[11:25:24.186] ATOMICITY: PASS — empty ledger</div><div class="ll ok">[11:25:24.186] REPAYMENT: PASS — Balance: 0 · Supply: 100Q · No negative balance detected</div><div class="ll ok">[11:25:24.187] SIGNATURE: PASS — key present</div><div class="ll ok">[11:25:24.187] PROJECTION: PASS — determinism verified live</div><div class="ll err">[11:25:24.187] RECOVERY: FAIL — exception: Shamir is not defined</div><div class="ll ok">[11:25:24.188] EXPLOIT: PASS — no violations</div><div class="ll err">[11:25:24.191] Verification complete: 7 pass · 0 warn · 1 fail</div><div class="ll info">[12:50:56.216] Verifying identity…</div><div class="ll ok">[12:50:56.216] IDENTITY: PASS</div><div class="ll info">[12:50:56.917] Verifying identity…</div><div class="ll ok">[12:50:56.918] IDENTITY: PASS</div><div class="ll info">[12:50:57.467] Verifying identity…</div><div class="ll ok">[12:50:57.467] IDENTITY: PASS</div><div class="ll info">[12:50:58.434] Starting full invariant verification…</div><div class="ll ok">[12:50:58.434] IDENTITY: PASS — ok</div><div class="ll ok">[12:50:58.434] ENTROPY: PASS — ok</div><div class="ll ok">[12:50:58.435] ATOMICITY: PASS — empty ledger</div><div class="ll ok">[12:50:58.435] REPAYMENT: PASS — Balance: 0 · Supply: 100Q · No negative balance detected</div><div class="ll ok">[12:50:58.435] SIGNATURE: PASS — key present</div><div class="ll ok">[12:50:58.436] PROJECTION: PASS — determinism verified live</div><div class="ll warn">[12:50:58.436] RECOVERY: WARN — shares in UI only, not memory-verifiable</div><div class="ll ok">[12:50:58.437] EXPLOIT: PASS — no violations</div><div class="ll warn">[12:50:58.438] Verification complete: 7 pass · 1 warn · 0 fail</div></div>
+  <div class="log" id="inv-log" style="margin-top:12px;height:90px;"></div></div>
 </div>
 
 
@@ -6079,7 +6079,8 @@ const InvariantEngine = (() => {
           _setResult('recovery', '<span style="color:var(--yellow);">⚠ Shamir module not yet available · refresh page or wait for module init · shares are in memory</span>');
           _setBadge('recovery', 'WARN');
           return { pass: false, warn: true, reason: 'Shamir module not yet exported to window' };
-        }        const allShares = window._sovereignShares; // Uint8Array[]
+        }
+        const allShares = window._sovereignShares; // Uint8Array[]
         // Test: reconstruct from shares [0,1,2], [1,2,3], [0,2,4] — all should equal original
         const combos = [[0,1,2],[1,2,3],[0,2,4]];
         const results = [];
@@ -6593,16 +6594,22 @@ const DevTools = (() => {
   }
 
   function fixShamir() {
-    _flog('Checking ShamirRecovery…', 'info');
-    if (typeof ShamirRecovery !== 'undefined') {
-      _flog('ShamirRecovery already present — no fix needed', 'ok');
+    _flog('Checking Shamir + ShamirRecovery…', 'info');
+    const hasShamirMod   = typeof window.Shamir !== 'undefined' && typeof window.Shamir.combine === 'function';
+    const hasRecoveryMod = typeof window.ShamirRecovery !== 'undefined';
+    if (hasShamirMod && hasRecoveryMod) {
+      _flog('Shamir + ShamirRecovery both present on window — no fix needed', 'ok');
       return;
     }
+    if (!hasShamirMod)   _flog('window.Shamir missing — module may not have initialised yet', 'warn');
+    if (!hasRecoveryMod) _flog('window.ShamirRecovery missing — module may not have initialised yet', 'warn');
     // Attempt to re-trigger initialisation by dispatching a custom event
     window.dispatchEvent(new CustomEvent('sovereign-reinit', { detail: { module: 'ShamirRecovery' } }));
     setTimeout(() => {
-      if (typeof ShamirRecovery !== 'undefined') _flog('ShamirRecovery recovered via re-init event', 'ok');
-      else _flog('ShamirRecovery still missing — may need page reload after identity generation', 'warn');
+      if (typeof window.Shamir !== 'undefined' && typeof window.ShamirRecovery !== 'undefined')
+        _flog('Shamir modules recovered via re-init event ✓', 'ok');
+      else
+        _flog('Shamir modules still missing — reload the page to re-initialise', 'warn');
     }, 500);
   }
 
