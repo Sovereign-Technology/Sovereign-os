@@ -703,7 +703,7 @@ body {
             </div>
             <iframe id="app-preview-frame"
               style="flex:1;border:1px solid rgba(255,255,255,0.07);border-radius:6px;background:#fff;min-height:0;"
-              sandbox="allow-scripts allow-same-origin"></iframe>
+              sandbox="allow-scripts"></iframe>
           </div>
 
         </div>
@@ -1912,6 +1912,7 @@ Return ONLY valid JSON with this structure:
 
   // ── Smart blueprint builder — understands what you want to build ──
   function _smartBlueprint(desc, id) {
+    desc = window.sanitize ? window.sanitize(desc) : desc.replace(/<[^>]*>/g, '');
     const d = desc.toLowerCase();
 
     // Detect app type from description keywords
@@ -2682,23 +2683,33 @@ function refreshAppsTab() {
 
     const card = document.createElement('div');
     card.className = 'app-card';
-    card.innerHTML = `
-      <div class="app-card-header">
-        <div class="app-icon">${icon}</div>
-        <div>
-          <div class="app-name">${bp.name || 'Untitled App'}</div>
-          <div class="app-version">${bp.version || '1.0.0'}</div>
-        </div>
-      </div>
-      <div class="app-desc">${bp.description || app.source?.substring(0, 100) || '—'}</div>
-      <div class="app-footer">
-        <span class="status-pill ${statusCls}">${statusText}</span>
-        <div style="display:flex;gap:6px;">
-          <button class="btn btn-sm" onclick="loadApp(${i})">Edit</button>
-          <button class="btn btn-sm" onclick="deleteApp(${i})">Delete</button>
-        </div>
-      </div>
-    `;
+
+    // Build card with DOM API — no innerHTML for user-sourced data
+    const header = document.createElement('div'); header.className = 'app-card-header';
+    const iconEl = document.createElement('div'); iconEl.className = 'app-icon'; iconEl.textContent = icon;
+    const meta   = document.createElement('div');
+    const nameEl = document.createElement('div'); nameEl.className = 'app-name';
+    nameEl.textContent = window.sanitize(bp.name) || 'Untitled App';
+    const verEl  = document.createElement('div'); verEl.className = 'app-version';
+    verEl.textContent = window.sanitize(bp.version) || '1.0.0';
+    meta.appendChild(nameEl); meta.appendChild(verEl);
+    header.appendChild(iconEl); header.appendChild(meta);
+
+    const descEl = document.createElement('div'); descEl.className = 'app-desc';
+    descEl.textContent = window.sanitize(bp.description) || window.sanitize((app.source || '').substring(0, 100)) || '—';
+
+    const footer = document.createElement('div'); footer.className = 'app-footer';
+    const pill   = document.createElement('span'); pill.className = 'status-pill ' + statusCls;
+    pill.textContent = statusText;
+    const btns   = document.createElement('div'); btns.style.cssText = 'display:flex;gap:6px;';
+    const editBtn = document.createElement('button'); editBtn.className = 'btn btn-sm';
+    editBtn.textContent = 'Edit';   editBtn.onclick = () => loadApp(i);
+    const delBtn  = document.createElement('button'); delBtn.className = 'btn btn-sm';
+    delBtn.textContent  = 'Delete'; delBtn.onclick  = () => deleteApp(i);
+    btns.appendChild(editBtn); btns.appendChild(delBtn);
+    footer.appendChild(pill); footer.appendChild(btns);
+
+    card.appendChild(header); card.appendChild(descEl); card.appendChild(footer);
     grid.appendChild(card);
   });
 }
