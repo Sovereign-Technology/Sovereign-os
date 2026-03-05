@@ -331,7 +331,10 @@ async function _handleBoot(args, client) {
   _myDid       = args.did || _myDid;
   _myPubKeyB64 = args.pubKey || _myPubKeyB64;
   if (_myDid) _registry.set(_myDid, { pubKeyB64: _myPubKeyB64, ts: Date.now(), self: true });
-  await _issueCapability(client.id, CAP.READ_MESSAGES);
+  // Grant READ_MESSAGES + ADMIN at boot so the page can call allowDomain during
+  // initialisation (before the vault is unlocked). Signing/sealing still requires
+  // vault unlock — those caps are only granted by _handleVaultUnlock.
+  await _issueCapability(client.id, CAP.READ_MESSAGES | CAP.ADMIN);
   _broadcast({ event: 'SW_READY', did: _myDid, version: SW_VERSION });
   _auditLog('BOOT', { did: _myDid, clientId: client.id });
 }
@@ -1431,29 +1434,40 @@ async function _generateKeys() {
 async function _wrapVault(keys, passphrase) {
   const salt    = crypto.getRandomValues(new Uint8Array(16));
   const pbkdf   = await crypto.subtle.importKey('raw', _str2b(passphrase), 'PBKDF2', false, ['deriveKey']);
+  // Use AES-GCM (not AES-KW) — AES-KW requires plaintext to be a multiple of 8 bytes,
+  // but PKCS8-encoded P-256 private keys are 138 bytes (not a multiple of 8).
   const wrapKey = await crypto.subtle.deriveKey(
     { name:'PBKDF2', salt, iterations:600000, hash:'SHA-256' },
-    pbkdf, { name:'AES-KW', length:256 }, false, ['wrapKey','unwrapKey']
+    pbkdf, { name:'AES-GCM', length:256 }, false, ['wrapKey','unwrapKey']
   );
-  const wSig  = await crypto.subtle.wrapKey('pkcs8', keys.signingKey,  wrapKey, 'AES-KW');
-  const wEch  = await crypto.subtle.wrapKey('pkcs8', keys.exchangeKey, wrapKey, 'AES-KW');
+  const ivSig = crypto.getRandomValues(new Uint8Array(12));
+  const ivEch = crypto.getRandomValues(new Uint8Array(12));
+  const wSig  = await crypto.subtle.wrapKey('pkcs8', keys.signingKey,  wrapKey, { name:'AES-GCM', iv:ivSig });
+  const wEch  = await crypto.subtle.wrapKey('pkcs8', keys.exchangeKey, wrapKey, { name:'AES-GCM', iv:ivEch });
   const verPub= await crypto.subtle.exportKey('raw', keys.verifyKey);
   const echPub= await crypto.subtle.exportKey('raw', keys.exchPubKey);
   const audRaw= await crypto.subtle.exportKey('raw', keys.auditKey);
-  return { salt:_b64(salt), wSig:_b64(wSig), wEch:_b64(wEch),
-           verPub:_b64(verPub), echPub:_b64(echPub), audKey:_b64(audRaw), v:2 };
+  return { salt:_b64(salt), ivSig:_b64(ivSig), ivEch:_b64(ivEch),
+           wSig:_b64(wSig), wEch:_b64(wEch),
+           verPub:_b64(verPub), echPub:_b64(echPub), audKey:_b64(audRaw), v:3 };
 }
 
 async function _unwrapVault(blob, passphrase) {
   const salt    = _fromB64(blob.salt);
   const pbkdf   = await crypto.subtle.importKey('raw', _str2b(passphrase), 'PBKDF2', false, ['deriveKey']);
+  // v3+ uses AES-GCM; v2 (legacy) used AES-KW which had the 8-byte alignment bug
+  const isLegacy = (blob.v || 2) < 3;
+  const wrapAlgo = isLegacy ? 'AES-KW' : 'AES-GCM';
+  const wrapUsages = isLegacy ? ['wrapKey','unwrapKey'] : ['wrapKey','unwrapKey'];
   const wrapKey = await crypto.subtle.deriveKey(
     { name:'PBKDF2', salt, iterations:600000, hash:'SHA-256' },
-    pbkdf, { name:'AES-KW', length:256 }, false, ['wrapKey','unwrapKey']
+    pbkdf, { name: wrapAlgo, length:256 }, false, wrapUsages
   );
-  const signingKey  = await crypto.subtle.unwrapKey('pkcs8', _fromB64(blob.wSig), wrapKey, 'AES-KW',
+  const unwrapSigAlgo = isLegacy ? 'AES-KW' : { name:'AES-GCM', iv:_fromB64(blob.ivSig) };
+  const unwrapEchAlgo = isLegacy ? 'AES-KW' : { name:'AES-GCM', iv:_fromB64(blob.ivEch) };
+  const signingKey  = await crypto.subtle.unwrapKey('pkcs8', _fromB64(blob.wSig), wrapKey, unwrapSigAlgo,
     { name:'ECDSA', namedCurve:'P-256' }, false, ['sign']);
-  const exchangeKey = await crypto.subtle.unwrapKey('pkcs8', _fromB64(blob.wEch), wrapKey, 'AES-KW',
+  const exchangeKey = await crypto.subtle.unwrapKey('pkcs8', _fromB64(blob.wEch), wrapKey, unwrapEchAlgo,
     { name:'ECDH', namedCurve:'P-256' }, false, ['deriveBits']);
   const verifyKey   = await crypto.subtle.importKey('raw', _fromB64(blob.verPub),
     { name:'ECDSA', namedCurve:'P-256' }, true, ['verify']);
