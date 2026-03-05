@@ -297,8 +297,9 @@ window.SovereignFSM = (() => {
     _cascadePanic(payload) {
       for (const m of [this.vault, this.identity, this.transport, this.kdf]) {
         if (m.state !== 'PANICKED') {
+          const prev = m._state;          // capture BEFORE overwrite
           m._state = 'PANICKED';
-          m._history.push({ from: m._state, to:'PANICKED', event:'PANIC_CASCADE', ts: Date.now(), payload });
+          m._history.push({ from: prev, to:'PANICKED', event:'PANIC_CASCADE', ts: Date.now(), payload });
         }
       }
       for (const r of this._ratchets.values()) {

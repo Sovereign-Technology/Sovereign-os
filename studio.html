@@ -1545,7 +1545,7 @@ Return ONLY valid JSON with this structure:
 
   function _sovNav(name, cat) {
     return '<div id="topnav">'
-      + '<a class="nav-back" href="genesis_node.html">&#x2190; GENESIS</a>'
+      + '<a class="nav-back" href="index.html">&#x2190; GENESIS</a>'
       + '<div class="nav-logo">' + String(name).toUpperCase() + ' <em>// ' + String(cat || 'APP') + '</em></div>'
       + '<div class="nav-id"><span class="dot"></span><span id="nav-user">not signed in</span></div>'
       + '</div>';
@@ -1891,7 +1891,7 @@ Return ONLY valid JSON with this structure:
       + JSON.stringify(bp, null, 2) + '\n\n'
       + 'Output ONE complete HTML file. Requirements:\n'
       + '1. CSS must use these exact vars: --bg:#060d06\n'
-      + '2. topnav: id="topnav", back link class="nav-back" href="genesis_node.html"\n'
+      + '2. topnav: id="topnav", back link class="nav-back" href="index.html"\n'
       + '3. Content in: <div class="wrap"><div class="page">\n'
       + '4. Classes: .panel .g2 .g3 .metric .btn .card .badge .log .br .f\n'
       + '5. JS: localStorage only, BroadcastChannel("sovereign_dht") for mesh\n'

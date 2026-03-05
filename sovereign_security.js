@@ -555,8 +555,8 @@ self.onmessage = async function(e) {
       rebtn.disabled = true;
       try {
         // Use KernelBridge if available, else post directly to SW
-        if (window.SovereignKernel?.rebuildManifest) {
-          await window.SovereignKernel.rebuildManifest();
+        if (window.SovereignKernel?.rebuildIntegrityManifest) {
+          await window.SovereignKernel.rebuildIntegrityManifest();
         } else {
           const reg = await navigator.serviceWorker.ready;
           const nonce = Math.random().toString(36).slice(2);
