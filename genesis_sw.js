@@ -270,9 +270,9 @@ self.addEventListener('message', (e) => {
   };
 
   if (dispatch[cmd]) {
-    dispatch[cmd]().catch(err => {
-      _auditAppend('CMD_ERROR', { cmd, error: err.message });
-      reply({ error: err.message, cmd });
+    (async () => dispatch[cmd]())().catch(err => {
+      _auditAppend('CMD_ERROR', { cmd, error: err?.message ?? String(err) });
+      reply({ error: err?.message ?? String(err), cmd });
     });
   } else {
     reply({ error: `Unknown command: ${cmd}` });

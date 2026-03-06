@@ -1651,8 +1651,13 @@
             });
           }
         };
-        // Fire ready event once SW is active
-        const fire = () => window.dispatchEvent(new CustomEvent('sovereign:sw:ready'));
+        // Fire ready event once SW is active — guard against double-fire
+        let _swReadyFired = false;
+        const fire = () => {
+          if (_swReadyFired) return;
+          _swReadyFired = true;
+          window.dispatchEvent(new CustomEvent('sovereign:sw:ready'));
+        };
         if (reg.active) {
           fire();
         } else {
