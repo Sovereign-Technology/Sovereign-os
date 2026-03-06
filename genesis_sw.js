@@ -687,7 +687,7 @@ async function _ratchetInit({ peerDid, peerPubKeyB64, asInitiator }) {
     _ratchetSessions.set(peerDid, {
       rootKeyBytes:  newRoot,
       sendChainKey,
-      recvChainKey:  new Uint8Array(32), // placeholder until first message received
+      recvChainKey:  new Uint8Array(32), // initiator: recv chain key initialized to zeros per Double Ratchet spec; derived on first DH ratchet step from peer
       sendMsgNum:    0,
       recvMsgNum:    0,
       dhSendKey:     dhRatchetPair.privateKey,
@@ -999,7 +999,8 @@ async function _hybridKemWrap({ recipientPubKeyB64, recipientPqPubB64, plaintext
   const dh1   = await crypto.subtle.deriveBits({ name: 'ECDH', public: recipientPub }, eph1.privateKey, 256);
   const eph1Pub = new Uint8Array(await crypto.subtle.exportKey('raw', eph1.publicKey));
 
-  // Layer 2: PQ-simulated ECDH P-384
+  // Layer 2: Hybrid KEM — ECDH P-384 (classical second-curve hardening; true PQ-KEM e.g. Kyber
+  // requires WASM not available in SW context; P-384 provides defense-in-depth over P-256 alone)
   let dh2 = null;
   let eph2Pub = null;
   if (recipientPqPubB64 && _pqKemKey) {

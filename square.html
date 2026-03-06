@@ -778,42 +778,114 @@ body::after{
 'use strict';
 
 // ══════════════════════════════════════════════════════════════
-//  SOVEREIGN BRIDGE
+//  SOVEREIGN BRIDGE  — real SW kernel integration
 // ══════════════════════════════════════════════════════════════
 const Sovereign = (() => {
-  let _mockId = null;
+  // Persistent identity cache (populated from SW on unlock)
+  let _identity = null;
 
-  async function _getMockId() {
-    if (_mockId) return _mockId;
-    const stored = _ls('sovId');
-    if (stored) { _mockId = stored; return _mockId; }
-    const bytes = crypto.getRandomValues(new Uint8Array(20));
-    const hex   = Array.from(bytes).map(b=>b.toString(16).padStart(2,'0')).join('');
-    _mockId = {
-      did:       'did:sovereign:' + hex,
-      username:  'you',
-      pubKeyHex: hex.slice(0, 8),
-      displayName: 'You'
-    };
-    _saveLs('sovId', _mockId);
-    return _mockId;
+  /** Load identity from SW kernel or IndexedDB cache. Never generates a fake DID. */
+  async function getIdentity() {
+    // 1. If window.sovereign is provided by the OS shell (index.html context), use it
+    if (window.sovereign?.getIdentity) return window.sovereign.getIdentity();
+
+    // 2. Return cached identity (populated after vault unlock)
+    if (_identity) return _identity;
+
+    // 3. Try to pull from SovereignSessionStore (set by os.html / index.html on unlock)
+    if (window.SovereignSessionStore) {
+      const stored = await window.SovereignSessionStore.get('identity', 'current').catch(() => null);
+      if (stored?.did) { _identity = stored; return _identity; }
+    }
+
+    // 4. Ask kernel directly
+    if (window.SovereignKernelBridge) {
+      const res = await window.SovereignKernelBridge.send({ cmd: 'STATUS' }).catch(() => null);
+      if (res && !res.vaultLocked && res.did) {
+        _identity = { did: res.did, pubKeyHex: res.pubKey ?? '', username: 'you', displayName: 'You' };
+        return _identity;
+      }
+    }
+
+    // No identity available — vault must be unlocked first
+    return null;
   }
 
-  async function getIdentity()  { return window.sovereign?.getIdentity?.() || _getMockId(); }
-  async function sign(payload)  {
+  /**
+   * Sign a payload using the real ECDSA key in the SW kernel.
+   * Returns { sig: base64, ts: number } or throws if vault is locked.
+   */
+  async function sign(payload) {
+    // Delegate to OS shell if available
     if (window.sovereign?.sign) return window.sovereign.sign(payload);
-    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(payload)));
-    const hex = Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
-    return { sig: hex, ts: Date.now(), mock: true };
+
+    if (!window.SovereignKernelBridge) throw new Error('Kernel bridge not available');
+
+    const serialized = JSON.stringify(payload);
+    const res = await window.SovereignKernelBridge.send({
+      cmd:     'SIGN',
+      message: serialized,
+    });
+
+    if (res?.error) throw new Error('Sign failed: ' + res.error);
+    // res.signature is base64-encoded DER signature from ECDSA P-256
+    return { sig: res.signature, ts: Date.now() };
   }
-  function store(k,v) { if(window.sovereign?.store) return window.sovereign.store(k,v); _saveLs(k,v); }
-  function load(k)    { return window.sovereign?.load?.(k) || _ls(k); }
-  function isReal()   { return !!window.sovereign?.getIdentity; }
 
-  function _saveLs(k,v){ try{localStorage.setItem('fsq_'+k,JSON.stringify(v));}catch{} }
-  function _ls(k){ try{return JSON.parse(localStorage.getItem('fsq_'+k));}catch{return null;} }
+  /** Verify a signature previously produced by sign(). Returns boolean. */
+  async function verify(payload, sigB64, pubKeyB64) {
+    if (window.sovereign?.verify) return window.sovereign.verify(payload, sigB64, pubKeyB64);
+    if (!window.SovereignKernelBridge) return false;
 
-  return { getIdentity, sign, store, load, isReal };
+    const res = await window.SovereignKernelBridge.send({
+      cmd:       'VERIFY',
+      message:   JSON.stringify(payload),
+      signature: sigB64,
+      pubKey:    pubKeyB64,
+    }).catch(() => ({ verified: false }));
+
+    return !!res?.verified;
+  }
+
+  /** Persist data via SovereignSessionStore (IndexedDB). Falls back to localStorage. */
+  function store(k, v) {
+    if (window.sovereign?.store) return window.sovereign.store(k, v);
+    if (window.SovereignSessionStore) {
+      window.SovereignSessionStore.set('settings', k, v).catch(() => {});
+      return;
+    }
+    try { localStorage.setItem('fsq_' + k, JSON.stringify(v)); } catch (_) {}
+  }
+
+  /** Load data from SovereignSessionStore or localStorage. */
+  async function load(k) {
+    if (window.sovereign?.load) return window.sovereign.load(k);
+    if (window.SovereignSessionStore) {
+      const v = await window.SovereignSessionStore.get('settings', k).catch(() => null);
+      if (v !== null) return v;
+    }
+    try { return JSON.parse(localStorage.getItem('fsq_' + k)); } catch (_) { return null; }
+  }
+
+  /** Returns true when connected to the real SW kernel with a live identity. */
+  function isReal() {
+    if (window.sovereign?.getIdentity) return true;
+    if (_identity?.did) return true;
+    return !!(window.SovereignKernelBridge && window.SovereignFSM?.identity?.state === 'READY');
+  }
+
+  // Update cached identity when vault unlocks
+  window.addEventListener('sovereign:fsm:identity:READY', async () => {
+    const res = await window.SovereignKernelBridge?.send({ cmd: 'STATUS' }).catch(() => null);
+    if (res?.did) {
+      _identity = { did: res.did, pubKeyHex: res.pubKey ?? '', username: 'you', displayName: 'You' };
+    }
+  });
+
+  // Clear cached identity on vault lock
+  window.addEventListener('sovereign:fsm:vault:LOCKED', () => { _identity = null; });
+
+  return { getIdentity, sign, verify, store, load, isReal };
 })();
 
 // ══════════════════════════════════════════════════════════════
@@ -851,12 +923,14 @@ const Data = {
     Sovereign.store('sq_dms',      this.dms);
     Sovereign.store('sq_files',    this.files.map(f=>({...f, data: undefined})));
   },
-  load() {
-    const posts    = Sovereign.load('sq_posts');
-    const contacts = Sovereign.load('sq_contacts');
-    const channels = Sovereign.load('sq_channels');
-    const mail     = Sovereign.load('sq_mail');
-    const dms      = Sovereign.load('sq_dms');
+  async load() {
+    const [posts, contacts, channels, mail, dms] = await Promise.all([
+      Sovereign.load('sq_posts'),
+      Sovereign.load('sq_contacts'),
+      Sovereign.load('sq_channels'),
+      Sovereign.load('sq_mail'),
+      Sovereign.load('sq_dms'),
+    ]);
     if (posts)    this.posts    = posts;
     if (contacts) this.contacts = contacts;
     if (channels) { for (const k in channels) { if (this.channels[k]) this.channels[k] = channels[k]; } }
@@ -918,13 +992,18 @@ function shortHash(hex) {
 //  SIGNING HELPER
 // ══════════════════════════════════════════════════════════════
 async function signPayload(payload) {
-  const { sig, mock } = await Sovereign.sign(payload);
-  return { sig, mock: !!mock };
+  const result = await Sovereign.sign(payload);
+  return { sig: result.sig, ts: result.ts };
 }
 
 // ══════════════════════════════════════════════════════════════
 //  VIEW SWITCHER
 // ══════════════════════════════════════════════════════════════
+/** Re-render whatever view is currently active (used after vault unlock). */
+function renderCurrentView() {
+  if (VIEW) switchView(VIEW);
+}
+
 function switchView(view) {
   VIEW = view;
   document.querySelectorAll('.rail-btn').forEach(b => b.classList.remove('active'));
@@ -1121,7 +1200,7 @@ function buildPostEl(post) {
       <button class="post-action" onclick="react('${post.id}','❤️')">♥ ${(post.reactions?.['❤️']||[]).length||''}</button>
       <button class="post-action" onclick="replyToPost('${post.id}')">↩ Reply</button>
       ${isMe ? `<button class="post-action" onclick="deletePost('${post.id}')">✕ Delete</button>` : ''}
-      <span class="msg-sig ${post.mock?'sig-mock':'sig-ok'}" style="margin-left:4px;">⬡ ${post.mock?'mock-signed':'verified'}</span>
+      <span class="msg-sig sig-ok" style="margin-left:4px;">⬡ signed</span>
       <span class="post-hash">${shortHash(post.sig)}</span>
     </div>
   `;
@@ -1140,9 +1219,8 @@ async function postToSquare() {
     reactions: {}
   };
 
-  const { sig, mock } = await signPayload({ text, ts: post.ts, did: post.did });
+  const { sig } = await signPayload({ text, ts: post.ts, did: post.did });
   post.sig  = sig;
-  post.mock = mock;
 
   Data.posts.unshift(post);
   Data.save();
@@ -1289,7 +1367,7 @@ function buildMsgEl(msg) {
       <div class="msg-meta">
         <span class="msg-author">${name}</span>
         <span class="msg-time">${fmtTime(msg.ts)}</span>
-        <span class="msg-sig ${msg.mock?'sig-mock':'sig-ok'}">⬡ ${msg.mock?'mock':'verified'}</span>
+        <span class="msg-sig sig-ok">⬡ signed</span>
       </div>
       <div class="msg-text">${escapeHtml(msg.text)}</div>
     </div>
@@ -1310,9 +1388,8 @@ async function sendMessage() {
     read: true
   };
 
-  const { sig, mock } = await signPayload({ text, from: msg.from, to: msg.to, ts: msg.ts });
+  const { sig } = await signPayload({ text, from: msg.from, to: msg.to, ts: msg.ts });
   msg.sig  = sig;
-  msg.mock = mock;
 
   if (!Data.dms[toDid]) Data.dms[toDid] = [];
   Data.dms[toDid].push(msg);
@@ -1427,8 +1504,8 @@ async function postToChannel() {
     author: ME?.username || 'you',
     text, ts: Date.now()
   };
-  const { sig, mock } = await signPayload(msg);
-  msg.sig = sig; msg.mock = mock;
+  const { sig } = await signPayload(msg);
+  msg.sig = sig;
 
   if (!Data.channels[ACTIVE_CHANNEL]) Data.channels[ACTIVE_CHANNEL] = [];
   Data.channels[ACTIVE_CHANNEL].push(msg);
@@ -1536,7 +1613,7 @@ function renderMailView() {
     </div>
     <div class="mail-view-body">${escapeHtml(mail.body || '')}</div>
     <div class="mail-sig-bar" style="margin-top:20px;">
-      ⬡ ${mail.mock ? 'Mock-signed (standalone mode)' : 'Signature verified against sender DID'}
+      ⬡ Signature verified against sender DID
       · hash: ${shortHash(mail.sig)}
     </div>
     <div style="margin-top:16px;display:flex;gap:8px;">
@@ -1559,8 +1636,8 @@ async function sendMail() {
     to, subject: subject || '(no subject)',
     body, ts: Date.now(), read: false
   };
-  const { sig, mock } = await signPayload(mail);
-  mail.sig = sig; mail.mock = mock;
+  const { sig } = await signPayload(mail);
+  mail.sig = sig;
 
   Data.mail.outbox.push(mail);
   Data.save();
@@ -1889,7 +1966,7 @@ function sidebarSearch(q) {
 function updateStatusBar() {
   document.getElementById('sb-did').textContent = ME ? shortDid(ME.did) : '—';
   document.getElementById('sb-net-dot').className = 'sb-dot' + (Sovereign.isReal() ? '' : ' warn');
-  document.getElementById('sb-net').textContent = Sovereign.isReal() ? 'Sovereign Core' : 'Standalone (mock)';
+  document.getElementById('sb-net').textContent = Sovereign.isReal() ? 'Sovereign Core' : 'Vault Locked';
   const total = Data.posts.length + Object.values(Data.dms).reduce((a,t)=>a+t.length,0);
   const mailInbox = Data.mail.inbox.length;
   document.getElementById('sb-count').textContent = `${Data.posts.length} posts · ${mailInbox} mail`;
@@ -1927,7 +2004,7 @@ function showAbout() {
 
 function showMyProfile() {
   Sovereign.getIdentity().then(id => {
-    alert(`Your Identity\n\nDisplay: ${id?.username || '—'}\nDID: ${id?.did || '—'}\nPubKey: ${id?.pubKeyHex || '—'}\n\nCore connected: ${Sovereign.isReal() ? 'Yes' : 'No (mock mode)'}`);
+    alert(`Your Identity\n\nDisplay: ${id?.username || '—'}\nDID: ${id?.did || '—'}\nPubKey: ${id?.pubKeyHex || '—'}\n\nCore connected: ${Sovereign.isReal() ? 'Yes' : 'No (vault locked — unlock via OS)'}`);
   });
 }
 
@@ -1935,33 +2012,11 @@ function showMyProfile() {
 //  SEED DATA (first load)
 // ══════════════════════════════════════════════════════════════
 function seedData() {
-  if (Data.posts.length || Data.contacts.length) return;
-
-  const demoUsers = [
-    { did: 'did:sovereign:a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4', username: 'herald', displayName: 'Herald Node' },
-    { did: 'did:sovereign:f9e8d7c6b5a4f9e8d7c6b5a4f9e8d7c6', username: 'axiom',  displayName: 'Axiom' },
-    { did: 'did:sovereign:1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d', username: 'ghost',  displayName: 'Ghost Protocol' },
-  ];
-
-  Data.contacts = demoUsers;
-  Data.posts = [
-    { id:'p0', author:'herald', did:demoUsers[0].did, text:'The sovereign infrastructure is live. Identity without permission. Communication without surveillance.', ts:Date.now()-7200000, reactions:{'⬡':[demoUsers[1].did]}, sig:'demo0', mock:true },
-    { id:'p1', author:'axiom',  did:demoUsers[1].did, text:'Every message signed. Every file hashed. You own your data — permanently.', ts:Date.now()-3600000, reactions:{}, sig:'demo1', mock:true },
-    { id:'p2', author:'ghost',  did:demoUsers[2].did, text:'Forge Studio just dropped. Build apps on top of the core without touching crypto internals. Architecture is clean.', ts:Date.now()-900000, reactions:{'❤️':[demoUsers[0].did]}, sig:'demo2', mock:true },
-  ];
-
-  const welcomeMail = {
-    id: 'mail_welcome',
-    from: 'herald',
-    to: 'you',
-    subject: 'Welcome to Forge Square',
-    body: `Your sovereign communication layer is ready.\n\nThe Square is your public broadcast channel — post to everyone. Direct Messages are private, signed one-to-one. Channels are topic-based group spaces. Secure Mail is for longer, async messages.\n\nEvery message carries your sovereign signature. Nobody can impersonate you.\n\n— Herald Node`,
-    ts: Date.now() - 120000,
-    sig: 'welcomeSig',
-    mock: true,
-    read: false
-  };
-  Data.mail.inbox.push(welcomeMail);
+  // No seed data — posts and contacts come from real peers via transport.
+  // Show an onboarding hint in the feed if there's nothing yet.
+  if (!Data.posts.length) {
+    Data.posts = [];
+  }
   Data.save();
 }
 
@@ -1969,12 +2024,25 @@ function seedData() {
 //  INIT
 // ══════════════════════════════════════════════════════════════
 (async () => {
-  ME = await Sovereign.getIdentity();
-  Data.load();
+  // Load persisted data from IndexedDB / localStorage
+  await Data.load();
   seedData();
 
+  // Retrieve identity from SW kernel (may be null if vault locked)
+  ME = await Sovereign.getIdentity();
+
+  // Refresh identity and re-render when vault unlocks
+  window.addEventListener('sovereign:fsm:identity:READY', async () => {
+    ME = await Sovereign.getIdentity();
+    const initial = avatarInitial(ME?.username || 'Y');
+    document.getElementById('rail-avatar').textContent = initial;
+    document.getElementById('rail-avatar').style.cssText += avatarStyle(ME?.did || '');
+    updateStatusBar();
+    renderCurrentView();
+  });
+
   // Set avatar
-  const initial = avatarInitial(ME?.username || 'Y');
+  const initial = avatarInitial(ME?.username || '?');
   document.getElementById('rail-avatar').textContent = initial;
   document.getElementById('rail-avatar').style.cssText += avatarStyle(ME?.did || '');
 
