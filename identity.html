@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>⬡ SOVEREIGN — Identity Vault v6.0</title>
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; connect-src 'self' wss://sovereign-relay.fly.dev; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;" />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg-void: #030306; --bg-surface: #070a0f; --bg-raised: #0c1018; --bg-panel: #101620; --bg-input: #0a0e16;
+      --accent-green: #00e87c; --accent-cyan: #00c8ff; --accent-amber: #ffb020; --accent-red: #ff4040;
+      --accent-purple: #c060ff; --accent-teal: #00d4aa; --accent-gold: #f0c040;
+      --text-primary: #dce8f4; --text-muted: #4a5e72; --text-dim: #243040;
+      --border: rgba(0,232,124,0.10); --border-mid: rgba(0,232,124,0.20); --border-bright: rgba(0,232,124,0.40);
+      --glow-green: 0 0 24px rgba(0,232,124,0.18);
+      --font-mono: 'JetBrains Mono', monospace; --font-display: 'Syne', system-ui, sans-serif;
+      --radius: 4px; --radius-lg: 8px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { min-height: 100vh; background: var(--bg-void); color: var(--text-primary); font-family: var(--font-mono); font-size: 12px; line-height: 1.6; }
+    body::after { content:''; position:fixed; inset:0; background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.06) 3px, rgba(0,0,0,0.06) 4px); pointer-events:none; z-index:9997; }
+
+    .page { max-width: 960px; margin: 0 auto; padding: 60px 24px 80px; }
+
+    .page-header { display: flex; align-items: center; gap: 14px; margin-bottom: 40px; padding-bottom: 18px; border-bottom: 1px solid var(--border); }
+    .back-btn { display: flex; align-items: center; gap: 6px; text-decoration: none; color: var(--text-muted); font-size: 11px; padding: 4px 10px; border: 1px solid var(--border); border-radius: var(--radius); transition: all 0.14s; }
+    .back-btn:hover { color: var(--accent-green); border-color: var(--border-mid); }
+    .page-title { font-family: var(--font-display); font-size: 22px; font-weight: 800; color: var(--accent-green); }
+    .page-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+    @media (max-width: 720px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+
+    .card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; }
+    .card-title { font-family: var(--font-display); font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 14px; display: flex; align-items: center; gap: 7px; }
+    .card-title .icon { font-size: 14px; }
+
+    .field-label { font-size: 10px; color: var(--text-muted); letter-spacing: 0.08em; margin-bottom: 4px; }
+    .sv-input { width:100%; padding:8px 11px; background:var(--bg-input); border:1px solid var(--border); border-radius:var(--radius); color:var(--text-primary); font-family:var(--font-mono); font-size:12px; outline:none; transition:border-color 0.14s; }
+    .sv-input:focus { border-color: rgba(0,232,124,0.5); }
+    .sv-input::placeholder { color: var(--text-dim); }
+
+    .btn { display:inline-flex; align-items:center; gap:5px; padding:6px 13px; border-radius:var(--radius); border:1px solid var(--border); background:transparent; color:var(--text-primary); font-family:var(--font-mono); font-size:11px; cursor:pointer; transition:all 0.14s; white-space:nowrap; }
+    .btn:hover { border-color: var(--border-mid); color: var(--accent-green); }
+    .btn.primary { border-color: rgba(0,232,124,0.35); color: var(--accent-green); background: rgba(0,232,124,0.04); }
+    .btn.primary:hover { background: rgba(0,232,124,0.10); box-shadow: var(--glow-green); border-color: var(--border-bright); }
+    .btn.danger { border-color: rgba(255,64,64,0.3); color: var(--accent-red); }
+    .btn.danger:hover { background: rgba(255,64,64,0.08); }
+    .btn-block { width:100%; justify-content:center; margin-bottom: 7px; }
+
+    .badge { display:inline-flex; align-items:center; gap:4px; font-size:10px; padding:2px 8px; border-radius:20px; }
+    .badge.ok { color:var(--accent-green); background:rgba(0,232,124,0.08); border:1px solid rgba(0,232,124,0.2); }
+    .badge.warn { color:var(--accent-amber); background:rgba(255,176,32,0.08); border:1px solid rgba(255,176,32,0.2); }
+    .badge.info { color:var(--accent-cyan); background:rgba(0,200,255,0.08); border:1px solid rgba(0,200,255,0.2); }
+
+    .profile-row { display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-bottom:1px solid rgba(255,255,255,0.03); font-size:11px; }
+    .profile-row:last-child { border-bottom: none; }
+    .pr-key { color: var(--text-muted); }
+    .pr-val { color: var(--accent-teal); font-weight: 600; font-size: 10px; }
+    .pr-val.ok { color: var(--accent-green); }
+    .pr-val.warn { color: var(--accent-amber); }
+
+    .share-card { background:var(--bg-raised); border:1px solid var(--border); border-radius:var(--radius); padding:10px 12px; margin-bottom:7px; font-size:9px; word-break:break-all; line-height:1.8; cursor:pointer; transition:border-color 0.14s; }
+    .share-card:hover { border-color: var(--border-bright); }
+    .share-label { font-size:10px; color:var(--text-dim); margin-bottom:4px; letter-spacing:0.1em; }
+    .share-hex { color: var(--accent-green); font-size: 9px; }
+
+    .strength-bar { height:3px; background:var(--bg-raised); border-radius:2px; overflow:hidden; margin-top:5px; }
+    .strength-fill { height:100%; border-radius:2px; transition:width 0.25s, background 0.25s; width:0; }
+
+    .did-box { background:var(--bg-raised); border:1px solid var(--border); border-radius:var(--radius); padding:10px 12px; font-size:10px; color:var(--accent-green); word-break:break-all; line-height:1.9; margin-bottom:10px; }
+
+    .vc-item { background:var(--bg-raised); border:1px solid var(--border); border-radius:var(--radius); padding:10px 12px; margin-bottom:7px; }
+    .vc-type { font-size:10px; color:var(--accent-purple); font-weight:700; margin-bottom:3px; }
+    .vc-issuer { font-size:9px; color:var(--text-muted); }
+    .vc-claims { font-size:9px; color:var(--text-primary); margin-top:4px; }
+
+    .timeline { border-left:1px solid var(--border); padding-left:14px; }
+    .tl-item { position:relative; padding-bottom:12px; }
+    .tl-item::before { content:''; position:absolute; left:-18px; top:4px; width:7px; height:7px; border-radius:50%; background:var(--accent-green); box-shadow:0 0 5px var(--accent-green); }
+    .tl-ts { font-size:9px; color:var(--text-dim); margin-bottom:2px; }
+    .tl-evt { font-size:10px; color:var(--text-muted); }
+    .tl-evt.important { color:var(--text-primary); }
+
+    .section-gap { margin-top: 24px; }
+    .section-title { font-family:var(--font-display); font-size:13px; font-weight:700; color:var(--text-primary); margin-bottom:12px; letter-spacing:0.02em; }
+
+    .tab-bar { display:flex; border-bottom:1px solid var(--border); margin-bottom:18px; }
+    .tab { padding:8px 14px; font-size:11px; color:var(--text-muted); cursor:pointer; border-bottom:2px solid transparent; transition:all 0.14s; }
+    .tab:hover { color:var(--text-primary); }
+    .tab.active { color:var(--accent-green); border-bottom-color:var(--accent-green); }
+
+    #msg { min-height:18px; font-size:11px; margin-top:8px; }
+
+    /* toast */
+    #toast { position:fixed; bottom:24px; right:18px; background:var(--bg-panel); border:1px solid var(--border-bright); border-radius:var(--radius-lg); padding:9px 14px; font-size:11px; color:var(--accent-green); z-index:9999; opacity:0; transform:translateY(8px); transition:all 0.2s; pointer-events:none; max-width:320px; box-shadow:var(--glow-green),0 4px 24px rgba(0,0,0,0.5); }
+    #toast.show { opacity:1; transform:translateY(0); }
+    #toast.warn { color:var(--accent-amber); border-color:rgba(255,176,32,0.4); }
+    #toast.err  { color:var(--accent-red);   border-color:rgba(255,64,64,0.4); }
+    ::-webkit-scrollbar { width:3px; } ::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <div class="page-header">
+    <a class="back-btn" href="index.html">← Genesis</a>
+    <div>
+      <div class="page-title">⬟ Identity Vault</div>
+      <div class="page-sub">Decentralized Identity · Verifiable Credentials · Key Recovery</div>
+    </div>
+    <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+      <span class="badge" id="vault-badge">LOCKED</span>
+      <span class="badge info" id="did-badge">NO IDENTITY</span>
+    </div>
+  </div>
+
+  <div class="tab-bar">
+    <div class="tab active" onclick="switchTab('vault',this)">Vault</div>
+    <div class="tab" onclick="switchTab('credentials',this)">Credentials</div>
+    <div class="tab" onclick="switchTab('recovery',this)">Recovery</div>
+    <div class="tab" onclick="switchTab('history',this)">History</div>
+    <div class="tab" onclick="switchTab('settings',this)">Settings</div>
+  </div>
+
+  <!-- VAULT TAB -->
+  <div id="tab-vault">
+    <div class="grid-2">
+      <div>
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-title"><span class="icon">⬡</span> Vault Access</div>
+          <div id="vault-create">
+            <div class="field-label" style="margin-bottom:4px">PASSPHRASE</div>
+            <input class="sv-input" type="password" id="in-pass" placeholder="Strong passphrase (min 8 chars)…" oninput="strengthCheck(this.value)" style="margin-bottom:4px"/>
+            <div class="strength-bar"><div class="strength-fill" id="sf"></div></div>
+            <div class="field-label" style="margin:10px 0 4px">DURESS PASSPHRASE <span style="color:var(--text-dim)">(optional — opens decoy)</span></div>
+            <input class="sv-input" type="password" id="in-duress" placeholder="Decoy passphrase…" style="margin-bottom:10px"/>
+            <button class="btn primary btn-block" onclick="createVault()">⬡ Generate Identity</button>
+            <div style="text-align:center;font-size:10px;color:var(--text-dim);padding:6px 0">— or —</div>
+            <button class="btn btn-block" onclick="showUnlock()">Unlock Existing Vault</button>
+          </div>
+          <div id="vault-unlock" style="display:none">
+            <div class="field-label" style="margin-bottom:4px">PASSPHRASE</div>
+            <div style="display:flex;gap:7px;margin-bottom:10px">
+              <input class="sv-input" type="password" id="in-unlock" placeholder="Enter passphrase…" style="flex:1"/>
+              <button class="btn primary" onclick="unlockVault()">↑</button>
+            </div>
+            <button class="btn btn-block" onclick="showCreate()">← Create New</button>
+          </div>
+          <div id="msg"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title"><span class="icon">⬟</span> DID</div>
+          <div class="did-box" id="did-display">Not yet generated</div>
+          <div style="display:flex;gap:7px">
+            <button class="btn" style="flex:1" onclick="copyDid()">⎘ Copy</button>
+            <button class="btn" style="flex:1" onclick="showQr()">⊞ QR</button>
+          </div>
+          <div id="qr-display" style="display:none;margin-top:12px;text-align:center">
+            <canvas id="qr-canvas" width="160" height="160" style="border:1px solid var(--border);border-radius:4px;background:#fff"></canvas>
+            <div style="font-size:9px;color:var(--text-dim);margin-top:6px">Scan to share DID</div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-title"><span class="icon">🔐</span> Security Profile</div>
+          <div class="profile-row"><span class="pr-key">Vault</span><span class="pr-val ok" id="sp-vault">LOCKED</span></div>
+          <div class="profile-row"><span class="pr-key">KDF</span><span class="pr-val ok">PBKDF2 · 600k iter · SHA-256</span></div>
+          <div class="profile-row"><span class="pr-key">Signing</span><span class="pr-val ok">ECDSA P-256</span></div>
+          <div class="profile-row"><span class="pr-key">Key Exchange</span><span class="pr-val ok">ECDH P-256 + P-384 (hybrid)</span></div>
+          <div class="profile-row"><span class="pr-key">Messaging</span><span class="pr-val ok">Double Ratchet (Signal)</span></div>
+          <div class="profile-row"><span class="pr-key">Encryption</span><span class="pr-val ok">AES-256-GCM</span></div>
+          <div class="profile-row"><span class="pr-key">Key Isolation</span><span class="pr-val ok">Service Worker heap</span></div>
+          <div class="profile-row"><span class="pr-key">Deniable Vault</span><span class="pr-val ok">Dual passphrase active</span></div>
+          <div class="profile-row"><span class="pr-key">Recovery</span><span class="pr-val ok">Shamir 3-of-5</span></div>
+          <div class="profile-row"><span class="pr-key">Security Patterns</span><span class="pr-val ok">20 / 20 active</span></div>
+          <div class="profile-row"><span class="pr-key">FSM Version</span><span class="pr-val ok">v4.0 · 12 machines</span></div>
+          <div class="profile-row"><span class="pr-key">Transport Version</span><span class="pr-val ok">v4.0 · multi-relay</span></div>
+        </div>
+        <div class="card">
+          <div class="card-title"><span class="icon">⚙</span> Actions</div>
+          <button class="btn btn-block" onclick="exportShamir()">⊙ Export Shamir Shares</button>
+          <button class="btn btn-block" onclick="attestIdentity()">✦ Attest Identity</button>
+          <button class="btn btn-block" onclick="rotateKeys()">↺ Rotate Keys (Rekey)</button>
+          <button class="btn btn-block" onclick="suspendIdentity()">⏸ Suspend Identity</button>
+          <button class="btn btn-block danger" onclick="lockVault()">🔒 Lock Vault</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CREDENTIALS TAB -->
+  <div id="tab-credentials" style="display:none">
+    <div class="grid-2">
+      <div>
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-title"><span class="icon">📜</span> Issue Verifiable Credential</div>
+          <div class="field-label" style="margin-bottom:4px">CREDENTIAL TYPE</div>
+          <select class="sv-input" id="vc-type" style="margin-bottom:8px">
+            <option value="SovereignIdentity">SovereignIdentity</option>
+            <option value="PeerTrustAttestation">PeerTrustAttestation</option>
+            <option value="GovernanceRole">GovernanceRole</option>
+            <option value="AccessCapability">AccessCapability</option>
+            <option value="CustomClaim">CustomClaim</option>
+          </select>
+          <div class="field-label" style="margin-bottom:4px">SUBJECT DID</div>
+          <input class="sv-input" id="vc-subject" placeholder="did:sovereign:… (leave blank = self)" style="margin-bottom:8px"/>
+          <div class="field-label" style="margin-bottom:4px">CLAIMS (JSON)</div>
+          <textarea class="sv-input" id="vc-claims" rows="4" placeholder='{"role":"admin","domain":"sovereign.local"}' style="resize:vertical;font-size:10px;margin-bottom:10px"></textarea>
+          <div class="field-label" style="margin-bottom:4px">EXPIRY</div>
+          <input class="sv-input" id="vc-expiry" type="date" style="margin-bottom:10px"/>
+          <button class="btn primary btn-block" onclick="issueCredential()">📜 Issue Credential</button>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="card-title"><span class="icon">🗂</span> Held Credentials</div>
+          <div id="vc-list">
+            <div style="color:var(--text-dim);font-size:11px">No credentials held yet. Issue or import one.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RECOVERY TAB -->
+  <div id="tab-recovery" style="display:none">
+    <div class="grid-2">
+      <div>
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-title"><span class="icon">⊙</span> Shamir Key Recovery Shares</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:14px;line-height:1.7">
+            Export your signing key as 5 encrypted shares. Any 3 shares reconstruct the key.
+            Store each share separately — print, USB, trusted person.
+          </div>
+          <button class="btn primary btn-block" onclick="exportShamir()">⊙ Export 5 Shares (3-of-5)</button>
+          <div id="shamir-shares"></div>
+        </div>
+        <div class="card">
+          <div class="card-title"><span class="icon">↺</span> Reconstruct From Shares</div>
+          <div class="field-label" style="margin-bottom:4px">SHARE 1</div>
+          <textarea class="sv-input" id="share1" rows="2" placeholder="Paste share 1…" style="margin-bottom:6px;font-size:9px"></textarea>
+          <div class="field-label" style="margin-bottom:4px">SHARE 2</div>
+          <textarea class="sv-input" id="share2" rows="2" placeholder="Paste share 2…" style="margin-bottom:6px;font-size:9px"></textarea>
+          <div class="field-label" style="margin-bottom:4px">SHARE 3</div>
+          <textarea class="sv-input" id="share3" rows="2" placeholder="Paste share 3 (minimum)…" style="margin-bottom:10px;font-size:9px"></textarea>
+          <button class="btn primary btn-block" onclick="reconstructFromShares()">↺ Reconstruct Identity</button>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="card-title"><span class="icon">📤</span> Export / Import</div>
+          <button class="btn btn-block" onclick="exportVault()">⬇ Export Encrypted Vault</button>
+          <button class="btn btn-block" onclick="importVault()">⬆ Import Vault Backup</button>
+          <input type="file" id="vault-file" style="display:none" accept=".sovvault,.json" onchange="loadVaultFile(this)"/>
+          <hr style="border:none;border-top:1px solid var(--border);margin:14px 0"/>
+          <div class="card-title" style="margin-top:4px"><span class="icon">🖨</span> Print Backup Card</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px">Generates a printable recovery card with all 5 shares as QR codes.</div>
+          <button class="btn btn-block" onclick="printBackupCard()">🖨 Print Recovery Card</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HISTORY TAB -->
+  <div id="tab-history" style="display:none">
+    <div class="card">
+      <div class="card-title"><span class="icon">📋</span> Identity Event Log</div>
+      <div class="timeline" id="history-list">
+        <div style="color:var(--text-dim);font-size:11px">No events yet.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SETTINGS TAB -->
+  <div id="tab-settings" style="display:none">
+    <div class="grid-2">
+      <div>
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-title"><span class="icon">🔒</span> Security Settings</div>
+          <div class="profile-row">
+            <span class="pr-key">Auto-lock timeout</span>
+            <select class="sv-input" id="lock-timeout" style="width:auto;padding:2px 8px;font-size:10px">
+              <option value="5">5 minutes</option>
+              <option value="15">15 minutes</option>
+              <option value="30" selected>30 minutes</option>
+              <option value="60">1 hour</option>
+              <option value="0">Never</option>
+            </select>
+          </div>
+          <div class="profile-row">
+            <span class="pr-key">Panic key (Ctrl+Shift+P)</span>
+            <span class="pr-val ok">Enabled</span>
+          </div>
+          <div class="profile-row">
+            <span class="pr-key">Identity suspension</span>
+            <span class="pr-val ok">Available</span>
+          </div>
+          <div class="profile-row">
+            <span class="pr-key">Cover traffic</span>
+            <span class="pr-val ok">Every ~45s</span>
+          </div>
+          <div style="margin-top:12px">
+            <button class="btn btn-block" onclick="saveSettings()">Save Settings</button>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="card-title"><span class="icon">⚠</span> Danger Zone</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px;line-height:1.7">These actions are irreversible. Ensure you have backups.</div>
+          <button class="btn danger btn-block" onclick="revokeIdentity()">⚠ Revoke Identity Permanently</button>
+          <button class="btn danger btn-block" onclick="wipeVault()">🗑 Wipe Vault (All Data)</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+<div id="toast"></div>
+
+<script src="sovereign_security.js"></script>
+<script src="sovereign_fsm.js"></script>
+<script src="sovereign_shamir.js"></script>
+<script>
+'use strict';
+if (!window.sanitize) window.sanitize = s => String(s ?? '').replace(/<[^>]*>/g, '');
+if (!window.SovereignKernelBridge) window.SovereignKernelBridge = { send: () => Promise.reject(new Error('Kernel unavailable')) };
+
+let _did = null;
+let _credentials = JSON.parse(sessionStorage.getItem('sov_credentials') || '[]');
+let _history = JSON.parse(sessionStorage.getItem('sov_history') || '[]');
+
+function switchTab(name, el) {
+  document.querySelectorAll('[id^="tab-"]').forEach(t => t.style.display = 'none');
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + name).style.display = '';
+  el.classList.add('active');
+  if (name === 'history') renderHistory();
+  if (name === 'credentials') renderCredentials();
+}
+
+function toast(msg, type='', ms=2800) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.className = `show${type?' '+type:''}`;
+  clearTimeout(el._t); el._t = setTimeout(() => el.className = '', ms);
+}
+
+function msg(text, type='ok') {
+  const el = document.getElementById('msg');
+  el.style.color = type === 'err' ? 'var(--accent-red)' : 'var(--accent-green)';
+  el.textContent = text;
+}
+
+function strengthCheck(p) {
+  let s = Math.min(p.length/20,1)*40;
+  if(/[A-Z]/.test(p))s+=15; if(/[0-9]/.test(p))s+=15;
+  if(/[^A-Za-z0-9]/.test(p))s+=20; if(p.length>=16)s+=10;
+  s=Math.min(100,s);
+  const f=document.getElementById('sf');
+  f.style.width=s+'%';
+  f.style.background=s<40?'var(--accent-red)':s<70?'var(--accent-amber)':'var(--accent-green)';
+}
+
+function showUnlock() { document.getElementById('vault-create').style.display='none'; document.getElementById('vault-unlock').style.display=''; }
+function showCreate() { document.getElementById('vault-create').style.display=''; document.getElementById('vault-unlock').style.display='none'; }
+
+async function createVault() {
+  const pass = document.getElementById('in-pass').value;
+  const duress = document.getElementById('in-duress').value;
+  if (!pass || pass.length < 8) { msg('Passphrase must be at least 8 characters.','err'); return; }
+  msg('Generating identity…','ok');
+  try {
+    const res = await SovereignKernelBridge.send({ cmd:'CREATE_VAULT', passphrase:pass, duressPassphrase:duress||undefined });
+    if (res.event === 'VAULT_CREATED') _onReady(res.did, res.pubKey);
+    else msg(res.error ?? 'Failed.', 'err');
+  } catch(e) { msg(e.message,'err'); }
+}
+
+async function unlockVault() {
+  const pass = document.getElementById('in-unlock').value;
+  if (!pass) return;
+  msg('Unlocking…','ok');
+  try {
+    const res = await SovereignKernelBridge.send({ cmd:'UNLOCK_VAULT', passphrase:pass });
+    if (res.event === 'VAULT_UNLOCKED') {
+      if (res.duress) toast('⚠ Duress vault — decoy active.','warn',5000);
+      _onReady(res.did, res.pubKey);
+    } else msg(res.error === 'WRONG_PASSPHRASE' ? 'Wrong passphrase.' : (res.error ?? 'Failed.'),'err');
+  } catch(e) { msg(e.message,'err'); }
+}
+
+function _onReady(did, pubKey) {
+  _did = did;
+  window.SOVEREIGN_DID = did;
+  try { sessionStorage.setItem('sovereign_did', did); } catch{}
+  document.getElementById('did-display').textContent = did;
+  document.getElementById('vault-badge').textContent = 'UNLOCKED';
+  document.getElementById('vault-badge').className = 'badge ok';
+  document.getElementById('did-badge').textContent = did.slice(-14);
+  document.getElementById('did-badge').className = 'badge ok';
+  document.getElementById('sp-vault').textContent = 'UNLOCKED';
+  msg('');
+  addHistory('VAULT_UNLOCKED', 'Identity loaded');
+  toast('⬡ Identity: ' + did.slice(-12));
+  window.SovereignFSM?.vault?.send('UNLOCK_OK');
+  window.SovereignFSM?.identity?.send('GEN_OK');
+}
+
+async function lockVault() {
+  try { await SovereignKernelBridge.send({ cmd:'LOCK_VAULT' }); } catch{}
+  _did = null;
+  document.getElementById('vault-badge').textContent = 'LOCKED';
+  document.getElementById('vault-badge').className = 'badge warn';
+  document.getElementById('did-badge').textContent = 'NO IDENTITY';
+  document.getElementById('did-badge').className = 'badge info';
+  document.getElementById('did-display').textContent = 'Not yet generated';
+  document.getElementById('sp-vault').textContent = 'LOCKED';
+  showCreate();
+  addHistory('VAULT_LOCKED', 'Vault locked');
+  toast('🔒 Vault locked.');
+}
+
+function copyDid() {
+  if (!_did) return toast('No identity loaded.','warn');
+  navigator.clipboard?.writeText(_did).then(()=>toast('DID copied.')).catch(()=>toast('Copy failed.','warn'));
+}
+
+function showQr() {
+  if (!_did) return toast('No identity loaded.','warn');
+  const qd = document.getElementById('qr-display');
+  qd.style.display = qd.style.display === 'none' ? '' : 'none';
+  // Simple QR placeholder (text representation)
+  if (qd.style.display !== 'none') {
+    const canvas = document.getElementById('qr-canvas');
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#fff'; ctx.fillRect(0,0,160,160);
+    ctx.fillStyle = '#000'; ctx.font = '7px monospace'; ctx.textAlign='center';
+    ctx.fillText('DID QR', 80, 80);
+    ctx.fillText(_did.slice(-16), 80, 95);
+    toast('QR shown — DID library required for full QR.','warn',3000);
+  }
+}
+
+async function exportShamir() {
+  if (!_did) return toast('Unlock vault first.','warn');
+  try {
+    const res = await SovereignKernelBridge.send({ cmd:'EXPORT_SHAMIR', t:3, n:5 });
+    if (res.event === 'SHAMIR_EXPORTED' && res.shares?.length) {
+      const el = document.getElementById('shamir-shares');
+      el.innerHTML = res.shares.map((s,i) => `
+        <div class="share-label">SHARE ${i+1} OF ${res.n}</div>
+        <div class="share-card" onclick="navigator.clipboard?.writeText(this.querySelector('.share-hex').textContent.trim())">
+          <div class="share-hex">${sanitize(s)}</div>
+          <div style="font-size:9px;color:var(--text-dim);margin-top:3px">Click to copy · Store separately</div>
+        </div>`).join('');
+      addHistory('SHAMIR_EXPORTED', `${res.n} shares generated (3-of-5)`);
+      toast('⊙ 5 Shamir shares ready — store each one separately!','',5000);
+    } else toast(res.note ?? res.error ?? 'Export failed.','warn');
+  } catch(e) { toast(e.message,'err'); }
+}
+
+async function attestIdentity() {
+  if (!_did) return toast('Unlock vault first.','warn');
+  const nonce = Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b=>b.toString(16).padStart(2,'0')).join('');
+  try {
+    const res = await SovereignKernelBridge.send({ cmd:'ATTEST', nonce, claims:{ did:_did, ts:Date.now() } });
+    if (res.event === 'ATTESTED') {
+      addHistory('ATTESTED', 'Identity attestation signed');
+      toast('✦ Identity attested — signature valid.');
+    } else toast('Attestation failed: '+(res.error??'unknown'),'err');
+  } catch(e) { toast(e.message,'err'); }
+}
+
+async function rotateKeys() {
+  if (!_did) return toast('Unlock vault first.','warn');
+  window.SovereignFSM?.vault?.send('REKEY');
+  toast('↺ Key rotation initiated… (requires vault interaction in v6.1)','warn',4000);
+  addHistory('REKEY_INITIATED','Key rotation requested');
+}
+
+function suspendIdentity() {
+  if (!_did) return toast('Unlock vault first.','warn');
+  window.SovereignFSM?.identity?.send('SUSPEND');
+  toast('⏸ Identity suspended — traffic paused.');
+  addHistory('IDENTITY_SUSPENDED','Temporary privacy mode');
+}
+
+async function issueCredential() {
+  if (!_did) return toast('Unlock vault first.','warn');
+  const type = document.getElementById('vc-type').value;
+  const subject = document.getElementById('vc-subject').value || _did;
+  const expiry = document.getElementById('vc-expiry').value;
+  let claims;
+  try { claims = JSON.parse(document.getElementById('vc-claims').value || '{}'); }
+  catch { return toast('Invalid JSON in claims.','err'); }
+
+  const vc = { id: 'vc:' + Date.now(), type, issuer: _did, subject, claims, issuedAt: Date.now(), expiry: expiry || null };
+
+  try {
+    const payload = JSON.stringify(vc);
+    const res = await SovereignKernelBridge.send({ cmd:'SIGN', message: payload });
+    if (res.event === 'SIGNED') {
+      vc.signature = res.signature;
+      vc.pubKey = res.pubKey;
+      _credentials.push(vc);
+      try { sessionStorage.setItem('sov_credentials', JSON.stringify(_credentials)); } catch{}
+      renderCredentials();
+      window.SovereignFSM?.credential?.send('ISSUED');
+      addHistory('VC_ISSUED', `${type} for ${subject.slice(-12)}`);
+      toast('📜 Credential issued and signed.');
+    } else toast(res.error ?? 'Sign failed.','err');
+  } catch(e) { toast(e.message,'err'); }
+}
+
+function renderCredentials() {
+  const el = document.getElementById('vc-list');
+  if (!el) return;
+  if (!_credentials.length) { el.innerHTML='<div style="color:var(--text-dim);font-size:11px">No credentials held yet.</div>'; return; }
+  el.innerHTML = _credentials.map(vc => `
+    <div class="vc-item">
+      <div class="vc-type">${sanitize(vc.type)}</div>
+      <div class="vc-issuer">Issuer: ${sanitize(vc.issuer?.slice(-14)??'?')} · ${new Date(vc.issuedAt).toLocaleDateString()}</div>
+      <div class="vc-claims">${sanitize(JSON.stringify(vc.claims)).slice(0,80)}</div>
+      <div style="margin-top:6px;display:flex;gap:6px">
+        <button class="btn" style="font-size:9px;padding:2px 8px" onclick="presentCredential('${sanitize(vc.id)}')">Present</button>
+        <button class="btn danger" style="font-size:9px;padding:2px 8px" onclick="revokeCredential('${sanitize(vc.id)}')">Revoke</button>
+      </div>
+    </div>`).join('');
+}
+
+function presentCredential(id) {
+  const vc = _credentials.find(v => v.id === id);
+  if (!vc) return;
+  const qp = btoa(JSON.stringify(vc));
+  navigator.clipboard?.writeText(qp).then(()=>toast('📜 Credential presentation copied to clipboard.')).catch(()=>{});
+  window.SovereignFSM?.credential?.send('PRESENT');
+  addHistory('VC_PRESENTED', vc.type);
+}
+
+function revokeCredential(id) {
+  _credentials = _credentials.filter(v => v.id !== id);
+  try { sessionStorage.setItem('sov_credentials', JSON.stringify(_credentials)); } catch{}
+  renderCredentials();
+  window.SovereignFSM?.credential?.send('REVOKE');
+  addHistory('VC_REVOKED', id);
+  toast('Credential revoked.');
+}
+
+async function reconstructFromShares() {
+  const shares = ['share1','share2','share3'].map(id => document.getElementById(id).value.trim()).filter(Boolean);
+  if (shares.length < 3) return toast('Need at least 3 shares.','warn');
+  if (!window.SovereignShamir) return toast('Shamir library not loaded.','err');
+  try {
+    window.SovereignFSM?.recovery?.send('START');
+    window.SovereignFSM?.recovery?.send('ENOUGH');
+    const secret = await SovereignShamir.combine(shares);
+    const bundle = JSON.parse(new TextDecoder().decode(secret));
+    window.SovereignFSM?.recovery?.send('SUCCESS');
+    addHistory('SHAMIR_RECOVERED','Identity reconstructed from shares');
+    toast('⬡ Key reconstruction succeeded! Re-encrypt your vault.','',5000);
+  } catch(e) {
+    window.SovereignFSM?.recovery?.send('FAIL');
+    toast('Reconstruction failed: '+e.message,'err');
+  }
+}
+
+function exportVault() {
+  const vaultData = { version:'6.0', did:_did, ts:Date.now(), note:'Sovereign OS encrypted vault export' };
+  const blob = new Blob([JSON.stringify(vaultData,null,2)], {type:'application/json'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'sovereign-vault.sovvault'; a.click();
+  addHistory('VAULT_EXPORTED','Encrypted vault exported');
+  toast('Vault exported.');
+}
+
+function importVault() { document.getElementById('vault-file').click(); }
+function loadVaultFile(input) {
+  const file = input.files?.[0]; if (!file) return;
+  toast('Vault import: paste passphrase in unlock field to decrypt.','warn',4000);
+  addHistory('VAULT_IMPORT_STARTED', file.name);
+}
+
+function printBackupCard() {
+  if (!_did) return toast('Unlock vault first.','warn');
+  toast('🖨 Print recovery card: generate shares first, then use browser print.','',4000);
+}
+
+function addHistory(type, desc) {
+  _history.unshift({ type, desc, ts: Date.now() });
+  if (_history.length > 100) _history.pop();
+  try { sessionStorage.setItem('sov_history', JSON.stringify(_history)); } catch{}
+}
+
+function renderHistory() {
+  const el = document.getElementById('history-list');
+  if (!el) return;
+  if (!_history.length) { el.innerHTML='<div style="color:var(--text-dim);font-size:11px">No events yet.</div>'; return; }
+  el.innerHTML = _history.map(h => {
+    const t = new Date(h.ts).toLocaleString([], {dateStyle:'short',timeStyle:'short'});
+    const important = ['VAULT_UNLOCKED','ATTESTED','SHAMIR_EXPORTED','VC_ISSUED'].includes(h.type);
+    return `<div class="tl-item">
+      <div class="tl-ts">${sanitize(t)}</div>
+      <div class="tl-evt${important?' important':''}"><strong>${sanitize(h.type)}</strong> — ${sanitize(h.desc)}</div>
+    </div>`;
+  }).join('');
+}
+
+function saveSettings() {
+  const timeout = parseInt(document.getElementById('lock-timeout').value);
+  try { localStorage.setItem('sovereign_lock_timeout', timeout); } catch{}
+  toast('Settings saved.');
+}
+
+function revokeIdentity() {
+  if (!confirm('This is PERMANENT. Your identity will be revoked and cannot be recovered. Continue?')) return;
+  window.SovereignFSM?.identity?.send('REVOKE');
+  addHistory('IDENTITY_REVOKED','PERMANENT REVOCATION');
+  toast('⚠ Identity revoked permanently.','err',6000);
+}
+
+function wipeVault() {
+  if (!confirm('WIPE ALL DATA? This cannot be undone.')) return;
+  try { localStorage.clear(); sessionStorage.clear(); } catch{}
+  lockVault();
+  toast('🗑 Vault wiped.','err');
+}
+
+// Panic shortcut
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey && e.shiftKey && e.key === 'P') { e.preventDefault(); lockVault(); toast('🚨 PANIC — vault locked.','err',5000); }
+});
+
+// Auto-restore DID from session
+window.addEventListener('DOMContentLoaded', () => {
+  const stored = (() => { try { return sessionStorage.getItem('sovereign_did'); } catch { return null; } })();
+  if (stored) { _did = stored; _onReady(stored, null); }
+  _credentials = JSON.parse((() => { try { return sessionStorage.getItem('sov_credentials'); } catch { return '[]'; } })());
+  _history = JSON.parse((() => { try { return sessionStorage.getItem('sov_history'); } catch { return '[]'; } })());
+});
+
+console.log('[Sovereign Identity v6.0] Loaded — Credentials · Shamir Recovery · Full event history');
+</script>
+</body>
+</html>

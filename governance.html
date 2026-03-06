@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>⬡ SOVEREIGN — DAO Governance v6.0</title>
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; connect-src 'self' wss://sovereign-relay.fly.dev; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline';" />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg-void:#030306;--bg-surface:#070a0f;--bg-raised:#0c1018;--bg-panel:#101620;--bg-input:#0a0e16;
+      --accent-green:#00e87c;--accent-cyan:#00c8ff;--accent-amber:#ffb020;--accent-red:#ff4040;
+      --accent-purple:#c060ff;--accent-teal:#00d4aa;
+      --text-primary:#dce8f4;--text-muted:#4a5e72;--text-dim:#243040;
+      --border:rgba(0,232,124,0.10);--border-mid:rgba(0,232,124,0.20);--border-bright:rgba(0,232,124,0.40);
+      --font-mono:'JetBrains Mono',monospace;--font-display:'Syne',system-ui,sans-serif;
+      --radius:4px;--radius-lg:8px;
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    html,body{min-height:100vh;background:var(--bg-void);color:var(--text-primary);font-family:var(--font-mono);font-size:12px;line-height:1.6;}
+    body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,0.06) 3px,rgba(0,0,0,0.06) 4px);pointer-events:none;z-index:9997;}
+    .page{max-width:1100px;margin:0 auto;padding:56px 24px 80px;}
+    .page-header{display:flex;align-items:center;gap:14px;margin-bottom:36px;padding-bottom:16px;border-bottom:1px solid var(--border);}
+    .back-btn{display:flex;align-items:center;gap:6px;text-decoration:none;color:var(--text-muted);font-size:11px;padding:4px 10px;border:1px solid var(--border);border-radius:var(--radius);transition:all 0.14s;}
+    .back-btn:hover{color:var(--accent-green);border-color:var(--border-mid);}
+    .page-title{font-family:var(--font-display);font-size:22px;font-weight:800;color:var(--accent-purple);}
+    .page-sub{font-size:11px;color:var(--text-muted);margin-top:2px;}
+    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+    .grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+    @media(max-width:720px){.grid-2,.grid-3{grid-template-columns:1fr;}}
+    .card{background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;}
+    .card-title{font-family:var(--font-display);font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-muted);margin-bottom:14px;display:flex;align-items:center;gap:7px;}
+    .sv-input{width:100%;padding:8px 11px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius);color:var(--text-primary);font-family:var(--font-mono);font-size:12px;outline:none;transition:border-color 0.14s;}
+    .sv-input:focus{border-color:rgba(192,96,255,0.5);}
+    .sv-input::placeholder{color:var(--text-dim);}
+    .field-label{font-size:10px;color:var(--text-muted);letter-spacing:0.08em;margin-bottom:4px;}
+    .btn{display:inline-flex;align-items:center;gap:5px;padding:6px 13px;border-radius:var(--radius);border:1px solid var(--border);background:transparent;color:var(--text-primary);font-family:var(--font-mono);font-size:11px;cursor:pointer;transition:all 0.14s;white-space:nowrap;}
+    .btn:hover{border-color:var(--border-mid);color:var(--accent-green);}
+    .btn.primary{border-color:rgba(192,96,255,0.35);color:var(--accent-purple);background:rgba(192,96,255,0.04);}
+    .btn.primary:hover{background:rgba(192,96,255,0.10);}
+    .btn.approve{border-color:rgba(0,232,124,0.35);color:var(--accent-green);background:rgba(0,232,124,0.04);}
+    .btn.approve:hover{background:rgba(0,232,124,0.10);}
+    .btn.reject{border-color:rgba(255,64,64,0.3);color:var(--accent-red);background:rgba(255,64,64,0.04);}
+    .btn.reject:hover{background:rgba(255,64,64,0.08);}
+    .btn-block{width:100%;justify-content:center;margin-bottom:7px;}
+
+    .prop-card{background:var(--bg-raised);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px 16px;margin-bottom:10px;transition:border-color 0.14s;}
+    .prop-card:hover{border-color:var(--border-mid);}
+    .prop-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px;}
+    .prop-id{font-size:10px;color:var(--accent-purple);font-weight:700;letter-spacing:0.06em;}
+    .prop-status{font-size:9px;padding:2px 8px;border-radius:20px;}
+    .prop-status.voting{color:var(--accent-amber);background:rgba(255,176,32,0.1);border:1px solid rgba(255,176,32,0.2);}
+    .prop-status.ratified{color:var(--accent-green);background:rgba(0,232,124,0.08);border:1px solid rgba(0,232,124,0.2);}
+    .prop-status.failed{color:var(--accent-red);background:rgba(255,64,64,0.08);border:1px solid rgba(255,64,64,0.2);}
+    .prop-status.proposed{color:var(--accent-cyan);background:rgba(0,200,255,0.08);border:1px solid rgba(0,200,255,0.2);}
+    .prop-title{font-size:12px;color:var(--text-primary);font-weight:600;margin-bottom:4px;}
+    .prop-body{font-size:11px;color:var(--text-muted);margin-bottom:10px;line-height:1.7;}
+    .prop-meta{font-size:9px;color:var(--text-dim);margin-bottom:8px;}
+    .vote-bar-wrap{height:6px;background:var(--bg-void);border-radius:3px;overflow:hidden;margin-bottom:6px;}
+    .vote-bar{height:100%;border-radius:3px;transition:width 0.4s;}
+    .vote-counts{display:flex;justify-content:space-between;font-size:9px;color:var(--text-muted);}
+    .vote-actions{display:flex;gap:7px;margin-top:10px;}
+
+    .member-row{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.03);}
+    .member-row:last-child{border-bottom:none;}
+    .member-av{width:28px;height:28px;border-radius:50%;background:var(--bg-panel);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;}
+    .member-did{font-size:10px;color:var(--accent-cyan);}
+    .member-role{font-size:9px;padding:1px 6px;border-radius:3px;}
+    .member-role.admin{color:var(--accent-purple);background:rgba(192,96,255,0.08);}
+    .member-role.member{color:var(--accent-teal);background:rgba(0,212,170,0.08);}
+    .member-votes{margin-left:auto;font-size:10px;color:var(--accent-amber);}
+
+    .stat-box{background:var(--bg-raised);border:1px solid var(--border);border-radius:var(--radius);padding:14px;text-align:center;}
+    .stat-num{font-family:var(--font-display);font-size:28px;font-weight:800;color:var(--accent-purple);}
+    .stat-lbl{font-size:10px;color:var(--text-muted);margin-top:2px;}
+
+    #toast{position:fixed;bottom:24px;right:18px;background:var(--bg-panel);border:1px solid var(--border-bright);border-radius:var(--radius-lg);padding:9px 14px;font-size:11px;color:var(--accent-green);z-index:9999;opacity:0;transform:translateY(8px);transition:all 0.2s;pointer-events:none;max-width:320px;}
+    #toast.show{opacity:1;transform:translateY(0);}
+    #toast.warn{color:var(--accent-amber);border-color:rgba(255,176,32,0.4);}
+    #toast.err{color:var(--accent-red);border-color:rgba(255,64,64,0.4);}
+    ::-webkit-scrollbar{width:3px;} ::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <div class="page-header">
+    <a class="back-btn" href="index.html">← Genesis</a>
+    <div>
+      <div class="page-title">⊛ DAO Governance</div>
+      <div class="page-sub">Proposals · Voting · Trust Graph · Consensus</div>
+    </div>
+    <div style="margin-left:auto;display:flex;gap:10px;align-items:center;">
+      <span id="quorum-badge" style="font-size:10px;color:var(--text-muted);padding:3px 10px;border:1px solid var(--border);border-radius:20px;">Quorum: 0/0</span>
+      <span id="identity-badge" style="font-size:10px;color:var(--accent-amber);padding:3px 10px;border:1px solid rgba(255,176,32,0.2);border-radius:20px;">NOT CONNECTED</span>
+    </div>
+  </div>
+
+  <div class="grid-3" style="margin-bottom:22px">
+    <div class="stat-box"><div class="stat-num" id="stat-props">0</div><div class="stat-lbl">Proposals</div></div>
+    <div class="stat-box"><div class="stat-num" id="stat-members">0</div><div class="stat-lbl">Members</div></div>
+    <div class="stat-box"><div class="stat-num" id="stat-ratified">0</div><div class="stat-lbl">Ratified</div></div>
+  </div>
+
+  <div class="grid-2">
+    <div>
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-title">⊕ Submit Proposal</div>
+        <div class="field-label" style="margin-bottom:4px">PROPOSAL ID</div>
+        <input class="sv-input" id="prop-id" placeholder="PROP-001" style="margin-bottom:8px"/>
+        <div class="field-label" style="margin-bottom:4px">TITLE</div>
+        <input class="sv-input" id="prop-title" placeholder="Proposal title…" style="margin-bottom:8px"/>
+        <div class="field-label" style="margin-bottom:4px">TYPE</div>
+        <select class="sv-input" id="prop-type" style="margin-bottom:8px">
+          <option>Parameter Change</option>
+          <option>Protocol Upgrade</option>
+          <option>Treasury Action</option>
+          <option>Trust Modification</option>
+          <option>Emergency Override</option>
+          <option>Membership</option>
+        </select>
+        <div class="field-label" style="margin-bottom:4px">DESCRIPTION</div>
+        <textarea class="sv-input" id="prop-desc" rows="4" placeholder="Describe the proposal…" style="resize:vertical;margin-bottom:8px"></textarea>
+        <div class="field-label" style="margin-bottom:4px">VOTING DURATION</div>
+        <select class="sv-input" id="prop-duration" style="margin-bottom:12px">
+          <option value="86400">24 hours</option>
+          <option value="259200">3 days</option>
+          <option value="604800" selected>7 days</option>
+          <option value="2592000">30 days</option>
+        </select>
+        <button class="btn primary btn-block" onclick="submitProposal()">⊕ Submit Proposal</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title">◈ Members</div>
+        <div id="member-list">
+          <div style="color:var(--text-dim);font-size:11px">No members yet. Connect peers to form quorum.</div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <div class="card-title" style="justify-content:space-between">
+          <span>Active Proposals</span>
+          <div style="display:flex;gap:6px">
+            <button class="btn" style="font-size:9px;padding:2px 8px" onclick="filterProposals('all')">All</button>
+            <button class="btn" style="font-size:9px;padding:2px 8px" onclick="filterProposals('voting')">Voting</button>
+            <button class="btn" style="font-size:9px;padding:2px 8px" onclick="filterProposals('ratified')">Ratified</button>
+          </div>
+        </div>
+        <div id="proposal-list">
+          <div style="color:var(--text-dim);font-size:11px">No proposals yet. Submit the first one.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+<div id="toast"></div>
+
+<script src="sovereign_security.js"></script>
+<script src="sovereign_fsm.js"></script>
+<script>
+'use strict';
+if (!window.sanitize) window.sanitize = s => String(s ?? '').replace(/<[^>]*>/g, '');
+
+let _proposals = JSON.parse(sessionStorage.getItem('sov_proposals') || '[]');
+let _members   = JSON.parse(sessionStorage.getItem('sov_members') || '[]');
+let _did = null;
+let _filter = 'all';
+
+function toast(msg, type='', ms=2800) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.className = `show${type?' '+type:''}`;
+  clearTimeout(el._t); el._t = setTimeout(() => el.className = '', ms);
+}
+
+function save() {
+  try {
+    sessionStorage.setItem('sov_proposals', JSON.stringify(_proposals));
+    sessionStorage.setItem('sov_members', JSON.stringify(_members));
+  } catch{}
+}
+
+function updateStats() {
+  document.getElementById('stat-props').textContent = _proposals.length;
+  document.getElementById('stat-members').textContent = _members.length;
+  document.getElementById('stat-ratified').textContent = _proposals.filter(p => p.status === 'ratified').length;
+  const quorum = Math.ceil(_members.length * 0.5);
+  document.getElementById('quorum-badge').textContent = `Quorum: ${quorum}/${_members.length}`;
+}
+
+function submitProposal() {
+  const id    = document.getElementById('prop-id').value.trim();
+  const title = document.getElementById('prop-title').value.trim();
+  const type  = document.getElementById('prop-type').value;
+  const desc  = document.getElementById('prop-desc').value.trim();
+  const duration = parseInt(document.getElementById('prop-duration').value);
+
+  if (!id || !title) return toast('ID and title required.','warn');
+  if (_proposals.find(p => p.id === id)) return toast('Proposal ID already exists.','warn');
+
+  const prop = {
+    id, title, type, desc, duration,
+    author: _did || 'anonymous',
+    status: 'proposed',
+    createdAt: Date.now(),
+    deadline: Date.now() + duration * 1000,
+    votes: { yes: 0, no: 0, abstain: 0 },
+    voters: [],
+  };
+
+  _proposals.unshift(prop);
+  save();
+  window.SovereignFSM?.governance?.send('PROPOSE', { id, author: _did });
+  window.SovereignFSM?.governance?.send('VOTE');
+  renderProposals();
+  updateStats();
+  document.getElementById('prop-id').value = '';
+  document.getElementById('prop-title').value = '';
+  document.getElementById('prop-desc').value = '';
+  toast(`⊕ Proposal ${id} submitted — voting open.`);
+
+  // Broadcast to peers
+  window.SovereignTransport?.broadcast({ type:'GOVERNANCE_PROPOSAL', proposal: prop });
+}
+
+function vote(propId, choice) {
+  const prop = _proposals.find(p => p.id === propId);
+  if (!prop) return;
+  if (prop.status !== 'proposed' && prop.status !== 'voting') return toast('Voting closed.','warn');
+  const voter = _did || 'local';
+  if (prop.voters.includes(voter)) return toast('Already voted.','warn');
+
+  prop.votes[choice] = (prop.votes[choice] || 0) + 1;
+  prop.voters.push(voter);
+  prop.status = 'voting';
+
+  // Auto-tally if all members voted
+  const total = prop.votes.yes + prop.votes.no + prop.votes.abstain;
+  const quorum = Math.max(1, Math.ceil(_members.length * 0.5));
+  if (total >= quorum || prop.voters.length >= Math.max(1, _members.length)) {
+    prop.status = 'tallying';
+    setTimeout(() => tallyProposal(propId), 1200);
+  }
+
+  save();
+  renderProposals();
+  toast(`Voted ${choice} on ${propId}.`);
+
+  window.SovereignTransport?.broadcast({ type:'GOVERNANCE_VOTE', propId, choice, voter });
+}
+
+function tallyProposal(propId) {
+  const prop = _proposals.find(p => p.id === propId);
+  if (!prop) return;
+  const { yes, no } = prop.votes;
+  prop.status = yes > no ? 'ratified' : 'failed';
+  window.SovereignFSM?.governance?.send(yes > no ? 'PASS' : 'FAIL');
+  save();
+  renderProposals();
+  updateStats();
+  toast(yes > no ? `✓ ${propId} RATIFIED` : `✗ ${propId} FAILED`, yes > no ? '' : 'warn');
+}
+
+function filterProposals(f) { _filter = f; renderProposals(); }
+
+function renderProposals() {
+  const el = document.getElementById('proposal-list');
+  let props = _proposals;
+  if (_filter !== 'all') props = props.filter(p => p.status === _filter);
+  if (!props.length) { el.innerHTML='<div style="color:var(--text-dim);font-size:11px">No proposals.</div>'; return; }
+
+  el.innerHTML = props.map(prop => {
+    const total = prop.votes.yes + prop.votes.no + prop.votes.abstain || 1;
+    const yp = Math.round(prop.votes.yes / total * 100);
+    const np = Math.round(prop.votes.no  / total * 100);
+    const deadline = new Date(prop.deadline).toLocaleDateString();
+    const voted = prop.voters.includes(_did || 'local');
+    return `<div class="prop-card">
+      <div class="prop-header">
+        <span class="prop-id">${sanitize(prop.id)}</span>
+        <span class="prop-status ${sanitize(prop.status)}">${sanitize(prop.status.toUpperCase())}</span>
+      </div>
+      <div class="prop-title">${sanitize(prop.title)}</div>
+      <div class="prop-meta">Type: ${sanitize(prop.type)} · Author: ${sanitize(prop.author.slice(-12))} · Deadline: ${deadline}</div>
+      <div class="prop-body">${sanitize(prop.desc || '').slice(0,160)}${(prop.desc||'').length>160?'…':''}</div>
+      <div class="vote-bar-wrap">
+        <div class="vote-bar" style="background:linear-gradient(90deg,var(--accent-green) ${yp}%,var(--accent-red) ${yp}%);width:100%"></div>
+      </div>
+      <div class="vote-counts">
+        <span>✓ ${prop.votes.yes} YES (${yp}%)</span>
+        <span>✗ ${prop.votes.no} NO (${np}%)</span>
+        <span>— ${prop.votes.abstain} ABSTAIN</span>
+      </div>
+      ${!voted && (prop.status==='proposed'||prop.status==='voting') ? `
+      <div class="vote-actions">
+        <button class="btn approve" onclick="vote('${sanitize(prop.id)}','yes')">✓ YES</button>
+        <button class="btn reject"  onclick="vote('${sanitize(prop.id)}','no')">✗ NO</button>
+        <button class="btn"         onclick="vote('${sanitize(prop.id)}','abstain')">— ABSTAIN</button>
+      </div>` : voted ? '<div style="font-size:10px;color:var(--text-dim);margin-top:8px">✓ Vote recorded</div>' : ''}
+    </div>`;
+  }).join('');
+}
+
+function renderMembers() {
+  const el = document.getElementById('member-list');
+  if (!_members.length) { el.innerHTML='<div style="color:var(--text-dim);font-size:11px">No members yet.</div>'; return; }
+  el.innerHTML = _members.map(m => `<div class="member-row">
+    <div class="member-av">◈</div>
+    <div>
+      <div class="member-did">${sanitize(m.did?.slice(-14)??'?')}</div>
+      <div class="member-role ${m.role??'member'}">${sanitize((m.role??'member').toUpperCase())}</div>
+    </div>
+    <div class="member-votes">${m.votes ?? 0} votes</div>
+  </div>`).join('');
+}
+
+// Listen for transport messages
+window.addEventListener('sovereign:transport:message', e => {
+  const { payload } = e.detail ?? {};
+  if (!payload) return;
+  if (payload.type === 'GOVERNANCE_PROPOSAL') {
+    if (!_proposals.find(p => p.id === payload.proposal?.id)) {
+      _proposals.push(payload.proposal);
+      save(); renderProposals(); updateStats();
+      toast(`⊕ New proposal: ${payload.proposal.id}`);
+    }
+  } else if (payload.type === 'GOVERNANCE_VOTE') {
+    const prop = _proposals.find(p => p.id === payload.propId);
+    if (prop && !prop.voters.includes(payload.voter)) {
+      prop.votes[payload.choice] = (prop.votes[payload.choice] || 0) + 1;
+      prop.voters.push(payload.voter);
+      save(); renderProposals();
+    }
+  }
+});
+
+window.addEventListener('sovereign:transport:peer-connected', e => {
+  const { did } = e.detail ?? {};
+  if (did && !_members.find(m => m.did === did)) {
+    _members.push({ did, role:'member', joinedAt: Date.now(), votes: 0 });
+    save(); renderMembers(); updateStats();
+  }
+});
+
+window.addEventListener('sovereign:transport:peer-disconnected', e => {
+  const { did } = e.detail ?? {};
+  _members = _members.filter(m => m.did !== did);
+  save(); renderMembers(); updateStats();
+});
+
+window.addEventListener('DOMContentLoaded', () => {
+  const stored = (() => { try { return sessionStorage.getItem('sovereign_did'); } catch{ return null; } })();
+  if (stored) {
+    _did = stored;
+    document.getElementById('identity-badge').textContent = stored.slice(-12);
+    document.getElementById('identity-badge').style.color = 'var(--accent-green)';
+    document.getElementById('identity-badge').style.borderColor = 'rgba(0,232,124,0.2)';
+    if (!_members.find(m => m.did === stored)) {
+      _members.push({ did: stored, role:'admin', joinedAt: Date.now(), votes: 0 });
+    }
+  }
+  renderProposals(); renderMembers(); updateStats();
+});
+
+console.log('[Sovereign Governance v6.0] P2P DAO · FSM-backed voting · Quorum enforcement');
+</script>
+</body>
+</html>

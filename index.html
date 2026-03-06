@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>⬡ SOVEREIGN OS v5.0 — Genesis Node</title>
+  <title>⬡ SOVEREIGN OS v6.0 — Genesis Node</title>
   <meta name="description" content="Self-sovereign, peer-to-peer operating environment. No servers. No surveillance." />
   <meta http-equiv="Content-Security-Policy"
         content="default-src 'self'; connect-src 'self' wss://sovereign-relay.fly.dev; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;" />
@@ -13,7 +13,7 @@
 
   <style>
     /* ═══════════════════════════════════════════════════════════════════
-       SOVEREIGN DESIGN SYSTEM v5.0
+       SOVEREIGN DESIGN SYSTEM v6.0
        Aesthetic: Cryptographic brutalism — precision over decoration.
        Post-year-of-testing: Refined spacing, better contrast, improved
        status legibility. Same identity, harder edges.
@@ -690,7 +690,7 @@
       </div>
       <div>
         <div class="logo-text">SOVEREIGN</div>
-        <div class="logo-version">v5.0 · GENESIS NODE</div>
+        <div class="logo-version">v6.0 · GENESIS NODE</div>
       </div>
     </a>
 
@@ -1133,18 +1133,20 @@
 
     _sbApps() {
       const apps = [
-        {name:'Sovereign OS',   icon:'⬡',desc:'Kernel · Governance · Trust',   href:'os.html'},
-        {name:'Forge',          icon:'⚒',desc:'Social · Studio · Market',      href:'forge.html'},
-        {name:'Messenger',      icon:'✉',desc:'P2P Double-Ratchet chat',        href:'messenger.html'},
-        {name:'Sovereign Mail', icon:'📨',desc:'Layered encrypted mail',         href:'mail.html'},
-        {name:'Protocol Bridge',icon:'⇌',desc:'Nostr · Matrix · ActivityPub',  href:'bridge.html'},
-        {name:'Search',         icon:'⌕',desc:'Distributed private search',    href:'search.html'},
-        {name:'Attack Command', icon:'⚔',desc:'Audit · Fuzzer · Analyzer',    href:'attack.html'},
-        {name:'Relay Admin',    icon:'⟳',desc:'Relay dashboard',               href:'relay.html'},
-        {name:'Portal',         icon:'⌖',desc:'Onboarding · Profile',          href:'portal.html'},
-        {name:'Forge Square',   icon:'⊞',desc:'Community hub · Channels',      href:'square.html'},
-        {name:'Finance',        icon:'₿',desc:'AI-governed payments · Wallet',  href:'finance.html'},
-        {name:'Studio',         icon:'🛠',desc:'App builder · AI tools',        href:'studio.html'},
+        {name:'Sovereign OS',    icon:'⬡',desc:'Kernel · Trust · Asset layer',   href:'os.html'},
+        {name:'Identity Vault',  icon:'⬟',desc:'DIDs · VCs · Key Recovery',       href:'identity.html'},
+        {name:'DAO Governance',  icon:'⊛',desc:'Proposals · Voting · Consensus',  href:'governance.html'},
+        {name:'Forge',           icon:'⚒',desc:'Social · Studio · Market',         href:'forge.html'},
+        {name:'Messenger',       icon:'✉',desc:'P2P Double-Ratchet chat',           href:'messenger.html'},
+        {name:'Sovereign Mail',  icon:'📨',desc:'Layered encrypted mail',            href:'mail.html'},
+        {name:'Protocol Bridge', icon:'⇌',desc:'Nostr · Matrix · ActivityPub',     href:'bridge.html'},
+        {name:'Search',          icon:'⌕',desc:'Distributed private search',       href:'search.html'},
+        {name:'Attack Command',  icon:'⚔',desc:'Audit · Fuzzer · Analyzer',       href:'attack.html'},
+        {name:'Relay Admin',     icon:'⟳',desc:'Multi-relay dashboard',            href:'relay.html'},
+        {name:'Portal',          icon:'⌖',desc:'Onboarding · Profile',             href:'portal.html'},
+        {name:'Forge Square',    icon:'⊞',desc:'Community hub · Channels',         href:'square.html'},
+        {name:'Finance',         icon:'₿',desc:'AI-governed payments · Wallet',    href:'finance.html'},
+        {name:'Studio',          icon:'🛠',desc:'App builder · AI tools',           href:'studio.html'},
       ];
       return `
         <div class="panel-hdr"><span class="panel-title">Applications</span></div>
@@ -1777,7 +1779,7 @@
     UI.renderSidebar('network');
     UI.refreshState();
     UI.audit({ type:'GENESIS_BOOT', data:{
-      v:'5.0',
+      v:'6.0',
       sw:   'serviceWorker' in navigator,
       wrtc: typeof RTCPeerConnection !== 'undefined',
       wt:   typeof WebTransport !== 'undefined',
@@ -2002,12 +2004,12 @@
             return { error: `Command not available in file:// mode: ${c.cmd}` };
           }
         };
-        console.warn('[Sovereign v5.0] In-page crypto shim active (file:// origin). Key isolation requires HTTPS + Service Worker.');
+        console.warn('[Sovereign v6.0] In-page crypto shim active (file:// origin). Key isolation requires HTTPS + Service Worker.');
         UI.audit({ type:'SW_SHIM', data:{ reason:'file_origin' } });
       })();
     }
 
-    console.log('[Sovereign OS v5.0] Genesis Node booted. 20 patterns. Real Ratchet. Real Shamir.');
+    console.log('[Sovereign OS v6.0] Genesis Node booted. 20 patterns. Real Ratchet. Real Shamir.');
   });
 
   </script>
