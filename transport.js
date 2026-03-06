@@ -242,14 +242,14 @@
     _relay.ws = ws;
     ws.binaryType = 'arraybuffer';
 
-    ws.onopen = () => {
+    ws.onopen = async () => {
       _relay.state = 'OPEN';
       _stats.relayState = 'OPEN';
       _relay.failCount = 0;
       // Send HELLO with protocol version
       ws.send(JSON.stringify({
         type: 'HELLO',
-        token: _getRelayToken(),
+        token: await _getRelayToken(),
         version: TRANSPORT_VERSION,
         did: _myDid,
       }));
@@ -296,12 +296,16 @@
     }, RELAY_PROBE_INTERVAL);
   }
 
-  function _getRelayToken() {
+  async function _getRelayToken() {
     try {
       const stored = sessionStorage.getItem('sovereign_relay_token');
       if (stored) return stored;
     } catch {}
-    return window.sovereignEphemeralToken?.() ?? _rand(16);
+    // sovereignEphemeralToken is async and requires the DID as argument
+    if (window.sovereignEphemeralToken && _myDid) {
+      return await window.sovereignEphemeralToken(_myDid);
+    }
+    return _rand(16);
   }
 
   function _handleRelayMessage(msg) {

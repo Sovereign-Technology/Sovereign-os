@@ -177,6 +177,14 @@ window.SovereignFSM = (() => {
     { m:'recovery', from:'RECONSTRUCTING',    on:'FAIL',        to:'FAILED'                    },
     { m:'recovery', from:'COMPLETE',          on:'RESET',       to:'IDLE'                      },
     { m:'recovery', from:'FAILED',            on:'RETRY',       to:'COLLECTING_SHARES'         },
+
+    // ── RATCHET (per-peer, lazily created) ────────────────────────────────────
+    { m:'ratchet', from:'UNINIT',  on:'INIT',    to:'KEYED'                                    },
+    { m:'ratchet', from:'KEYED',   on:'ACTIVATE',to:'ACTIVE'                                   },
+    { m:'ratchet', from:'ACTIVE',  on:'STEP',    to:'ACTIVE',  meta:'DH ratchet step'          },
+    { m:'ratchet', from:'ACTIVE',  on:'STALE',   to:'STALE'                                    },
+    { m:'ratchet', from:'STALE',   on:'REKEY',   to:'KEYED'                                    },
+    { m:'ratchet', from:'*',       on:'RESET',   to:'UNINIT'                                   },
   ];
 
   // ──────────────────────────────────────────────────────────────────────────

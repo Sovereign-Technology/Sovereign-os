@@ -102,8 +102,25 @@
   }
 
   // Soft-link to FSM if available — never throws
+  // Maps kernel events to the correct FSM machine (there is no 'kernel' machine)
   function fsmSend(event, data = {}) {
-    try { window.SovereignFSM?.kernel?.send?.(event, data); } catch (_) {}
+    try {
+      const fsm = window.SovereignFSM;
+      if (!fsm) return;
+      switch (event) {
+        case 'KERNEL_LEADER':  fsm.consensus?.send('PROPOSE', data);     break;
+        case 'KERNEL_WORKER':  /* worker role — no FSM transition needed */ break;
+        case 'PEER_JOINED':    fsm.transport?.send('PEER_FOUND', data);  break;
+        case 'PEER_LEFT':
+          fsm.transport?.send(
+            window.SovereignKernel?.peers().size === 0 ? 'ALL_LOST' : 'PEER_LOST',
+            data
+          );
+          break;
+        case 'TASK_DONE':      /* task completion — no dedicated FSM machine */ break;
+        case 'IDENTITY_READY': fsm.identity?.send('LOAD', data);         break;
+      }
+    } catch (_) {}
   }
 
   // ── Election — Bully Algorithm ────────────────────────────────────────────
@@ -234,11 +251,16 @@
       case T.TASK_ANNOUNCE:
         if (m.task && !tasks.has(m.task.id)) {
           tasks.set(m.task.id, { ...m.task });
+          emit('task-queued', { task: m.task });
+          // If I'm the leader and the task is still pending, schedule it
+          if (myRole === 'leader' && m.task.status === 'pending') {
+            _leaderDispatch({ ...m.task });
+          }
         } else if (m.task && tasks.has(m.task.id)) {
           // Merge updates (status, worker, result)
           Object.assign(tasks.get(m.task.id), m.task);
+          emit('task-queued', { task: m.task });
         }
-        emit('task-queued', { task: m.task });
         break;
 
       case T.TASK_ASSIGN:
@@ -289,10 +311,11 @@
     if (myRole === 'leader') {
       _leaderDispatch(task);
     } else if (leaderNode) {
-      // Forward to leader for proper scheduling
+      // Submit task to leader for proper scheduling via broadcast.
+      // TASK_ASSIGN is leader→worker only; workers submit via TASK_ANNOUNCE
+      // so the leader's scheduler can pick it up and dispatch via _leaderDispatch.
       tasks.set(task.id, { ...task });
       bcast(T.TASK_ANNOUNCE, { task });
-      ucast(leaderNode, T.TASK_ASSIGN, { task });
     } else {
       // No leader yet (e.g. just joined, election in progress) — execute locally
       const t = { ...task, status: 'running', worker: NODE_ID };
