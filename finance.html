@@ -1,0 +1,1363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sovereign Finance — AI-Governed Payments</title>
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; connect-src 'self' wss://sovereign-relay.fly.dev http://localhost:11434 https://localhost:11434; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <style>
+    /* ================================================================
+       SOVEREIGN FINANCE — Inherits Sovereign OS Design System v5.0
+       Aesthetic: Cryptographic brutalism. Same vars as index.html.
+       ================================================================ */
+
+    :root {
+      --bg-void:       #030306;
+      --bg-surface:    #070a0f;
+      --bg-raised:     #0c1018;
+      --bg-panel:      #101620;
+      --bg-input:      #0a0e16;
+
+      --accent-green:  #00e87c;
+      --accent-cyan:   #00c8ff;
+      --accent-amber:  #ffb020;
+      --accent-red:    #ff4040;
+      --accent-purple: #c060ff;
+      --accent-teal:   #00d4aa;
+
+      --text-primary:  #dce8f4;
+      --text-muted:    #4a5e72;
+      --text-dim:      #243040;
+
+      --border:        rgba(0,232,124,0.10);
+      --border-mid:    rgba(0,232,124,0.20);
+      --border-bright: rgba(0,232,124,0.40);
+
+      --glow-green:    0 0 24px rgba(0,232,124,0.18);
+      --glow-cyan:     0 0 24px rgba(0,200,255,0.18);
+      --glow-amber:    0 0 20px rgba(255,176,32,0.15);
+
+      --font-mono:    'JetBrains Mono', 'Courier New', monospace;
+      --font-display: 'Syne', system-ui, sans-serif;
+
+      --radius:    4px;
+      --radius-lg: 8px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%; overflow: hidden;
+      background: var(--bg-void);
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      font-size: 12px; line-height: 1.6;
+    }
+
+    body::after {
+      content: '';
+      position: fixed; inset: 0;
+      background: repeating-linear-gradient(
+        0deg, transparent, transparent 3px,
+        rgba(0,0,0,0.06) 3px, rgba(0,0,0,0.06) 4px
+      );
+      pointer-events: none; z-index: 9997;
+    }
+
+    /* ── HEADER ── */
+    #header {
+      position: fixed; top: 0; left: 0; right: 0; height: 46px;
+      display: flex; align-items: center; padding: 0 16px;
+      background: rgba(3,3,6,0.97); border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(20px); z-index: 500; gap: 14px;
+    }
+    .header-logo {
+      display: flex; align-items: center; gap: 9px;
+      text-decoration: none; flex-shrink: 0;
+    }
+    .logo-hex { width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; }
+    .logo-hex svg { width: 100%; height: 100%; filter: drop-shadow(0 0 6px var(--accent-green)); }
+    .logo-text { font-family: var(--font-display); font-size: 14px; font-weight: 800; color: var(--accent-green); letter-spacing: 0.08em; }
+    .logo-version { font-size: 9px; color: var(--text-muted); letter-spacing: 0.12em; }
+    .header-sep { width: 1px; height: 18px; background: var(--border); flex-shrink: 0; }
+
+    .chip {
+      display: flex; align-items: center; gap: 5px;
+      font-size: 10px; color: var(--text-muted); letter-spacing: 0.06em;
+      padding: 3px 8px; border-radius: 20px; border: 1px solid transparent; transition: all 0.25s;
+    }
+    .chip .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--text-dim); transition: all 0.25s; flex-shrink: 0; }
+    .chip.ok   { border-color: rgba(0,232,124,0.15); background: rgba(0,232,124,0.04); }
+    .chip.ok .dot  { background: var(--accent-green); box-shadow: 0 0 5px var(--accent-green); }
+    .chip.warn { border-color: rgba(255,176,32,0.15); background: rgba(255,176,32,0.04); }
+    .chip.warn .dot { background: var(--accent-amber); box-shadow: 0 0 5px var(--accent-amber); animation: blink 1.4s ease-in-out infinite; }
+    .chip.err  { border-color: rgba(255,64,64,0.15); background: rgba(255,64,64,0.04); }
+    .chip.err .dot  { background: var(--accent-red); box-shadow: 0 0 5px var(--accent-red); }
+
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+    @keyframes slideIn { from{opacity:0;transform:translateX(-6px)} to{opacity:1;transform:none} }
+
+    .header-right { display: flex; align-items: center; gap: 8px; margin-left: auto; flex-shrink: 0; }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 5px 11px; border-radius: var(--radius);
+      border: 1px solid var(--border); background: transparent;
+      color: var(--text-primary); font-family: var(--font-mono);
+      font-size: 11px; cursor: pointer; transition: all 0.14s;
+      white-space: nowrap; user-select: none;
+    }
+    .btn:hover  { border-color: var(--border-mid); color: var(--accent-green); }
+    .btn:active { transform: scale(0.97); }
+    .btn.primary { border-color: rgba(0,232,124,0.35); color: var(--accent-green); background: rgba(0,232,124,0.04); }
+    .btn.primary:hover { background: rgba(0,232,124,0.10); box-shadow: var(--glow-green); border-color: var(--border-bright); }
+    .btn.amber  { border-color: rgba(255,176,32,0.35); color: var(--accent-amber); background: rgba(255,176,32,0.04); }
+    .btn.amber:hover { background: rgba(255,176,32,0.10); box-shadow: var(--glow-amber); }
+    .btn.danger { border-color: rgba(255,64,64,0.3); color: var(--accent-red); }
+    .btn.danger:hover { background: rgba(255,64,64,0.08); }
+    .btn:disabled { opacity: 0.35; cursor: not-allowed; pointer-events: none; }
+    .btn-block { width: 100%; justify-content: center; padding: 8px; }
+    .btn-sm { padding: 3px 8px; font-size: 10px; }
+
+    /* ── LAYOUT ── */
+    #layout {
+      position: fixed; top: 46px; left: 0; right: 0; bottom: 22px;
+      display: grid; grid-template-columns: 50px 240px 1fr 280px;
+    }
+
+    /* ── RAIL ── */
+    #rail {
+      background: var(--bg-surface); border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; align-items: center;
+      padding: 10px 0; gap: 2px;
+    }
+    .rail-btn {
+      width: 36px; height: 36px; border-radius: var(--radius);
+      border: 1px solid transparent; background: transparent;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; color: var(--text-muted); font-size: 15px;
+      transition: all 0.14s; position: relative;
+    }
+    .rail-btn:hover, .rail-btn.active {
+      border-color: var(--border); color: var(--accent-green);
+      background: rgba(0,232,124,0.05);
+    }
+    .rail-btn.active::before {
+      content: ''; position: absolute; left: 0; top: 20%; bottom: 20%;
+      width: 2px; background: var(--accent-green); border-radius: 0 2px 2px 0;
+      box-shadow: 0 0 6px var(--accent-green);
+    }
+    .rail-btn:hover::after {
+      content: attr(data-tip); position: absolute; left: calc(100% + 10px);
+      top: 50%; transform: translateY(-50%); background: var(--bg-panel);
+      border: 1px solid var(--border-mid); color: var(--text-primary);
+      font-family: var(--font-mono); font-size: 10px; white-space: nowrap;
+      padding: 4px 8px; border-radius: var(--radius); z-index: 600; pointer-events: none;
+    }
+
+    /* ── SIDEBAR ── */
+    #sidebar {
+      background: var(--bg-surface); border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+    .panel-hdr {
+      padding: 12px 14px 10px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+    }
+    .panel-title {
+      font-family: var(--font-display); font-size: 10px; font-weight: 700;
+      letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-muted);
+    }
+    .panel-body { flex: 1; overflow-y: auto; padding: 10px; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+
+    .sec-lbl { font-size: 9px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--text-dim); margin: 12px 0 6px; }
+    .sec-lbl:first-child { margin-top: 0; }
+
+    .stat-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.03); font-size: 11px; }
+    .stat-key { color: var(--text-muted); }
+    .stat-val { color: var(--accent-green); font-weight: 600; }
+    .stat-val.amber { color: var(--accent-amber); }
+    .stat-val.cyan  { color: var(--accent-cyan); }
+    .stat-val.muted { color: var(--text-muted); font-weight: 400; }
+    .stat-val.red   { color: var(--accent-red); }
+
+    /* Peer DID chips */
+    .peer-chip {
+      display: flex; align-items: center; gap: 7px;
+      padding: 6px 9px; border-radius: var(--radius);
+      border: 1px solid var(--border); background: var(--bg-raised);
+      cursor: pointer; transition: all 0.14s; margin-bottom: 4px;
+      animation: slideIn 0.2s ease;
+    }
+    .peer-chip:hover { border-color: var(--border-mid); background: rgba(0,200,255,0.04); }
+    .peer-chip-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent-green); box-shadow: 0 0 5px var(--accent-green); flex-shrink: 0; }
+    .peer-chip-did { font-size: 10px; color: var(--accent-cyan); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+    .peer-chip-use { font-size: 8px; color: var(--text-dim); white-space: nowrap; }
+
+    /* ── MAIN ── */
+    #main { background: var(--bg-void); overflow: hidden; display: flex; flex-direction: column; }
+
+    .view { display: none; flex: 1; overflow-y: auto; padding: 18px; }
+    .view.active { display: block; animation: fadeUp 0.18s ease; }
+
+    /* ── WALLET HERO ── */
+    .wallet-hero {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-mid);
+      border-radius: var(--radius-lg);
+      padding: 22px 24px;
+      margin-bottom: 16px;
+      position: relative; overflow: hidden;
+    }
+    .wallet-hero::before {
+      content: ''; position: absolute; top: -30px; right: -30px;
+      width: 160px; height: 160px;
+      background: radial-gradient(circle, rgba(0,232,124,0.06), transparent 70%);
+      pointer-events: none;
+    }
+    .wallet-hero-label { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px; }
+    .wallet-hero-amount {
+      font-family: var(--font-display); font-size: 42px; font-weight: 800;
+      color: var(--accent-green); line-height: 1; margin-bottom: 4px;
+      text-shadow: 0 0 30px rgba(0,232,124,0.25);
+    }
+    .wallet-hero-unit { font-size: 16px; color: var(--text-muted); font-family: var(--font-mono); }
+    .wallet-hero-did { font-size: 9px; color: var(--text-dim); margin-top: 6px; word-break: break-all; line-height: 1.6; }
+    .wallet-hero-actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+
+    /* ── STATS GRID ── */
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+    .stat-card {
+      background: var(--bg-surface); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 12px; text-align: center;
+    }
+    .stat-card-val { font-family: var(--font-display); font-size: 22px; font-weight: 800; line-height: 1; margin-bottom: 3px; }
+    .stat-card-lbl { font-size: 8px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-muted); }
+
+    /* ── TXN TABLE ── */
+    .txn-table-wrap { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+    .txn-table-hdr { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid var(--border); }
+    .txn-table-title { font-family: var(--font-display); font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); }
+    .txn-row {
+      display: grid; grid-template-columns: 24px 1fr 90px 90px 80px;
+      gap: 10px; align-items: center; padding: 8px 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.025);
+      font-size: 10px; animation: fadeUp 0.2s ease;
+    }
+    .txn-row:last-child { border-bottom: none; }
+    .txn-row:hover { background: rgba(255,255,255,0.015); }
+    .txn-status-dot { width: 7px; height: 7px; border-radius: 50%; }
+    .txn-status-dot.CONVERGED { background: var(--accent-green); box-shadow: 0 0 5px var(--accent-green); }
+    .txn-status-dot.DEADLOCK  { background: var(--text-muted); }
+    .txn-status-dot.POLICY_BLOCKED { background: var(--accent-amber); }
+    .txn-status-dot.PENDING   { background: var(--accent-cyan); animation: blink 1s infinite; }
+    .txn-intent  { color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .txn-amount  { font-weight: 600; text-align: right; }
+    .txn-amount.sent  { color: var(--accent-red); }
+    .txn-amount.recv  { color: var(--accent-green); }
+    .txn-amount.block { color: var(--text-muted); }
+    .txn-counterpart { color: var(--accent-cyan); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 9px; }
+    .txn-time { color: var(--text-dim); text-align: right; font-size: 9px; }
+    .txn-empty { padding: 28px; text-align: center; color: var(--text-dim); font-size: 11px; }
+
+    /* ── SEND FORM ── */
+    .send-form {
+      background: var(--bg-surface); border: 1px solid var(--border-mid);
+      border-radius: var(--radius-lg); padding: 20px; max-width: 540px;
+    }
+    .send-form-title { font-family: var(--font-display); font-size: 14px; font-weight: 800; color: var(--text-primary); margin-bottom: 4px; }
+    .send-form-sub { font-size: 10px; color: var(--text-muted); margin-bottom: 18px; line-height: 1.7; }
+    .field-group { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; }
+    .field-label { font-size: 9px; letter-spacing: 0.10em; text-transform: uppercase; color: var(--text-muted); }
+    .sv-input {
+      width: 100%; padding: 9px 11px;
+      background: var(--bg-input); border: 1px solid var(--border);
+      border-radius: var(--radius); color: var(--text-primary);
+      font-family: var(--font-mono); font-size: 12px; outline: none;
+      transition: border-color 0.14s, box-shadow 0.14s;
+    }
+    .sv-input:focus { border-color: rgba(0,232,124,0.5); box-shadow: 0 0 0 2px rgba(0,232,124,0.08); }
+    .sv-input::placeholder { color: var(--text-dim); }
+    .sv-textarea {
+      width: 100%; padding: 9px 11px;
+      background: var(--bg-input); border: 1px solid var(--border);
+      border-radius: var(--radius); color: var(--text-primary);
+      font-family: var(--font-mono); font-size: 11px; outline: none;
+      resize: vertical; min-height: 72px; line-height: 1.6;
+    }
+    .sv-textarea:focus { border-color: rgba(0,232,124,0.5); }
+    .sv-textarea::placeholder { color: var(--text-dim); }
+
+    /* ── AI TRIO ── */
+    .trio-section { margin-bottom: 16px; }
+    .trio-section-title { font-family: var(--font-display); font-size: 11px; font-weight: 700; color: var(--text-primary); margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+    .trio-badge { font-size: 8px; padding: 2px 8px; border-radius: 10px; background: rgba(0,232,124,0.08); border: 1px solid var(--border-mid); color: var(--accent-green); font-family: var(--font-mono); font-weight: 700; letter-spacing: 0.5px; }
+    .trio-badge.amber { background: rgba(255,176,32,0.08); border-color: rgba(255,176,32,0.2); color: var(--accent-amber); }
+
+    .agent-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+    .agent-card {
+      background: var(--bg-surface); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); overflow: hidden; transition: border-color 0.3s, box-shadow 0.3s;
+    }
+    .agent-card.thinking { border-color: rgba(255,176,32,0.4); box-shadow: 0 0 14px rgba(255,176,32,0.08); }
+    .agent-card.approved { border-color: rgba(0,232,124,0.4); box-shadow: 0 0 14px rgba(0,232,124,0.08); }
+    .agent-card.rejected { border-color: rgba(255,64,64,0.35); box-shadow: 0 0 12px rgba(255,64,64,0.06); }
+    .agent-hdr { padding: 8px 11px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 7px; }
+    .agent-icon { font-size: 14px; }
+    .agent-name { font-family: var(--font-display); font-size: 10px; font-weight: 700; color: var(--text-primary); }
+    .agent-role { font-size: 8px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; }
+    .agent-live-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--text-dim); margin-left: auto; flex-shrink: 0; }
+    .agent-live-dot.live { background: var(--accent-green); box-shadow: 0 0 4px var(--accent-green); animation: blink 2s infinite; }
+    .agent-body { padding: 9px 11px; min-height: 80px; display: flex; flex-direction: column; gap: 6px; }
+    .agent-reasoning { font-size: 9px; color: var(--text-muted); line-height: 1.6; flex: 1; }
+    .agent-reasoning.dim { color: var(--text-dim); font-style: italic; }
+    .agent-verdict {
+      font-size: 9px; font-weight: 700; padding: 4px 8px;
+      border-radius: var(--radius); border: 1px solid;
+      font-family: var(--font-mono); letter-spacing: 0.5px;
+    }
+    .agent-verdict.pending  { color: var(--text-muted); border-color: var(--border); background: var(--bg-raised); }
+    .agent-verdict.thinking { color: var(--accent-amber); border-color: rgba(255,176,32,0.3); background: rgba(255,176,32,0.05); }
+    .agent-verdict.approve  { color: var(--accent-green); border-color: var(--border-mid); background: rgba(0,232,124,0.05); }
+    .agent-verdict.reject   { color: var(--accent-red); border-color: rgba(255,64,64,0.3); background: rgba(255,64,64,0.05); }
+    .agent-ftr { padding: 5px 11px; border-top: 1px solid var(--border); display: flex; align-items: center; gap: 6px; font-size: 9px; color: var(--text-dim); }
+    .agent-earned { color: var(--accent-amber); font-weight: 700; margin-left: auto; }
+
+    /* Convergence result */
+    .conv-result {
+      border: 1px solid; border-radius: var(--radius-lg); padding: 14px; margin-top: 14px;
+      display: none;
+    }
+    .conv-result.visible { display: block; animation: fadeUp 0.2s ease; }
+    .conv-result.CONVERGED { border-color: var(--border-mid); background: rgba(0,232,124,0.03); }
+    .conv-result.DEADLOCK  { border-color: rgba(255,64,64,0.25); background: rgba(255,64,64,0.02); }
+    .conv-result.POLICY_BLOCKED { border-color: rgba(255,176,32,0.3); background: rgba(255,176,32,0.02); }
+    .conv-badge {
+      font-family: var(--font-display); font-size: 13px; font-weight: 800;
+      padding: 4px 12px; border-radius: 20px; display: inline-block; margin-bottom: 8px;
+    }
+    .conv-badge.CONVERGED { color: var(--accent-green); background: rgba(0,232,124,0.08); border: 1px solid var(--border-mid); }
+    .conv-badge.DEADLOCK  { color: var(--accent-red); background: rgba(255,64,64,0.08); border: 1px solid rgba(255,64,64,0.25); }
+    .conv-badge.POLICY_BLOCKED { color: var(--accent-amber); background: rgba(255,176,32,0.08); border: 1px solid rgba(255,176,32,0.3); }
+    .conv-desc  { font-size: 10px; color: var(--text-muted); line-height: 1.7; margin-bottom: 8px; }
+    .conv-hash-row { display: flex; align-items: center; gap: 8px; padding: 5px 8px; background: var(--bg-raised); border-radius: var(--radius); font-size: 9px; margin-bottom: 8px; }
+    .conv-hash-lbl { color: var(--text-muted); font-weight: 700; white-space: nowrap; }
+    .conv-hash-val { color: var(--accent-purple); font-family: var(--font-mono); word-break: break-all; font-size: 8px; }
+    .conv-sig-row { font-size: 8px; color: var(--text-dim); display: flex; align-items: center; gap: 6px; }
+    .conv-sig-val { color: var(--accent-teal); word-break: break-all; font-size: 7px; }
+    .reward-chips { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 7px; }
+    .reward-chip {
+      font-size: 8px; padding: 2px 8px; border-radius: 10px;
+      background: rgba(255,176,32,0.07); border: 1px solid rgba(255,176,32,0.2);
+      color: var(--accent-amber); font-family: var(--font-mono); font-weight: 700;
+    }
+    .reward-chip.zero { opacity: 0.3; }
+
+    /* ── LEDGER VIEW ── */
+    .ledger-toolbar { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+    .ledger-stats { display: flex; gap: 14px; align-items: center; flex: 1; font-size: 10px; color: var(--text-muted); }
+    #led-search {
+      background: var(--bg-input); border: 1px solid var(--border);
+      color: var(--text-primary); font-family: var(--font-mono);
+      font-size: 10px; padding: 5px 10px; border-radius: 20px; outline: none; width: 160px;
+    }
+    #led-search:focus { border-color: var(--border-mid); }
+    .led-list { display: flex; flex-direction: column; gap: 3px; }
+    .led-entry {
+      display: grid; grid-template-columns: 72px 1fr 80px;
+      gap: 8px; align-items: flex-start;
+      background: var(--bg-surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 7px 11px;
+      animation: fadeUp 0.15s ease;
+    }
+    .led-type {
+      font-size: 8px; padding: 2px 6px; border-radius: 3px;
+      border: 1px solid; white-space: nowrap; font-weight: 700; letter-spacing: 0.5px; text-align: center;
+    }
+    .led-body { min-width: 0; }
+    .led-soul { font-size: 10px; color: var(--text-primary); margin-bottom: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .led-detail { font-size: 8px; color: var(--text-muted); line-height: 1.5; word-break: break-all; }
+    .led-chain { font-size: 7px; color: var(--accent-purple); margin-top: 2px; }
+    .led-ts { font-size: 8px; color: var(--text-dim); white-space: nowrap; text-align: right; }
+
+    /* ── OLLAMA PANEL ── */
+    .ollama-row {
+      display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+      background: rgba(0,232,124,0.03); border: 1px solid rgba(0,232,124,0.12);
+      border-radius: var(--radius); margin-bottom: 12px; flex-wrap: wrap;
+    }
+    .ollama-label { font-size: 9px; font-weight: 700; color: var(--text-muted); white-space: nowrap; letter-spacing: 0.8px; text-transform: uppercase; }
+    .ollama-conn-badge { font-size: 8px; padding: 2px 8px; border-radius: 10px; font-family: var(--font-mono); font-weight: 700; }
+    .ollama-conn-badge.ok   { color: var(--accent-green); background: rgba(0,232,124,0.08); border: 1px solid var(--border-mid); }
+    .ollama-conn-badge.err  { color: var(--accent-red); background: rgba(255,64,64,0.06); border: 1px solid rgba(255,64,64,0.2); }
+    .ollama-conn-badge.wait { color: var(--text-muted); background: var(--bg-raised); border: 1px solid var(--border); }
+    .ollama-setup-hint {
+      background: var(--bg-raised); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 10px 12px; margin-bottom: 12px;
+      font-size: 10px; color: var(--text-muted); line-height: 1.8;
+    }
+    .ollama-setup-hint code { background: rgba(0,232,124,0.07); color: var(--accent-green); padding: 1px 5px; border-radius: 3px; font-size: 9px; }
+    .ollama-setup-hint strong { color: var(--text-primary); }
+
+    /* ── RIGHT PANEL ── */
+    #right-panel {
+      border-left: 1px solid var(--border); background: var(--bg-surface);
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+    .section-hdr {
+      padding: 10px 12px 7px;
+      font-family: var(--font-display); font-size: 10px; font-weight: 700;
+      letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-dim);
+      border-bottom: 1px solid var(--border); flex-shrink: 0;
+    }
+    .alog { flex: 1; overflow-y: auto; padding: 4px 0; }
+    .arow {
+      display: grid; grid-template-columns: 52px 80px 1fr; gap: 6px;
+      padding: 3px 12px; border-bottom: 1px solid rgba(255,255,255,0.02);
+      animation: slideIn 0.15s ease;
+    }
+    .arow:hover { background: rgba(255,255,255,0.02); }
+    .a-ts   { font-size: 9px; color: var(--text-dim); line-height: 1.8; }
+    .a-type { font-size: 9px; color: var(--accent-amber); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .a-data { font-size: 9px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* ── STATUS BAR ── */
+    #statusbar {
+      position: fixed; bottom: 0; left: 0; right: 0; height: 22px;
+      background: rgba(3,3,6,0.97); border-top: 1px solid var(--border);
+      display: flex; align-items: center; padding: 0 12px; gap: 14px;
+      font-size: 9px; color: var(--text-muted); z-index: 500;
+    }
+    #statusbar .sb-item { display: flex; align-items: center; gap: 4px; }
+    #statusbar .sb-sep  { width: 1px; height: 12px; background: var(--border); }
+    #sb-right { margin-left: auto; display: flex; align-items: center; gap: 14px; }
+
+    /* ── TOAST ── */
+    #toast {
+      position: fixed; bottom: 30px; right: 18px;
+      background: var(--bg-panel); border: 1px solid var(--border-bright);
+      border-radius: var(--radius-lg); padding: 9px 14px;
+      font-size: 11px; color: var(--accent-green); z-index: 9999;
+      opacity: 0; transform: translateY(8px); transition: all 0.2s ease;
+      pointer-events: none; max-width: 320px;
+      box-shadow: var(--glow-green), 0 4px 24px rgba(0,0,0,0.5);
+    }
+    #toast.show  { opacity: 1; transform: translateY(0); }
+    #toast.warn  { color: var(--accent-amber); border-color: rgba(255,176,32,0.4); }
+    #toast.err   { color: var(--accent-red);   border-color: rgba(255,64,64,0.4); }
+
+    ::-webkit-scrollbar { width: 3px; height: 3px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    /* ── IDENTITY GATE ── */
+    #identity-gate {
+      position: fixed; inset: 0; z-index: 800;
+      background: var(--bg-void); display: flex;
+      align-items: center; justify-content: center;
+    }
+    #identity-gate.hidden { display: none; }
+    .gate-card {
+      background: var(--bg-surface); border: 1px solid var(--border-mid);
+      border-radius: var(--radius-lg); padding: 32px 36px; text-align: center;
+      max-width: 380px; width: 90%;
+      box-shadow: 0 12px 48px rgba(0,0,0,0.7), var(--glow-green);
+    }
+    .gate-icon { font-size: 32px; margin-bottom: 12px; filter: drop-shadow(0 0 10px var(--accent-green)); }
+    .gate-title { font-family: var(--font-display); font-size: 18px; font-weight: 800; color: var(--text-primary); margin-bottom: 6px; }
+    .gate-sub { font-size: 11px; color: var(--text-muted); line-height: 1.7; margin-bottom: 20px; }
+
+    /* cursor blink for streaming */
+    .stream-cursor { display: inline-block; width: 5px; height: 9px; background: currentColor; opacity: 0.8; animation: blink 0.6s step-end infinite; margin-left: 2px; vertical-align: middle; }
+
+    @media (max-width: 960px) {
+      #layout { grid-template-columns: 50px 1fr 0 0; }
+      #right-panel { display: none; }
+      .stats-grid { grid-template-columns: repeat(2,1fr); }
+    }
+    @media (max-width: 600px) {
+      #layout { grid-template-columns: 0 1fr 0 0; }
+      #rail { display: none; }
+      .agent-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- IDENTITY GATE -->
+<div id="identity-gate">
+  <div class="gate-card">
+    <div class="gate-icon">⬡</div>
+    <div class="gate-title">Sovereign Finance</div>
+    <div class="gate-sub">
+      Unlock your Sovereign identity to access AI-governed payments,
+      wallet, and audit ledger.<br><br>
+      <strong style="color:var(--text-primary)">Return to Genesis Node</strong> to unlock your vault.
+    </div>
+    <a href="index.html" class="btn primary btn-block">← Back to Genesis Node</a>
+    <div style="margin-top:10px;font-size:9px;color:var(--text-dim)">Your DID is your wallet address.</div>
+  </div>
+</div>
+
+<!-- HEADER -->
+<header id="header">
+  <a class="header-logo" href="index.html">
+    <div class="logo-hex">
+      <svg viewBox="0 0 26 26" fill="none">
+        <path d="M13 2 L23 7.8 L23 19.2 L13 25 L3 19.2 L3 7.8 Z" stroke="#00e87c" stroke-width="1.2" fill="rgba(0,232,124,0.04)"/>
+        <path d="M13 7 L19.5 10.8 L19.5 18.2 L13 22 L6.5 18.2 L6.5 10.8 Z" stroke="#00e87c" stroke-width="0.5" fill="rgba(0,232,124,0.06)"/>
+        <circle cx="13" cy="14" r="2" fill="#00e87c"/>
+      </svg>
+    </div>
+    <div>
+      <div class="logo-text">SOVEREIGN</div>
+      <div class="logo-version">FINANCE · v1.0</div>
+    </div>
+  </a>
+  <div class="header-sep"></div>
+  <div class="chip" id="chip-identity"><div class="dot pulse"></div><span>IDENTITY</span></div>
+  <div class="chip" id="chip-ollama"><div class="dot"></div><span>OLLAMA</span></div>
+  <div class="chip" id="chip-transport"><div class="dot"></div><span>TRANSPORT</span></div>
+  <div class="chip" id="chip-wallet"><div class="dot"></div><span>WALLET</span></div>
+  <div class="header-right">
+    <span id="svr-badge" style="font-size:11px;color:var(--accent-amber);font-weight:700;padding:3px 10px;border:1px solid rgba(255,176,32,0.2);border-radius:20px;background:rgba(255,176,32,0.05)">— SVR</span>
+    <button class="btn primary btn-sm" onclick="App.switchView('send')">📤 Send</button>
+    <button class="btn amber btn-sm" onclick="App.mintSVR()">🪙 Mint</button>
+  </div>
+</header>
+
+<!-- LAYOUT -->
+<div id="layout">
+
+  <!-- RAIL -->
+  <nav id="rail">
+    <button class="rail-btn active" data-tip="Wallet" onclick="App.switchView('wallet',this)">◈</button>
+    <button class="rail-btn" data-tip="Send" onclick="App.switchView('send',this)">📤</button>
+    <button class="rail-btn" data-tip="AI Trio" onclick="App.switchView('trio',this)">⊛</button>
+    <button class="rail-btn" data-tip="Ledger" onclick="App.switchView('ledger',this)">⬡</button>
+    <div style="flex:1"></div>
+    <button class="rail-btn" data-tip="Back to OS" onclick="location.href='index.html'">⟵</button>
+  </nav>
+
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+    <div class="panel-hdr">
+      <span class="panel-title" id="sb-title">Wallet</span>
+      <button class="btn btn-sm" onclick="App.refreshSidebar()">↻</button>
+    </div>
+    <div class="panel-body" id="sb-body">
+      <div style="color:var(--text-dim);font-size:11px">Loading…</div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div id="main">
+
+    <!-- WALLET VIEW -->
+    <div class="view active" id="view-wallet">
+      <div class="wallet-hero">
+        <div class="wallet-hero-label">Total Balance</div>
+        <div class="wallet-hero-amount"><span id="hero-balance">—</span> <span class="wallet-hero-unit">SVR</span></div>
+        <div class="wallet-hero-did" id="hero-did">—</div>
+        <div class="wallet-hero-actions">
+          <button class="btn primary" onclick="App.switchView('send')">📤 Send SVR</button>
+          <button class="btn amber" onclick="App.mintSVR()">🪙 Mint 50 SVR</button>
+          <button class="btn btn-sm" onclick="App.exportWallet()">⬇ Export</button>
+        </div>
+      </div>
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-card-val" id="stat-converged" style="color:var(--accent-green)">0</div><div class="stat-card-lbl">Converged</div></div>
+        <div class="stat-card"><div class="stat-card-val" id="stat-deadlocks" style="color:var(--text-muted)">0</div><div class="stat-card-lbl">Blocked</div></div>
+        <div class="stat-card"><div class="stat-card-val" id="stat-peers" style="color:var(--accent-cyan)">0</div><div class="stat-card-lbl">Peers</div></div>
+        <div class="stat-card"><div class="stat-card-val" id="stat-agents" style="color:var(--accent-amber)">0</div><div class="stat-card-lbl">Agent SVR</div></div>
+      </div>
+      <div class="txn-table-wrap">
+        <div class="txn-table-hdr">
+          <span class="txn-table-title">Transaction History</span>
+          <button class="btn btn-sm danger" onclick="App.clearHistory()">Clear</button>
+        </div>
+        <div id="txn-list"><div class="txn-empty">No transactions yet. Send SVR to get started.</div></div>
+      </div>
+    </div>
+
+    <!-- SEND VIEW -->
+    <div class="view" id="view-send">
+      <div class="send-form">
+        <div class="send-form-title">Send SVR</div>
+        <div class="send-form-sub">All transactions require 3-of-3 AI agent consensus before settlement. Your private key signs the final record.</div>
+
+        <div class="ollama-row" id="send-ollama-row">
+          <span class="ollama-label">🦙 Ollama</span>
+          <input class="sv-input" id="send-ollama-host" value="http://localhost:11434" style="width:180px;font-size:10px;padding:4px 8px">
+          <select id="send-model-sel" style="background:var(--bg-input);border:1px solid var(--border);color:var(--text-primary);font-family:var(--font-mono);font-size:10px;padding:4px 8px;border-radius:var(--radius);outline:none;min-width:120px">
+            <option value="">— model —</option>
+          </select>
+          <button class="btn primary btn-sm" onclick="Ollama.connect()">Connect</button>
+          <span class="ollama-conn-badge wait" id="ollama-badge">offline</span>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label">Recipient DID or Peer</label>
+          <input class="sv-input" id="txn-to" placeholder="did:sovereign:… or paste DID">
+          <div id="peer-did-hints" style="display:flex;gap:5px;flex-wrap:wrap;margin-top:5px"></div>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Amount (SVR)</label>
+          <input class="sv-input" id="txn-amount" type="number" min="0.01" step="0.01" placeholder="10.00">
+        </div>
+        <div class="field-group">
+          <label class="field-label">Intent — describe the purpose (required by AI agents)</label>
+          <textarea class="sv-textarea" id="txn-intent" placeholder="e.g. Payment for Q1 consulting services. Invoice #1042. Deliverables completed March 1st."></textarea>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap">
+          <button class="btn primary" id="btn-submit" onclick="Trio.submit()">🚀 Submit to AI Team</button>
+          <button class="btn" onclick="App.clearSendForm()">Clear</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TRIO VIEW -->
+    <div class="view" id="view-trio">
+      <div class="trio-section">
+        <div class="trio-section-title">
+          AI Agent Trio <span class="trio-badge">INTENT CONVERGENCE CHAIN</span>
+          <span class="trio-badge amber" id="trio-mode-badge">3-of-3</span>
+        </div>
+        <div class="ollama-row" style="margin-bottom:14px">
+          <span class="ollama-label">🦙 Ollama</span>
+          <input class="sv-input" id="trio-ollama-host" value="http://localhost:11434" style="width:180px;font-size:10px;padding:4px 8px">
+          <select id="trio-model-sel" style="background:var(--bg-input);border:1px solid var(--border);color:var(--text-primary);font-family:var(--font-mono);font-size:10px;padding:4px 8px;border-radius:var(--radius);outline:none;min-width:120px">
+            <option value="">— model —</option>
+          </select>
+          <button class="btn primary btn-sm" onclick="Ollama.connect()">Connect</button>
+          <span class="ollama-conn-badge wait" id="trio-ollama-badge">offline</span>
+        </div>
+        <div class="ollama-setup-hint" id="ollama-hint">
+          <strong>Ollama not detected.</strong> Finance requires a local LLM for transaction signing.<br>
+          1. Install: <code>curl -fsSL https://ollama.com/install.sh | sh</code><br>
+          2. Enable CORS: <code>OLLAMA_ORIGINS=* ollama serve</code><br>
+          3. Pull a model: <code>ollama pull llama3.2</code>
+        </div>
+        <div class="agent-grid">
+          <div class="agent-card" id="acard-teammate">
+            <div class="agent-hdr"><div class="agent-icon">🤝</div><div><div class="agent-name">Teammate</div><div class="agent-role">Intent Formation</div></div><div class="agent-live-dot" id="adot-teammate"></div></div>
+            <div class="agent-body"><div class="agent-reasoning dim" id="areason-teammate">Waiting for transaction…</div><div class="agent-verdict pending" id="averdict-teammate">⏳ Awaiting</div></div>
+            <div class="agent-ftr"><span style="color:var(--text-dim)">Earned</span><span class="agent-earned" id="aearned-teammate">0 SVR</span></div>
+          </div>
+          <div class="agent-card" id="acard-witness">
+            <div class="agent-hdr"><div class="agent-icon">👁</div><div><div class="agent-name">Witness</div><div class="agent-role">Consistency Check</div></div><div class="agent-live-dot" id="adot-witness"></div></div>
+            <div class="agent-body"><div class="agent-reasoning dim" id="areason-witness">Waiting for transaction…</div><div class="agent-verdict pending" id="averdict-witness">⏳ Awaiting</div></div>
+            <div class="agent-ftr"><span style="color:var(--text-dim)">Earned</span><span class="agent-earned" id="aearned-witness">0 SVR</span></div>
+          </div>
+          <div class="agent-card" id="acard-validator">
+            <div class="agent-hdr"><div class="agent-icon">✦</div><div><div class="agent-name">Validator</div><div class="agent-role">Fraud Screen</div></div><div class="agent-live-dot" id="adot-validator"></div></div>
+            <div class="agent-body"><div class="agent-reasoning dim" id="areason-validator">Waiting for transaction…</div><div class="agent-verdict pending" id="averdict-validator">⏳ Awaiting</div></div>
+            <div class="agent-ftr"><span style="color:var(--text-dim)">Earned</span><span class="agent-earned" id="aearned-validator">0 SVR</span></div>
+          </div>
+        </div>
+        <div class="conv-result" id="conv-result">
+          <div class="conv-badge" id="conv-badge">—</div>
+          <div class="conv-desc" id="conv-desc">—</div>
+          <div class="conv-hash-row"><span class="conv-hash-lbl">TXN HASH</span><span class="conv-hash-val" id="conv-hash">—</span></div>
+          <div class="conv-sig-row"><span style="color:var(--text-muted);font-weight:700">SIG</span><span class="conv-sig-val" id="conv-sig">—</span></div>
+          <div class="reward-chips" id="conv-rewards"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LEDGER VIEW -->
+    <div class="view" id="view-ledger">
+      <div class="ledger-toolbar">
+        <div class="ledger-stats">
+          <span id="led-count" style="color:var(--text-primary);font-weight:700">0</span><span>entries</span>
+          <span style="color:var(--text-dim)">root:</span><span id="led-root" style="color:var(--accent-purple);font-size:9px">—</span>
+        </div>
+        <input id="led-search" placeholder="Filter events…" oninput="Ledger.search(this.value)">
+        <button class="btn btn-sm primary" onclick="Ledger.verify()">✓ Verify</button>
+        <button class="btn btn-sm" onclick="Ledger.export()">⬇ Export</button>
+        <button class="btn btn-sm danger" onclick="Ledger.clear()">Clear</button>
+      </div>
+      <div class="led-list" id="led-list"></div>
+    </div>
+
+  </div><!-- /main -->
+
+  <!-- RIGHT PANEL: Audit + Agents -->
+  <div id="right-panel">
+    <div class="section-hdr">Agent Wallets</div>
+    <div id="agent-wallets" style="padding:6px 12px 8px;flex-shrink:0">
+      <div class="stat-row"><span class="stat-key">🤝 Teammate</span><span class="stat-val amber" id="aw-teammate">0 SVR</span></div>
+      <div class="stat-row"><span class="stat-key">👁 Witness</span><span class="stat-val amber" id="aw-witness">0 SVR</span></div>
+      <div class="stat-row"><span class="stat-key">✦ Validator</span><span class="stat-val amber" id="aw-validator">0 SVR</span></div>
+      <div class="stat-row" style="margin-top:4px"><span class="stat-key">Your DID</span></div>
+      <div style="font-size:8px;color:var(--accent-teal);word-break:break-all;line-height:1.7;padding:4px 0" id="rp-did">—</div>
+    </div>
+    <div class="section-hdr">Audit Log</div>
+    <div class="alog" id="audit-log"></div>
+  </div>
+
+</div><!-- /layout -->
+
+<!-- STATUS BAR -->
+<div id="statusbar">
+  <div class="sb-item"><span id="sb-did" style="color:var(--accent-teal)">— DID</span></div>
+  <div class="sb-sep"></div>
+  <div class="sb-item"><span id="sb-peers" style="color:var(--text-muted)">0 peers</span></div>
+  <div class="sb-sep"></div>
+  <div class="sb-item"><span id="sb-ollama" style="color:var(--text-muted)">🦙 —</span></div>
+  <div id="sb-right">
+    <span id="sb-balance" style="color:var(--accent-amber)">— SVR</span>
+    <span id="sb-clock" style="color:var(--text-dim)">00:00:00</span>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="sovereign_security.js"></script>
+<script src="transport.js"></script>
+<script>
+'use strict';
+
+// ── Fallback sanitize ─────────────────────────────────────────────────────
+if (typeof window.sanitize === 'undefined') {
+  window.sanitize = (s) => {
+    if (s == null) return '';
+    s = String(s);
+    try { return new DOMParser().parseFromString(s,'text/html').body.textContent ?? s.replace(/<[^>]*>/g,''); }
+    catch(_) { return s.replace(/<[^>]*>/g,''); }
+  };
+}
+if (typeof window.SovereignKernelBridge === 'undefined') {
+  window.SovereignKernelBridge = { send: () => Promise.reject(new Error('Kernel unavailable')) };
+}
+
+// ── SHA-256 ───────────────────────────────────────────────────────────────
+const ENC = new TextEncoder();
+async function sha256(data) {
+  const buf = await crypto.subtle.digest('SHA-256', typeof data === 'string' ? ENC.encode(data) : data);
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+// ── TOAST ─────────────────────────────────────────────────────────────────
+function toast(msg, type = '', ms = 3000) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `show${type ? ' '+type : ''}`;
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.className = '', ms);
+}
+
+// ── INDEXED DB WALLET ─────────────────────────────────────────────────────
+// Persists in IndexedDB — same origin as OS, survives browser close.
+const DB = (() => {
+  let _db = null;
+  const STORE = 'finance_wallet';
+
+  async function open() {
+    if (_db) return _db;
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open('sovereign_finance_v1', 1);
+      req.onupgradeneeded = e => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains(STORE)) {
+          db.createObjectStore(STORE, { keyPath: 'key' });
+        }
+      };
+      req.onsuccess  = e => { _db = e.target.result; resolve(_db); };
+      req.onerror    = () => reject(req.error);
+    });
+  }
+
+  async function get(key) {
+    const db = await open();
+    return new Promise((res, rej) => {
+      const tx  = db.transaction(STORE, 'readonly');
+      const req = tx.objectStore(STORE).get(key);
+      req.onsuccess = () => res(req.result?.value ?? null);
+      req.onerror   = () => rej(req.error);
+    });
+  }
+
+  async function set(key, value) {
+    const db = await open();
+    return new Promise((res, rej) => {
+      const tx  = db.transaction(STORE, 'readwrite');
+      tx.objectStore(STORE).put({ key, value });
+      tx.oncomplete = () => res();
+      tx.onerror    = () => rej(tx.error);
+    });
+  }
+
+  return { get, set };
+})();
+
+// ── WALLET STATE ──────────────────────────────────────────────────────────
+const W = {
+  did: null,
+  pubKey: null,
+  balances: { root: 100, teammate: 0, witness: 0, validator: 0 },
+  txnHistory: [],
+  stats: { converged: 0, deadlocks: 0, policyBlocked: 0 },
+  agentEarned: { teammate: 0, witness: 0, validator: 0 },
+  peers: [],  // from SovereignTransport
+};
+
+async function loadWallet(did) {
+  try {
+    const saved = await DB.get('wallet_' + did);
+    if (saved) {
+      W.balances    = saved.balances    ?? W.balances;
+      W.txnHistory  = saved.txnHistory  ?? [];
+      W.stats       = saved.stats       ?? W.stats;
+      W.agentEarned = saved.agentEarned ?? W.agentEarned;
+    }
+    Audit.log('WALLET_LOAD', { did: did.slice(-12), balance: W.balances.root });
+  } catch(e) {
+    Audit.log('WALLET_LOAD_FAIL', { err: e.message });
+  }
+}
+
+async function saveWallet() {
+  if (!W.did) return;
+  try {
+    await DB.set('wallet_' + W.did, {
+      balances: W.balances, txnHistory: W.txnHistory.slice(0, 500),
+      stats: W.stats, agentEarned: W.agentEarned,
+    });
+  } catch(e) {
+    console.error('Wallet save failed:', e);
+  }
+}
+
+// ── AUDIT ─────────────────────────────────────────────────────────────────
+const Audit = {
+  buf: [],
+  log(type, data = {}) {
+    const entry = { type, data, ts: Date.now() };
+    this.buf.unshift(entry);
+    if (this.buf.length > 300) this.buf.pop();
+    const log = document.getElementById('audit-log');
+    if (!log) return;
+    const row = document.createElement('div');
+    row.className = 'arow';
+    const ts  = new Date().toLocaleTimeString('en-US',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    const dat = typeof data === 'object'
+      ? Object.entries(data).map(([k,v])=>`${k}:${String(v)}`).join(' ').slice(0,60)
+      : String(data);
+    row.innerHTML = `<span class="a-ts">${ts}</span><span class="a-type">${sanitize(type)}</span><span class="a-data">${sanitize(dat)}</span>`;
+    log.prepend(row);
+    while (log.children.length > 120) log.lastChild?.remove();
+  },
+};
+
+// ── LEDGER ────────────────────────────────────────────────────────────────
+const Ledger = {
+  entries: [], prevHash: '0'.repeat(64), filter: '',
+  async add(type, soul, detail) {
+    const payload = { type, soul, detail, ts: Date.now(), prev: this.prevHash, did: W.did?.slice(-16) ?? '—' };
+    const hash = await sha256(JSON.stringify(payload));
+    this.prevHash = hash;
+    const entry = { ...payload, hash };
+    this.entries.unshift(entry);
+    if (this.entries.length > 2000) this.entries.pop();
+    this._renderEntry(entry);
+    this._updateStats();
+    return hash;
+  },
+  _colors: {
+    TXN:'var(--accent-green)', TXN_BLOCKED:'var(--accent-red)', MINT:'var(--accent-amber)',
+    BOOT:'var(--text-muted)', WALLET:'var(--accent-teal)', PEER:'var(--accent-cyan)',
+    SIGN:'var(--accent-purple)', AGENT:'var(--accent-amber)', POLICY:'var(--accent-amber)',
+  },
+  _renderEntry(e) {
+    if (this.filter && !JSON.stringify(e).toLowerCase().includes(this.filter)) return;
+    const c = this._colors[e.type] ?? 'var(--text-muted)';
+    const el = document.createElement('div'); el.className = 'led-entry';
+    el.innerHTML = `<span class="led-type" style="color:${c};border-color:${c}33;background:${c}0d">${e.type}</span>
+      <div class="led-body"><div class="led-soul">${sanitize(e.soul)}</div>
+      <div class="led-detail">${sanitize(e.detail)}</div>
+      <div class="led-chain">⛓ ${e.hash.slice(0,18)}… ← ${e.prev.slice(0,10)}…</div></div>
+      <div class="led-ts">${new Date(e.ts).toLocaleTimeString()}</div>`;
+    const list = document.getElementById('led-list');
+    if (list) list.insertBefore(el, list.firstChild);
+    while (list && list.children.length > 150) list.lastChild?.remove();
+  },
+  search(q) {
+    this.filter = q.toLowerCase();
+    const list = document.getElementById('led-list');
+    if (!list) return;
+    list.innerHTML = '';
+    const filtered = q ? this.entries.filter(e => JSON.stringify(e).toLowerCase().includes(this.filter)) : this.entries;
+    filtered.slice(0, 150).forEach(e => this._renderEntry(e));
+  },
+  _updateStats() {
+    const n = this.entries.length;
+    const el = document.getElementById('led-count'); if (el) el.textContent = n;
+    const rp = document.getElementById('led-root'); if (rp) rp.textContent = this.prevHash.slice(0,16)+'…';
+  },
+  async verify() {
+    toast('Verifying chain…', '', 1000);
+    let prev = '0'.repeat(64); let ok = true;
+    for (const e of [...this.entries].reverse()) {
+      const p = { type:e.type, soul:e.soul, detail:e.detail, ts:e.ts, prev:e.prev, did:e.did };
+      const c = await sha256(JSON.stringify(p));
+      if (c !== e.hash || e.prev !== prev) { ok = false; break; }
+      prev = e.hash;
+    }
+    toast(ok ? `✓ Chain OK — ${this.entries.length} entries` : '⚠ CHAIN TAMPERED', ok ? '' : 'err', 5000);
+    Audit.log('LEDGER_VERIFY', { entries: this.entries.length, ok });
+  },
+  export() {
+    const blob = new Blob([JSON.stringify(this.entries, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = `sovereign-finance-ledger-${Date.now()}.json`; a.click();
+    toast('Ledger exported');
+  },
+  clear() {
+    this.entries = []; this.prevHash = '0'.repeat(64);
+    const list = document.getElementById('led-list'); if (list) list.innerHTML = '';
+    this._updateStats();
+  },
+};
+
+// ── OLLAMA ────────────────────────────────────────────────────────────────
+const Ollama = {
+  connected: false, model: '', host: 'http://localhost:11434',
+  async connect() {
+    const hostEl = document.getElementById('send-ollama-host') ?? document.getElementById('trio-ollama-host');
+    this.host = (hostEl?.value ?? 'http://localhost:11434').trim();
+    this._setBadge('checking…', 'wait');
+    try {
+      const r = await fetch(this.host + '/api/tags', { signal: AbortSignal.timeout(4000) });
+      const data = await r.json();
+      const models = data.models ?? [];
+      ['send-model-sel','trio-model-sel'].forEach(id => {
+        const sel = document.getElementById(id); if (!sel) return;
+        sel.innerHTML = '<option value="">— model —</option>';
+        models.forEach(m => { const o = document.createElement('option'); o.value = m.name; o.textContent = m.name; sel.appendChild(o); });
+        if (models.length > 0) sel.value = models[0].name;
+      });
+      if (models.length > 0) this.model = models[0].name;
+      this.connected = true;
+      this._setBadge('● '+models.length+' models', 'ok');
+      document.getElementById('ollama-hint').style.display = 'none';
+      ['teammate','witness','validator'].forEach(r => { const d = document.getElementById('adot-'+r); if (d) d.className = 'agent-live-dot live'; });
+      setChip('ollama', 'ok');
+      Audit.log('OLLAMA_CONNECT', { host: this.host, models: models.length });
+      toast('Ollama connected ✓');
+    } catch(e) {
+      this.connected = false;
+      this._setBadge('✕ offline', 'err');
+      setChip('ollama', 'err');
+      Audit.log('OLLAMA_FAIL', { err: e.message });
+      toast('Ollama offline — start Ollama with OLLAMA_ORIGINS=* ollama serve', 'warn', 6000);
+    }
+  },
+  getModel() {
+    return document.getElementById('trio-model-sel')?.value ?? document.getElementById('send-model-sel')?.value ?? this.model ?? 'llama3.2';
+  },
+  _setBadge(txt, cls) {
+    ['ollama-badge','trio-ollama-badge'].forEach(id => {
+      const el = document.getElementById(id); if (el) { el.textContent = txt; el.className = 'ollama-conn-badge ' + cls; }
+    });
+    const sb = document.getElementById('sb-ollama'); if (sb) sb.textContent = '🦙 ' + (cls === 'ok' ? this.model || 'connected' : 'offline');
+  },
+};
+
+// ── AI TRIO ───────────────────────────────────────────────────────────────
+const AGENT_PROMPTS = {
+  teammate: `You are TEAMMATE — transaction intent analyst. SOLE FUNCTION: assess clarity and legitimacy of intent.
+Be concise (1-2 sentences). Final line MUST be exactly: VERDICT: APPROVE or VERDICT: REJECT`,
+  witness: `You are WITNESS — consistency checker. SOLE FUNCTION: verify amount and parties match the intent.
+Be concise (1-2 sentences). Final line MUST be exactly: VERDICT: APPROVE or VERDICT: REJECT`,
+  validator: `You are VALIDATOR — fraud screener. SOLE FUNCTION: final check for coercion, laundering, self-dealing.
+Be concise (1-2 sentences). Final line MUST be exactly: VERDICT: APPROVE or VERDICT: REJECT`,
+};
+
+let _trioLocked = false;
+
+const Trio = {
+  async submit() {
+    const to     = document.getElementById('txn-to')?.value?.trim();
+    const amount = parseFloat(document.getElementById('txn-amount')?.value);
+    const intent = document.getElementById('txn-intent')?.value?.trim();
+    if (!to)     { toast('Enter recipient DID', 'warn'); return; }
+    if (!amount || amount <= 0) { toast('Enter valid amount', 'warn'); return; }
+    if (!intent || intent.length < 10) { toast('Intent must be at least 10 characters', 'warn'); return; }
+    if (!Ollama.connected) { toast('Connect Ollama first', 'warn'); App.switchView('trio'); return; }
+    if (_trioLocked) return;
+    if (!W.did) { toast('Unlock identity first', 'err'); return; }
+    if (W.balances.root < amount) { toast(`Insufficient balance: ${W.balances.root.toFixed(2)} SVR`, 'err'); return; }
+    App.switchView('trio');
+    await this._process(to, amount, intent);
+  },
+  async _process(to, amount, intent) {
+    _trioLocked = true;
+    document.getElementById('btn-submit').disabled = true;
+    document.getElementById('conv-result').className = 'conv-result';
+    ['teammate','witness','validator'].forEach(r => {
+      document.getElementById('acard-'+r).className = 'agent-card';
+      document.getElementById('areason-'+r).textContent = 'Analyzing…';
+      document.getElementById('areason-'+r).className = 'agent-reasoning dim';
+      document.getElementById('averdict-'+r).textContent = '⏳ Awaiting';
+      document.getElementById('averdict-'+r).className = 'agent-verdict pending';
+    });
+
+    const txnCtx = { from: W.did, to, amount, intent, ts: Date.now() };
+    Audit.log('TXN_START', { to: to.slice(-12), amount, intent: intent.slice(0,30) });
+
+    let results;
+    try {
+      results = await Promise.all([
+        this._callAgent('teammate', txnCtx),
+        this._callAgent('witness', txnCtx),
+        this._callAgent('validator', txnCtx),
+      ]);
+    } catch(e) {
+      toast('Agent error: ' + e.message, 'err');
+      _trioLocked = false;
+      document.getElementById('btn-submit').disabled = false;
+      return;
+    }
+
+    const [tm, wi, va] = results;
+    const approveCount = results.filter(r => r.verdict === 'APPROVE').length;
+    const allApprove   = approveCount === 3; // 3-of-3 hardcoded for now
+    const outcome      = allApprove ? 'CONVERGED' : 'DEADLOCK';
+    const txnHash      = await sha256(JSON.stringify(txnCtx) + outcome + Date.now());
+
+    // Sign with Sovereign identity
+    let sig = null;
+    try {
+      const signPayload = JSON.stringify({ hash: txnHash, outcome, from: W.did, to, amount, ts: Date.now() });
+      const res = await SovereignKernelBridge.send({ cmd: 'ATTEST', nonce: txnHash.slice(0,32), claims: { hash: txnHash, outcome } });
+      if (res.event === 'ATTESTED') sig = res.signature;
+    } catch(_) {}
+
+    // Rewards
+    const BASE = 2, BONUS = 3;
+    const rewards = {};
+    ['teammate','witness','validator'].forEach((role, i) => {
+      const res = results[i];
+      const earned = (allApprove && res.verdict === 'APPROVE') ? BASE + BONUS
+                   : (!allApprove && res.verdict === 'REJECT') ? BASE : 0;
+      rewards[role] = earned;
+      W.balances[role] = (W.balances[role] ?? 0) + earned;
+      W.agentEarned[role] = (W.agentEarned[role] ?? 0) + earned;
+    });
+
+    if (allApprove) {
+      W.balances.root -= amount;
+      W.stats.converged++;
+      // Broadcast settlement to connected peers over transport
+      if (window.SovereignTransport) {
+        SovereignTransport.broadcast({ type: 'SOVEREIGN_TXN', outcome, hash: txnHash, from: W.did, to, amount, sig });
+      }
+    } else {
+      W.stats.deadlocks++;
+    }
+
+    const txnRecord = { outcome, from: W.did, to, amount, intent, hash: txnHash, sig, ts: Date.now(), rewards, approveCount };
+    W.txnHistory.unshift(txnRecord);
+    await saveWallet();
+
+    await Ledger.add(allApprove ? 'TXN' : 'TXN_BLOCKED', `${amount} SVR → ${to.slice(0,20)}…`, `${outcome} · ${approveCount}/3 approved · sig: ${sig?.slice(0,16) ?? 'unsigned'}…`);
+    Audit.log(outcome, { amount, to: to.slice(-12), approveCount, sig: sig?.slice(0,12) ?? 'none' });
+
+    // Convergence UI
+    const cr = document.getElementById('conv-result');
+    cr.className = 'conv-result visible ' + outcome;
+    const cb = document.getElementById('conv-badge');
+    cb.className = 'conv-badge ' + outcome;
+    cb.textContent = allApprove ? '✓ CONVERGED' : '⚠ DEADLOCK';
+    document.getElementById('conv-desc').textContent = allApprove
+      ? `${approveCount}/3 agents approved. ${amount} SVR settled to ${to.slice(0,24)}… Transaction signed by your Sovereign identity.`
+      : `Only ${approveCount}/3 agents approved. Funds are safe — nothing was sent.`;
+    document.getElementById('conv-hash').textContent = txnHash;
+    document.getElementById('conv-sig').textContent = sig ?? '(kernel unavailable — sign manually)';
+    document.getElementById('conv-rewards').innerHTML = ['teammate','witness','validator'].map(r =>
+      `<div class="reward-chip ${rewards[r] > 0 ? '' : 'zero'}">${r} +${rewards[r]}</div>`
+    ).join('');
+
+    App.updateUI();
+    toast(allApprove ? `✓ ${amount} SVR settled (${approveCount}/3 approved)` : `⚠ Deadlock — ${approveCount}/3 approved. Nothing sent.`, allApprove ? '' : 'warn', 5000);
+
+    _trioLocked = false;
+    document.getElementById('btn-submit').disabled = false;
+  },
+  async _callAgent(role, txnCtx) {
+    const host  = Ollama.host;
+    const model = Ollama.getModel();
+    const card  = document.getElementById('acard-'+role);
+    const reasonEl  = document.getElementById('areason-'+role);
+    const verdictEl = document.getElementById('averdict-'+role);
+
+    card.className = 'agent-card thinking';
+    reasonEl.className = 'agent-reasoning';
+    reasonEl.textContent = '';
+    verdictEl.className = 'agent-verdict thinking';
+    verdictEl.innerHTML = '🧠 Thinking <span class="stream-cursor"></span>';
+
+    const userMsg = `FROM: ${txnCtx.from.slice(0,28)}…\nTO: ${txnCtx.to}\nAMOUNT: ${txnCtx.amount} SVR\nINTENT: "${txnCtx.intent}"`;
+    const r = await fetch(host + '/api/chat', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model, stream: true, messages: [
+        { role: 'system', content: AGENT_PROMPTS[role] },
+        { role: 'user',   content: userMsg },
+      ]}),
+      signal: AbortSignal.timeout(90000),
+    });
+    if (!r.ok) throw new Error(`${role} agent HTTP ${r.status}`);
+
+    const reader = r.body.getReader(); const dec = new TextDecoder();
+    let full = '';
+    while (true) {
+      const { done, value } = await reader.read(); if (done) break;
+      for (const line of dec.decode(value).split('\n').filter(Boolean)) {
+        try { const obj = JSON.parse(line); if (obj.message?.content) { full += obj.message.content; reasonEl.textContent = full; } } catch(_) {}
+      }
+    }
+
+    const match = full.match(/VERDICT:\s*(APPROVE|REJECT)/i);
+    const verdict = match ? match[1].toUpperCase() : 'REJECT';
+    const reasoning = full.replace(/VERDICT:\s*(APPROVE|REJECT)/gi, '').trim();
+
+    reasonEl.textContent = reasoning || '(no reasoning)';
+    if (verdict === 'APPROVE') {
+      card.className = 'agent-card approved';
+      verdictEl.className = 'agent-verdict approve';
+      verdictEl.textContent = '✓ APPROVED';
+    } else {
+      card.className = 'agent-card rejected';
+      verdictEl.className = 'agent-verdict reject';
+      verdictEl.textContent = '✕ REJECTED';
+    }
+    Audit.log('AGENT_' + role.toUpperCase(), { verdict, reason: reasoning.slice(0,40) });
+    return { verdict, reasoning };
+  },
+};
+
+// ── CHIP HELPER ───────────────────────────────────────────────────────────
+function setChip(name, status) {
+  const el = document.getElementById('chip-' + name);
+  if (!el) return;
+  el.className = `chip${status ? ' '+status : ''}`;
+}
+
+// ── APP ───────────────────────────────────────────────────────────────────
+const App = {
+  currentView: 'wallet',
+
+  switchView(name, btn) {
+    this.currentView = name;
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.querySelectorAll('.rail-btn').forEach(b => b.classList.remove('active'));
+    const v = document.getElementById('view-'+name); if (v) v.classList.add('active');
+    if (btn) btn.classList.add('active');
+    else { const rb = document.querySelector(`.rail-btn[data-tip="${name}"]`); if (rb) rb.classList.add('active'); }
+    this.renderSidebar(name);
+    if (name === 'wallet') this.renderTxnList();
+  },
+
+  renderSidebar(view) {
+    const title = document.getElementById('sb-title');
+    const body  = document.getElementById('sb-body');
+    if (!title || !body) return;
+    const map = {
+      wallet: 'Wallet',
+      send:   'Send',
+      trio:   'AI Trio',
+      ledger: 'Ledger',
+    };
+    title.textContent = map[view] ?? view;
+    const stats = `
+      <div class="sec-lbl">Your Wallet</div>
+      <div class="stat-row"><span class="stat-key">Balance</span><span class="stat-val amber">${W.balances.root.toFixed(2)} SVR</span></div>
+      <div class="stat-row"><span class="stat-key">Converged</span><span class="stat-val">${W.stats.converged}</span></div>
+      <div class="stat-row"><span class="stat-key">Blocked</span><span class="stat-val muted">${W.stats.deadlocks}</span></div>
+      <div class="sec-lbl">Connected Peers</div>
+      ${W.peers.length > 0
+        ? W.peers.map(p => `<div class="peer-chip" onclick="document.getElementById('txn-to').value='${sanitize(p.did??'')}';App.switchView('send')">
+            <div class="peer-chip-dot"></div>
+            <div class="peer-chip-did">${sanitize((p.did??'anon').slice(0,22)+'…')}</div>
+            <div class="peer-chip-use">→ use</div>
+          </div>`).join('')
+        : '<div style="color:var(--text-dim);font-size:10px">No peers connected. Connect via Genesis Node.</div>'
+      }
+      <div class="sec-lbl" style="margin-top:14px">Agent Balances</div>
+      <div class="stat-row"><span class="stat-key">🤝</span><span class="stat-val amber">${W.balances.teammate.toFixed(2)}</span></div>
+      <div class="stat-row"><span class="stat-key">👁</span><span class="stat-val amber">${W.balances.witness.toFixed(2)}</span></div>
+      <div class="stat-row"><span class="stat-key">✦</span><span class="stat-val amber">${W.balances.validator.toFixed(2)}</span></div>
+    `;
+    body.innerHTML = stats;
+  },
+
+  refreshSidebar() { this.renderSidebar(this.currentView); },
+
+  renderTxnList() {
+    const list = document.getElementById('txn-list'); if (!list) return;
+    if (!W.txnHistory.length) { list.innerHTML = '<div class="txn-empty">No transactions yet. Send SVR to get started.</div>'; return; }
+    list.innerHTML = W.txnHistory.slice(0, 100).map(t => {
+      const isSent  = t.from === W.did;
+      const amtCls  = t.outcome === 'CONVERGED' ? (isSent ? 'sent' : 'recv') : 'block';
+      const amtPfx  = t.outcome === 'CONVERGED' ? (isSent ? '-' : '+') : '';
+      const counter = isSent ? t.to : t.from;
+      return `<div class="txn-row">
+        <div class="txn-status-dot ${t.outcome}"></div>
+        <div class="txn-intent" title="${sanitize(t.intent)}">${sanitize(t.intent.slice(0,60))}${t.intent.length>60?'…':''}</div>
+        <div class="txn-counterpart">${sanitize((counter??'').slice(0,18))}…</div>
+        <div class="txn-amount ${amtCls}">${amtPfx}${t.amount.toFixed(2)} SVR</div>
+        <div class="txn-time">${new Date(t.ts).toLocaleTimeString()}</div>
+      </div>`;
+    }).join('');
+  },
+
+  updateUI() {
+    const bal = W.balances.root.toFixed(2);
+    const hero = document.getElementById('hero-balance'); if (hero) hero.textContent = bal;
+    const badge = document.getElementById('svr-badge'); if (badge) badge.textContent = bal + ' SVR';
+    const sb = document.getElementById('sb-balance'); if (sb) sb.textContent = bal + ' SVR';
+    const heroDid = document.getElementById('hero-did'); if (heroDid) heroDid.textContent = W.did ?? '—';
+    const rpDid = document.getElementById('rp-did'); if (rpDid) rpDid.textContent = W.did ?? '—';
+    const sbDid = document.getElementById('sb-did'); if (sbDid) sbDid.textContent = W.did ? W.did.slice(0,20)+'…' : '— DID';
+    ['teammate','witness','validator'].forEach(r => {
+      const el = document.getElementById('aw-'+r); if (el) el.textContent = W.balances[r].toFixed(2) + ' SVR';
+      const ae = document.getElementById('aearned-'+r); if (ae) ae.textContent = (W.agentEarned[r]??0).toFixed(0) + ' SVR';
+    });
+    // Stats cards
+    const sc = document.getElementById('stat-converged'); if (sc) sc.textContent = W.stats.converged;
+    const sd = document.getElementById('stat-deadlocks'); if (sd) sd.textContent = W.stats.deadlocks;
+    const sp = document.getElementById('stat-peers');     if (sp) sp.textContent = W.peers.length;
+    const sa = document.getElementById('stat-agents');    if (sa) sa.textContent = (['teammate','witness','validator'].reduce((a,r)=>a+(W.balances[r]??0),0)).toFixed(0);
+    setChip('wallet', W.did ? 'ok' : '');
+    this.renderSidebar(this.currentView);
+    if (this.currentView === 'wallet') this.renderTxnList();
+  },
+
+  mintSVR() {
+    if (!W.did) { toast('Unlock identity first', 'warn'); return; }
+    W.balances.root += 50;
+    saveWallet();
+    Ledger.add('MINT', '50 SVR minted', 'self-issued · wallet: root');
+    Audit.log('MINT', { amount: 50, balance: W.balances.root });
+    this.updateUI();
+    toast('🪙 Minted 50 SVR');
+  },
+
+  clearSendForm() {
+    ['txn-to','txn-amount','txn-intent'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  },
+
+  clearHistory() {
+    W.txnHistory = []; W.stats = { converged: 0, deadlocks: 0, policyBlocked: 0 };
+    saveWallet(); this.updateUI();
+    toast('History cleared');
+  },
+
+  exportWallet() {
+    const data = { did: W.did, balances: W.balances, txnHistory: W.txnHistory, exported: new Date().toISOString() };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = `sovereign-wallet-${Date.now()}.json`; a.click();
+    toast('Wallet exported');
+  },
+};
+
+// ── TRANSPORT INTEGRATION ─────────────────────────────────────────────────
+// Listens to SovereignTransport events — peers are shared with Genesis Node.
+window.addEventListener('sovereign:transport:peer-connected', e => {
+  const { peerId, did, transport } = e.detail ?? {};
+  if (!W.peers.find(p => p.peerId === peerId)) {
+    W.peers.push({ peerId, did, transport });
+  }
+  // Build peer DID hint buttons in send form
+  const hints = document.getElementById('peer-did-hints');
+  if (hints) {
+    hints.innerHTML = W.peers.map(p =>
+      `<button class="btn btn-sm" style="font-size:9px" onclick="document.getElementById('txn-to').value='${sanitize(p.did??'')}'">${sanitize((p.did??'anon').slice(0,16)+'…')}</button>`
+    ).join('');
+  }
+  setChip('transport', 'ok');
+  document.getElementById('sb-peers').textContent = W.peers.length + ' peer' + (W.peers.length !== 1 ? 's' : '');
+  App.updateUI();
+  Audit.log('PEER_CONNECTED', { did: (did??'?').slice(-12), via: transport });
+  Ledger.add('PEER', did ?? 'unknown', `transport: ${transport}`);
+  toast(`◈ Peer: ${(did??'anon').slice(-10)}`);
+});
+
+window.addEventListener('sovereign:transport:peer-disconnected', e => {
+  const { peerId } = e.detail ?? {};
+  W.peers = W.peers.filter(p => p.peerId !== peerId);
+  setChip('transport', W.peers.length > 0 ? 'ok' : '');
+  document.getElementById('sb-peers').textContent = W.peers.length + ' peer' + (W.peers.length !== 1 ? 's' : '');
+  App.updateUI();
+});
+
+// Receive incoming SVR transactions from peers
+window.addEventListener('sovereign:transport:message', e => {
+  const { from, payload } = e.detail ?? {};
+  if (!payload || payload.type !== 'SOVEREIGN_TXN') return;
+  if (payload.to !== W.did) return; // not for us
+  if (payload.outcome !== 'CONVERGED') return;
+  W.balances.root += payload.amount;
+  W.stats.converged++;
+  W.txnHistory.unshift({
+    outcome: 'CONVERGED', from: payload.from, to: W.did,
+    amount: payload.amount, intent: '(incoming P2P transfer)', hash: payload.hash,
+    sig: payload.sig, ts: Date.now(), rewards: {}, approveCount: 3,
+  });
+  saveWallet();
+  App.updateUI();
+  Audit.log('TXN_RECV', { from: from?.slice(-12), amount: payload.amount });
+  Ledger.add('TXN', `+${payload.amount} SVR received`, `from: ${(payload.from??'').slice(0,24)}…`);
+  toast(`💰 +${payload.amount} SVR received from ${(from??'?').slice(-8)}`);
+});
+
+// ── IDENTITY INTEGRATION ──────────────────────────────────────────────────
+async function onIdentityReady(did) {
+  W.did = did;
+  document.getElementById('identity-gate')?.classList.add('hidden');
+  setChip('identity', 'ok');
+  await loadWallet(did);
+  App.updateUI();
+  await Ledger.add('BOOT', 'Sovereign Finance loaded', `did: ${did.slice(0,24)}…`);
+  Audit.log('IDENTITY_READY', { did: did.slice(-16) });
+  // Auto-connect Ollama
+  setTimeout(() => Ollama.connect(), 800);
+}
+
+// Check if identity already unlocked (returning from another page)
+const existingDid = window.SOVEREIGN_DID ?? sessionStorage.getItem('sovereign_did') ?? localStorage.getItem('sovereign_did');
+if (existingDid) {
+  onIdentityReady(existingDid);
+} else {
+  window.addEventListener('sovereign:identity:ready', e => {
+    const did = e.detail?.did;
+    if (did) onIdentityReady(did);
+  }, { once: true });
+}
+
+// ── CLOCK ─────────────────────────────────────────────────────────────────
+setInterval(() => {
+  const n = new Date(); const pad = x => String(x).padStart(2,'0');
+  const sb = document.getElementById('sb-clock');
+  if (sb) sb.textContent = pad(n.getHours())+':'+pad(n.getMinutes())+':'+pad(n.getSeconds());
+}, 1000);
+
+// ── INIT ──────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  App.switchView('wallet');
+  App.updateUI();
+  console.log('[Sovereign Finance v1.0] Loaded. Waiting for identity.');
+});
+</script>
+</body>
+</html>
