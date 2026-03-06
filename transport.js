@@ -70,12 +70,12 @@
   const TRANSPORT_VERSION = '4.0.0';
   const PROTOCOL_MAGIC    = 'SV40';
 
-  const DEFAULT_RELAY   = 'wss://sovereign-relay.fly.dev';
+  const DEFAULT_RELAY   = 'wss://nostr.pleb.network';
   const RELAY_PRIORITY  = [
-    'wss://sovereign-relay.fly.dev',          // primary sovereign relay
-    'wss://relay.sovereign.local',             // user-hosted LAN relay
-    'wss://nostr.pleb.network',                // public fallback 1
+    'wss://nostr.pleb.network',                // public fallback 1 — most reliable
     'wss://relay.damus.io',                    // public fallback 2
+    'wss://sovereign-relay.fly.dev',           // primary sovereign relay (may be offline)
+    'wss://relay.sovereign.local',             // user-hosted LAN relay
   ];
   const ICE_SERVERS     = window.SOVEREIGN_ICE_SERVERS ?? [
     { urls: 'stun:openrelay.metered.ca:80' },
