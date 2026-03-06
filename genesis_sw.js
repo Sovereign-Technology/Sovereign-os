@@ -83,10 +83,8 @@ let   _entropyMixTimer = null;
 
 // ── Pattern 05: Network policy ────────────────────────────────────────────
 const _allowedDomains = new Set([
-  'fonts.googleapis.com',
-  'fonts.gstatic.com',
-  'cdnjs.cloudflare.com',
-  'cdn.jsdelivr.net',
+  'cdnjs.cloudflare.com',          // legacy — phase out
+  'cdn.jsdelivr.net',              // legacy — phase out
   'sovereign-relay.fly.dev',
   'openrelay.metered.ca',
   'stun.relay.metered.ca',
@@ -94,6 +92,8 @@ const _allowedDomains = new Set([
   'global.stun.twilio.com',
   'stun.nextcloud.com',
   'stun.libreoffice.org',
+  'nostr.pleb.network',
+  'relay.damus.io',
   // Local LLM / dev services — always permitted (loopback only)
   'localhost',
   '127.0.0.1',

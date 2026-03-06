@@ -1,15 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script src="sovereign_shamir.js"></script>
 <script src="sovereign_security.js"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'none';
-  script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;
+  script-src 'self' 'unsafe-inline';
   style-src 'self' 'unsafe-inline';
-  font-src 'self' https://fonts.gstatic.com https://fonts.googleapis.com;
-  connect-src 'self' http://localhost:11434 https://cdn.jsdelivr.net https://huggingface.co https://*.huggingface.co https:;
+  font-src 'self' 'self';
+  connect-src 'self' http://localhost:11434 https://huggingface.co https://*.huggingface.co https:;
   img-src 'self' data: blob:;
   worker-src blob:;
   object-src 'none';
@@ -34,7 +35,7 @@
   --green:     #4eff91;
   --amber:     #ffe156;
   --red:       #ff6eb4;
-  --mono:      'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+  --mono:      "ui-monospace","Cascadia Code","Menlo","Consolas","Liberation Mono",monospace, 'Fira Code', 'Courier New', monospace;
   --sans:      'DM Sans', 'Outfit', system-ui, sans-serif;
   --r:         8px;
   --r2:        12px;
@@ -1243,7 +1244,7 @@ const AIEngine = (() => {
           const s = document.createElement('script');
           s.type = 'module';
           s.textContent = `
-            import { pipeline } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3/dist/transformers.min.js';
+            import { pipeline } from '/npm/@huggingface/transformers@3/dist/transformers.min.js';
             window.transformersPipeline = pipeline;
             window.dispatchEvent(new Event('transformers-ready'));
           `;

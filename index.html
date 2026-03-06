@@ -6,11 +6,7 @@
   <title>⬡ SOVEREIGN OS v6.0 — Genesis Node</title>
   <meta name="description" content="Self-sovereign, peer-to-peer operating environment. No servers. No surveillance." />
   <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self'; connect-src 'self' wss://sovereign-relay.fly.dev; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet" />
-
+        content="default-src 'self'; connect-src 'self' wss://sovereign-relay.fly.dev; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self' 'unsafe-inline';" />
   <style>
     /* ═══════════════════════════════════════════════════════════════════
        SOVEREIGN DESIGN SYSTEM v6.0
@@ -44,8 +40,8 @@
       --glow-green:    0 0 24px rgba(0,232,124,0.18);
       --glow-cyan:     0 0 24px rgba(0,200,255,0.18);
 
-      --font-mono:     'JetBrains Mono', 'Courier New', monospace;
-      --font-display:  'Syne', system-ui, sans-serif;
+      --font-mono:     "ui-monospace","Cascadia Code","Menlo","Consolas","Liberation Mono",monospace, 'Courier New', monospace;
+      --font-display:  "system-ui","-apple-system","BlinkMacSystemFont","Segoe UI","Helvetica Neue",sans-serif, system-ui, sans-serif;
 
       --radius:        4px;
       --radius-lg:     8px;
@@ -667,6 +663,10 @@
 <body>
 
   <!-- file:// protocol warning -->
+  <div id="sw-fallback-notice" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9999;background:#1a0a00;border-bottom:1px solid #ff6b00;padding:8px 16px;font-size:11px;color:#ff9944;font-family:monospace;align-items:center;gap:10px;">
+    ⚠ Service Worker unavailable — vault uses in-page crypto mode (less isolated). Serve from HTTPS for full security.
+    <button onclick="this.parentElement.style.display='none'" style="margin-left:auto;background:none;border:1px solid #ff6b00;color:#ff9944;padding:2px 8px;cursor:pointer;font-family:monospace;">✕</button>
+  </div>
   <div id="proto-warn">
     <span style="font-weight:700">⚠ file:// ORIGIN</span>
     <span style="color:#8a99aa">Service Workers require HTTP — key isolation is unavailable in this mode.
@@ -816,7 +816,8 @@
   <div id="toast"></div>
 
   <!-- ══════════════════════════════════════════════════════════════════ -->
-  <script src="sovereign_security.js"></script>
+  <script src="sovereign_shamir.js"></script>
+<script src="sovereign_security.js"></script>
   <script src="sovereign_fsm.js"></script>
   <script src="transport.js"></script>
   <!-- ══════════════════════════════════════════════════════════════════ -->
@@ -1761,6 +1762,10 @@
           if (activeSw) _installSwBridge(activeSw);
           window.dispatchEvent(new CustomEvent('sovereign:sw:ready'));
         };
+        // Verify SW is actually ready before firing — guards against install-without-activate
+        navigator.serviceWorker.ready.then(() => {
+          if (!_swReadyFired) fire();
+        }).catch(() => {});
         if (reg.active) {
           fire();
         } else {

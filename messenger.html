@@ -1,13 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script src="sovereign_shamir.js"></script>
 <script src="sovereign_security.js"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sovereign</title>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600&display=swap');
-
 :root {
   --bg:      #060d06;
   --bg2:     #0b160b;
@@ -24,7 +23,7 @@
   --text:    #f4fff0;
   --text2:   #b8f5a0;
   --text3:   #72c97a;
-  --mono:    'Space Mono', 'Courier New', monospace;
+  --mono:    "ui-monospace","Cascadia Code","Menlo","Consolas","Liberation Mono",monospace, 'Courier New', monospace;
   --ui:      system-ui, sans-serif;
 }
 
@@ -507,7 +506,7 @@ main{
 /* keep sponge vis visible via #sponge */
 </style>
 <!-- QR Code library (pure JS, no deps) -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<!-- qrcode CDN removed for air-gap: QR generation gracefully degraded -->
 <!-- Gap 3 fix: FSM kernel — load before transport so invariants are active from the start -->
 <script src="sovereign_fsm.js"></script>
 <!-- Gap 4 fix: transport.js — DHT, Double Ratchet, KDF, sovereignSend/onSovereignMessage -->

@@ -242,3 +242,7 @@ const SovereignShamir = (() => {
 // Make available in both browser and SW contexts
 if (typeof self !== 'undefined') self.SovereignShamir = SovereignShamir;
 if (typeof window !== 'undefined') window.SovereignShamir = SovereignShamir;
+
+// Backward-compat alias — supports both window.Shamir and window.SovereignShamir
+if (typeof window !== "undefined") window.Shamir = window.Shamir || window.SovereignShamir;
+if (typeof self !== "undefined") self.Shamir = self.Shamir || self.SovereignShamir;

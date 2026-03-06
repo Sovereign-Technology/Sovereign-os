@@ -7,7 +7,7 @@
   default-src 'none';
   script-src 'self' 'unsafe-inline';
   style-src 'self' 'unsafe-inline';
-  font-src 'self' https://fonts.gstatic.com;
+  font-src 'self' 'self';
   connect-src 'self' http://localhost:11434 ws: wss: https:;
   img-src 'self' data: blob:;
   worker-src blob:;
@@ -16,6 +16,7 @@
   form-action 'none';
   upgrade-insecure-requests;
 ">
+<script src="sovereign_shamir.js"></script>
 <script src="sovereign_security.js"></script>
 <title>Attack Command — Sovereign Security Platform</title>
 <style>

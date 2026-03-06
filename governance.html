@@ -5,8 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>⬡ SOVEREIGN — DAO Governance v6.0</title>
   <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self'; connect-src 'self' wss://sovereign-relay.fly.dev; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline';" />
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet" />
+        content="default-src 'self'; connect-src 'self' wss://sovereign-relay.fly.dev; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self' 'unsafe-inline';" />
   <style>
     :root {
       --bg-void:#030306;--bg-surface:#070a0f;--bg-raised:#0c1018;--bg-panel:#101620;--bg-input:#0a0e16;
@@ -14,7 +13,7 @@
       --accent-purple:#c060ff;--accent-teal:#00d4aa;
       --text-primary:#dce8f4;--text-muted:#4a5e72;--text-dim:#243040;
       --border:rgba(0,232,124,0.10);--border-mid:rgba(0,232,124,0.20);--border-bright:rgba(0,232,124,0.40);
-      --font-mono:'JetBrains Mono',monospace;--font-display:'Syne',system-ui,sans-serif;
+      --font-mono:"ui-monospace","Cascadia Code","Menlo","Consolas","Liberation Mono",monospace,monospace;--font-display:"system-ui","-apple-system","BlinkMacSystemFont","Segoe UI","Helvetica Neue",sans-serif,system-ui,sans-serif;
       --radius:4px;--radius-lg:8px;
     }
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
@@ -160,6 +159,7 @@
 </div>
 <div id="toast"></div>
 
+<script src="sovereign_shamir.js"></script>
 <script src="sovereign_security.js"></script>
 <script src="sovereign_fsm.js"></script>
 <script>

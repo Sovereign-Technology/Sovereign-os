@@ -1,14 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script src="sovereign_shamir.js"></script>
 <script src="sovereign_security.js"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'none';
   script-src 'self' 'unsafe-inline';
-  style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-  font-src 'self' https://fonts.gstatic.com;
+  style-src 'self' 'unsafe-inline';
+  font-src 'self' 'self';
   connect-src 'self' ws: wss: https:;
   img-src 'self' data: blob:;
   object-src 'none';
@@ -16,8 +17,6 @@
   form-action 'none';
 ">
 <title>Forge Square</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Sora:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 /* ── TOKENS ── */
 :root {
@@ -37,9 +36,9 @@
   --text:      #f4fff0;
   --text2:     #b8f5a0;
   --text3:     #72c97a;
-  --mono:      'IBM Plex Mono', monospace;
-  --serif:     'Playfair Display', Georgia, serif;
-  --sans:      'Sora', system-ui, sans-serif;
+  --mono:      "ui-monospace","Cascadia Code","Menlo","Consolas","Liberation Mono",monospace, monospace;
+  --serif:     "system-ui","-apple-system","BlinkMacSystemFont","Segoe UI","Helvetica Neue",sans-serif, Georgia, serif;
+  --sans:      "system-ui","-apple-system","BlinkMacSystemFont","Segoe UI","Helvetica Neue",sans-serif, system-ui, sans-serif;
   --r:         6px;
   --r2:        10px;
 }

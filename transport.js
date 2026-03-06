@@ -72,7 +72,10 @@
 
   const DEFAULT_RELAY   = 'wss://sovereign-relay.fly.dev';
   const RELAY_PRIORITY  = [
-    'wss://sovereign-relay.fly.dev',
+    'wss://sovereign-relay.fly.dev',          // primary sovereign relay
+    'wss://relay.sovereign.local',             // user-hosted LAN relay
+    'wss://nostr.pleb.network',                // public fallback 1
+    'wss://relay.damus.io',                    // public fallback 2
   ];
   const ICE_SERVERS     = window.SOVEREIGN_ICE_SERVERS ?? [
     { urls: 'stun:openrelay.metered.ca:80' },

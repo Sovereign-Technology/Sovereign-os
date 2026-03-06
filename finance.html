@@ -5,11 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Sovereign Finance — AI-Governed Payments</title>
   <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self'; connect-src 'self' wss://sovereign-relay.fly.dev http://localhost:11434 https://localhost:11434; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+        content="default-src 'self'; connect-src 'self' wss://sovereign-relay.fly.dev http://localhost:11434 https://localhost:11434; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self' 'unsafe-inline';" />
+  <!-- chart.js CDN removed for air-gap: Chart is loaded inline or via local file -->
+<script src="chart.min.js" onerror="console.warn('chart.min.js not found — place chart.js locally')"></script>
 
   <style>
     /* ================================================================
@@ -43,8 +41,8 @@
       --glow-cyan:     0 0 24px rgba(0,200,255,0.18);
       --glow-amber:    0 0 20px rgba(255,176,32,0.15);
 
-      --font-mono:    'JetBrains Mono', 'Courier New', monospace;
-      --font-display: 'Syne', system-ui, sans-serif;
+      --font-mono:    "ui-monospace","Cascadia Code","Menlo","Consolas","Liberation Mono",monospace, 'Courier New', monospace;
+      --font-display: "system-ui","-apple-system","BlinkMacSystemFont","Segoe UI","Helvetica Neue",sans-serif, system-ui, sans-serif;
 
       --radius:    4px;
       --radius-lg: 8px;
@@ -722,6 +720,7 @@
 
 <div id="toast"></div>
 
+<script src="sovereign_shamir.js"></script>
 <script src="sovereign_security.js"></script>
 <script src="transport.js"></script>
 <script>
