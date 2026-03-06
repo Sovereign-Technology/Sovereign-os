@@ -55,18 +55,21 @@
         bottom:         '0',
         left:           '0',
         right:          '0',
+        height:         '22px',
         zIndex:         '99999',
         background:     'rgba(4,4,6,0.97)',
         borderTop:      '1px solid rgba(0,232,124,0.2)',
         fontFamily:     '"JetBrains Mono",Courier New,monospace',
-        fontSize:       '11px',
+        fontSize:       '10px',
         color:          '#475569',
-        padding:        '4px 12px',
+        padding:        '0 12px',
         display:        'flex',
         alignItems:     'center',
         gap:            '10px',
         pointerEvents:  'none',
         userSelect:     'none',
+        overflow:       'hidden',
+        whiteSpace:     'nowrap',
       });
 
       const label = _el('span', { color:'#00e87c', fontWeight:'600' }, 'FILE SHA-256');

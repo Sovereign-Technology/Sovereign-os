@@ -523,9 +523,9 @@
     .msg-body { font-size: 12px; color: var(--text-primary); word-break: break-word; }
 
     /* ── APP GRID ── */
-    .app-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+    .app-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; }
     .app-tile {
-      padding: 11px 9px;
+      padding: 8px 6px;
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
       background: var(--bg-raised);
@@ -535,9 +535,9 @@
       display: block;
     }
     .app-tile:hover { border-color: var(--border-mid); background: rgba(0,232,124,0.03); box-shadow: var(--glow-green); }
-    .app-tile-icon { font-size: 16px; margin-bottom: 5px; }
-    .app-tile-name { font-size: 11px; color: var(--text-primary); font-weight: 600; margin-bottom: 2px; }
-    .app-tile-desc { font-size: 9px; color: var(--text-muted); }
+    .app-tile-icon { font-size: 14px; margin-bottom: 3px; }
+    .app-tile-name { font-size: 9px; color: var(--text-primary); font-weight: 600; margin-bottom: 1px; }
+    .app-tile-desc { font-size: 8px; color: var(--text-muted); }
 
     /* ── CONNECT STATS ── */
     .stat-row {
@@ -1743,7 +1743,31 @@
 
   // ── Boot ──────────────────────────────────────────────────────────────────
 
+  // Dynamically adjust #layout bottom to match the sovereign-hash-bar height.
+  // The bar is injected async by sovereign_security.js after DOMContentLoaded.
+  function _adjustLayoutBottom() {
+    const bar    = document.getElementById('sovereign-hash-bar');
+    const layout = document.getElementById('layout');
+    if (!layout) return;
+    const h = bar ? bar.offsetHeight : 0;
+    layout.style.bottom = (h || 22) + 'px';
+  }
+
+  // Watch for hash bar injection
+  const _hashBarObserver = new MutationObserver(() => {
+    if (document.getElementById('sovereign-hash-bar')) {
+      _adjustLayoutBottom();
+      // Also track resize in case window narrows and bar wraps
+      new ResizeObserver(_adjustLayoutBottom)
+        .observe(document.getElementById('sovereign-hash-bar'));
+      _hashBarObserver.disconnect();
+    }
+  });
+  _hashBarObserver.observe(document.body, { childList: true, subtree: false });
+  window.addEventListener('resize', _adjustLayoutBottom);
+
   document.addEventListener('DOMContentLoaded', () => {
+    _adjustLayoutBottom();
     Canvas.start();
     UI.renderSidebar('network');
     UI.refreshState();

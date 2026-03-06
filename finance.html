@@ -129,7 +129,7 @@
 
     /* ── LAYOUT ── */
     #layout {
-      position: fixed; top: 46px; left: 0; right: 0; bottom: 22px;
+      position: fixed; top: 46px; left: 0; right: 0; bottom: 44px;
       display: grid; grid-template-columns: 50px 240px 1fr 280px;
     }
 
@@ -435,6 +435,7 @@
       background: rgba(3,3,6,0.97); border-top: 1px solid var(--border);
       display: flex; align-items: center; padding: 0 12px; gap: 14px;
       font-size: 9px; color: var(--text-muted); z-index: 600;
+      transition: bottom 0.1s;
     }
     #statusbar .sb-item { display: flex; align-items: center; gap: 4px; }
     #statusbar .sb-sep  { width: 1px; height: 12px; background: var(--border); }
@@ -1546,7 +1547,32 @@ setInterval(() => {
 }, 1000);
 
 // ── INIT ──────────────────────────────────────────────────────────────────
+// Dynamically keep #layout bottom above both the statusbar and the hash bar
+function _adjustFinanceLayout() {
+  const bar      = document.getElementById('sovereign-hash-bar');
+  const statusbar = document.getElementById('statusbar');
+  const layout   = document.getElementById('layout');
+  if (!layout) return;
+  const barH    = bar        ? bar.offsetHeight : 0;
+  const statH   = statusbar  ? statusbar.offsetHeight : 22;
+  // Statusbar sits above hash bar
+  if (statusbar) statusbar.style.bottom = barH + 'px';
+  layout.style.bottom = (barH + statH) + 'px';
+}
+
+const _finHashObserver = new MutationObserver(() => {
+  if (document.getElementById('sovereign-hash-bar')) {
+    _adjustFinanceLayout();
+    new ResizeObserver(_adjustFinanceLayout)
+      .observe(document.getElementById('sovereign-hash-bar'));
+    _finHashObserver.disconnect();
+  }
+});
+_finHashObserver.observe(document.body, { childList: true, subtree: false });
+window.addEventListener('resize', _adjustFinanceLayout);
+
 document.addEventListener('DOMContentLoaded', () => {
+  _adjustFinanceLayout();
   App.switchView('wallet');
   App.updateUI();
   console.log('[Sovereign Finance v1.0] Loaded. Waiting for identity.');
