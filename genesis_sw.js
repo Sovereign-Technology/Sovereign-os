@@ -31,7 +31,7 @@
 
 importScripts('./sovereign_shamir.js');
 
-const SW_VERSION = 'sovereign-sw-v5.0.0';
+const SW_VERSION = 'sovereign-sw-v6.0.1';
 const SW_BUILD   = Date.now().toString(36);
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -327,7 +327,7 @@ async function _createVault({ passphrase, duressPassphrase }) {
 
   // Build vault bundle
   const bundle = {
-    version:     5,
+    version:     6,
     did,
     pubKeyB64,
     salt:        _b64(salt),
@@ -955,7 +955,7 @@ async function _importShamir({ shares }) {
 
     // Re-import as wrapping key and re-derive vault
     const newWrapKey = await crypto.subtle.importKey(
-      'raw', secret, { name: 'AES-KW' }, false, ['wrapKey', 'unwrapKey']
+      'raw', secret, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']
     );
     secret.fill(0);
 
@@ -1458,13 +1458,28 @@ async function _deriveWrappingKey(passphrase, salt, iterations = 310_000) {
   return crypto.subtle.deriveKey(
     { name: 'PBKDF2', salt, iterations, hash: 'SHA-256' },
     baseKey,
-    { name: 'AES-KW', length: 256 },
-    false, ['wrapKey', 'unwrapKey']
+    { name: 'AES-GCM', length: 256 },
+    false, ['encrypt', 'decrypt']
   );
 }
 
 async function _wrapKey(cryptoKey, wrappingKey) {
-  return crypto.subtle.wrapKey('raw', cryptoKey, wrappingKey, 'AES-KW');
+  // AES-KW requires the key to be exported first as pkcs8 (asymmetric) or raw (symmetric),
+  // then encrypted with AES-GCM (since AES-KW only works with raw symmetric keys as input).
+  // We use AES-GCM with a random IV to encrypt the pkcs8-exported private key bytes.
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const keyFormat = cryptoKey.type === 'private' ? 'pkcs8' : 'raw';
+  const exported = await crypto.subtle.exportKey(keyFormat, cryptoKey);
+  const encrypted = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv },
+    wrappingKey,
+    exported
+  );
+  // Prepend IV to ciphertext: [12 bytes IV][ciphertext]
+  const result = new Uint8Array(12 + encrypted.byteLength);
+  result.set(iv, 0);
+  result.set(new Uint8Array(encrypted), 12);
+  return result.buffer;
 }
 
 async function _unwrapKey(wrappedB64, wrappingKey, algorithm, usages) {
@@ -1473,9 +1488,17 @@ async function _unwrapKey(wrappedB64, wrappingKey, algorithm, usages) {
     'ECDH':      { name: 'ECDH', namedCurve: 'P-256' },
     'ECDH-P384': { name: 'ECDH', namedCurve: 'P-384' },
   };
-  return crypto.subtle.unwrapKey(
-    'raw', _b64d(wrappedB64), wrappingKey, 'AES-KW',
-    algoMap[algorithm], true, usages
+  const wrappedBytes = _b64d(wrappedB64);
+  const iv = wrappedBytes.slice(0, 12);
+  const ciphertext = wrappedBytes.slice(12);
+  const decrypted = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv },
+    wrappingKey,
+    ciphertext
+  );
+  const keyFormat = 'pkcs8'; // all wrapped keys are private asymmetric keys
+  return crypto.subtle.importKey(
+    keyFormat, decrypted, algoMap[algorithm], true, usages
   );
 }
 
