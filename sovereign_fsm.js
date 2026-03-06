@@ -353,11 +353,11 @@ window.SovereignFSM = (() => {
   let _lastAuditHash = new Uint8Array(32);
 
   async function _appendAudit(entry) {
-    const payload = JSON.stringify({ ...entry, prev: btoa(String.fromCharCode(..._lastAuditHash)) });
+    const payload = JSON.stringify({ ...entry, prev: (()=>{let _s='';for(let _i=0;_i<_lastAuditHash.length;_i++)_s+=String.fromCharCode(_lastAuditHash[_i]);return btoa(_s);})() });
     const bytes = new TextEncoder().encode(payload);
     const hash = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes));
     _lastAuditHash = hash;
-    _auditChain.push({ entry, hash: btoa(String.fromCharCode(...hash)) });
+    _auditChain.push({ entry, hash: (()=>{let _s='';for(let _i=0;_i<hash.length;_i++)_s+=String.fromCharCode(hash[_i]);return btoa(_s);})() });
     if (_auditChain.length > 1000) _auditChain.shift();
   }
 

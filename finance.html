@@ -745,7 +745,7 @@ if (typeof window.SovereignKernelBridge === 'undefined' ||
     window.SovereignKernelBridge.send.toString().includes('Kernel unavailable')) {
 
   const _finShim = (() => {
-    const _b64  = buf => btoa(String.fromCharCode(...new Uint8Array(buf)));
+    const _b64  = buf => (()=>{ const _b = new Uint8Array(buf instanceof ArrayBuffer ? buf : (buf.buffer ?? buf)); let _s=''; for(let _i=0;_i<_b.length;_i++) _s+=String.fromCharCode(_b[_i]); return btoa(_s); })();
     const _b64d = s   => Uint8Array.from(atob(s), c => c.charCodeAt(0));
     const _hex  = buf => Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
 
@@ -1480,7 +1480,7 @@ async function onIdentityReady(did) {
       if (stored) {
         // Vault exists — offer inline unlock
         const b64d = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
-        const b64  = buf => btoa(String.fromCharCode(...new Uint8Array(buf)));
+        const b64  = buf => (()=>{ const _b = new Uint8Array(buf instanceof ArrayBuffer ? buf : (buf.buffer ?? buf)); let _s=''; for(let _i=0;_i<_b.length;_i++) _s+=String.fromCharCode(_b[_i]); return btoa(_s); })();
         const hex  = buf => Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
         gateCard.innerHTML = `
           <div class="gate-icon">⬡</div>

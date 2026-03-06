@@ -1483,7 +1483,7 @@ async function _unwrapKey(wrappedB64, wrappingKey, algorithm, usages) {
 //  §21 — UTILITY
 // ─────────────────────────────────────────────────────────────────────────────
 
-function _b64(buf)       { return btoa(String.fromCharCode(...new Uint8Array(buf))); }
+function _b64(buf)       { return (()=>{ const _b = new Uint8Array(buf instanceof ArrayBuffer ? buf : (buf.buffer ?? buf)); let _s=''; for(let _i=0;_i<_b.length;_i++) _s+=String.fromCharCode(_b[_i]); return btoa(_s); })(); }
 function _b64d(str)      { return Uint8Array.from(atob(str), c => c.charCodeAt(0)); }
 function _hexEncode(buf) { return Array.from(buf).map(b => b.toString(16).padStart(2,'0')).join(''); }
 

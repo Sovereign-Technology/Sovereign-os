@@ -427,7 +427,7 @@ window.SovereignCSPNonce = (() => {
 
   function generate() {
     crypto.getRandomValues(_pool);
-    return btoa(String.fromCharCode(..._pool))
+    return (()=>{let _s='';for(let _i=0;_i<_pool.length;_i++)_s+=String.fromCharCode(_pool[_i]);return btoa(_s)})()
       .replace(/\+/g, '-')
       .replace(/\//g, '_')
       .replace(/=/g, '');

@@ -1083,7 +1083,7 @@ const P2PNet = (() => {
     try{
       // Security Kernel oracle — private key never leaves the Service Worker
       const bytes   = new TextEncoder().encode(JSON.stringify(payload));
-      const dataB64 = btoa(String.fromCharCode(...bytes));
+      const dataB64 = (()=>{let _s='';for(let _i=0;_i<bytes.length;_i++)_s+=String.fromCharCode(bytes[_i]);return btoa(_s)})();
       const result  = await window.SovereignKernel.sign(dataB64);
       return result?.sig || null;
     }catch(e){

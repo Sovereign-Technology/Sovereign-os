@@ -2095,7 +2095,7 @@ const CryptoEngine = (() => {
     // Compute JWK thumbprint (RFC 7638)
     const members = JSON.stringify({ crv:_jwkPub.crv, kty:_jwkPub.kty, x:_jwkPub.x, y:_jwkPub.y });
     const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(members));
-    _thumbprint = btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+    _thumbprint = (()=>{ const _b = new Uint8Array(buf instanceof ArrayBuffer ? buf : (buf.buffer ?? buf)); let _s=''; for(let _i=0;_i<_b.length;_i++) _s+=String.fromCharCode(_b[_i]); return btoa(_s); })().replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
     return { jwkPub: _jwkPub, thumbprint: _thumbprint };
   }
 

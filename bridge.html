@@ -461,7 +461,7 @@ const secp = (() => {
     const key = await crypto.subtle.importKey('raw', b32(shared.x), {name:'AES-CBC'}, false, ['encrypt']);
     const iv  = crypto.getRandomValues(new Uint8Array(16));
     const enc = new Uint8Array(await crypto.subtle.encrypt({name:'AES-CBC',iv}, key, new TextEncoder().encode(plain)));
-    return btoa(String.fromCharCode(...enc)) + '?iv=' + btoa(String.fromCharCode(...iv));
+    return (()=>{let _s='';for(let _i=0;_i<enc.length;_i++)_s+=String.fromCharCode(enc[_i]);return btoa(_s);})()+"?iv="+(()=>{let _s='';for(let _i=0;_i<iv.length;_i++)_s+=String.fromCharCode(iv[_i]);return btoa(_s)})();
   }
 
   async function nip04Decrypt(rprivb, spubHex, ct) {
