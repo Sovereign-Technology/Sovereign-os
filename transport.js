@@ -231,6 +231,11 @@
       _emit('peer-connected', { peerId, did, transport: 'webrtc' });
       K()?.transport?.send('PEERS_FOUND');
 
+      // Announce our DID→nodeId to the new peer so they can route to us
+      if (_myDid && _myNodeId) {
+        _sendToPeer(peerId, { type: 'DHT_ANNOUNCE', did: _myDid, nodeId: _myNodeId });
+      }
+
       // Latency probe
       _probePing(peerId);
     };
@@ -260,6 +265,12 @@
 
     _peers.delete(peerId);
     if (peer.nodeId) _dht.delete(peer.nodeId);
+
+    // Clear latency probe interval for this peer
+    if (_pingIntervals.has(peerId)) {
+      clearInterval(_pingIntervals.get(peerId));
+      _pingIntervals.delete(peerId);
+    }
 
     _emit('peer-disconnected', { peerId, did: peer.did });
     _log(`Peer disconnected: ${peerId}`);
@@ -303,6 +314,8 @@
     _relay.onclose = () => {
       _log('Relay disconnected');
       _emit('relay-disconnected');
+      _stopRelayKeepalive();
+      _myRelayToken = null;
       K()?.transport?.send('PEER_LOST');
       // Reconnect with exponential backoff
       if (_relayTimer) clearTimeout(_relayTimer);
@@ -324,10 +337,24 @@
     switch (msg.type) {
       case 'HELLO_ACK':
         _log('Relay ack — peers online:', msg.peers?.length ?? 0);
+        // Store our relay-assigned token so PEER_ONLINE guard works correctly
+        if (msg.token) _myRelayToken = msg.token;
+        _startRelayKeepalive();
         if (msg.peers?.length) {
           K()?.transport?.send('PEERS_FOUND');
         } else {
           K()?.transport?.send('PEERS_NONE');
+        }
+        break;
+
+      case 'PONG':
+        // Relay responded to our keepalive ping — connection is alive
+        break;
+
+      case 'PING':
+        // Relay sent a ping — respond immediately
+        if (_relay?.readyState === WebSocket.OPEN) {
+          _relay.send(JSON.stringify({ type: 'PONG', ts: msg.ts }));
         }
         break;
 
@@ -361,6 +388,24 @@
   }
 
   let _myRelayToken = null;
+  let _relayKeepaliveTimer = null;
+
+  function _startRelayKeepalive() {
+    if (_relayKeepaliveTimer) clearInterval(_relayKeepaliveTimer);
+    // Ping relay every 25s to prevent idle WS closure (most servers cut at 30-60s)
+    _relayKeepaliveTimer = setInterval(() => {
+      if (_relay?.readyState === WebSocket.OPEN) {
+        _relay.send(JSON.stringify({ type: 'PING', ts: Date.now() }));
+      } else {
+        clearInterval(_relayKeepaliveTimer);
+        _relayKeepaliveTimer = null;
+      }
+    }, 25_000);
+  }
+
+  function _stopRelayKeepalive() {
+    if (_relayKeepaliveTimer) { clearInterval(_relayKeepaliveTimer); _relayKeepaliveTimer = null; }
+  }
 
   // ── WebRTC offer/answer flow ────────────────────────────────────────────────
   async function _initiateWebRTC(targetToken, targetDid) {
@@ -450,7 +495,8 @@
     const dc      = pc.createDataChannel('sovereign', { ordered: true });
     const peerId  = `manual:${offerId}`;
 
-    _setupDataChannel(pc, dc, peerId, null);
+    // Pass our own DID so the local peer record is populated correctly
+    _setupDataChannel(pc, dc, peerId, _myDid);
 
     // Collect all ICE candidates before returning offer
     const offer = await pc.createOffer();
@@ -506,6 +552,23 @@
     if (!entry) throw new Error('No pending offer with id: ' + offerId);
 
     await entry.pc.setRemoteDescription(new RTCSessionDescription(sdp));
+
+    // Backfill the remote DID into the peer record now that we know it
+    if (did) {
+      const peer = _peers.get(entry.peerId);
+      if (peer && !peer.did) {
+        peer.did = did;
+        _computeNodeId(did).then(nodeId => {
+          peer.nodeId = nodeId;
+          _dhtInsert(nodeId, peer);
+          // Announce ourselves back
+          if (_myDid && _myNodeId) {
+            _sendToPeer(entry.peerId, { type: 'DHT_ANNOUNCE', did: _myDid, nodeId: _myNodeId });
+          }
+        });
+      }
+    }
+
     _pending.delete(offerId);
   }
 
@@ -693,13 +756,21 @@
     if (!msg?.type) return;
 
     switch (msg.type) {
-      case 'PING':
-        _sendToPeer(`${channel}:${from}`, { type: 'PONG', ts: msg.ts });
+      case 'PEER_PING':
+        // Respond with PEER_PONG — find peerId by did+channel
+        {
+          const respPeer = [..._peers.values()].find(p => p.did === from);
+          if (respPeer) _sendToPeer(respPeer.peerId, { type: 'PEER_PONG', ts: msg.ts });
+        }
         break;
 
-      case 'PONG': {
-        const peer = [..._peers.values()].find(p => p.did === from);
-        if (peer && msg.ts) peer.latencyMs = Date.now() - msg.ts;
+      case 'PEER_PONG': {
+        // Update round-trip latency
+        const latPeer = [..._peers.values()].find(p => p.did === from);
+        if (latPeer && msg.ts) {
+          latPeer.latencyMs = Date.now() - msg.ts;
+          latPeer.lastSeen  = Date.now();
+        }
         break;
       }
 
@@ -728,10 +799,20 @@
       case 'DHT_ANNOUNCE':
         // Peer announcing its DID ↔ nodeId mapping for routing table
         if (msg.did && msg.nodeId) {
-          const peer = [..._peers.values()].find(p => p.did === msg.did);
-          if (peer) {
-            peer.nodeId = msg.nodeId;
-            _dhtInsert(msg.nodeId, peer);
+          // Find peer by any identifier — may be a manual peer that didn't have DID yet
+          const announcePeer = [..._peers.values()].find(p =>
+            p.did === msg.did || p.did === from || (!p.did && p.transport === 'webrtc')
+          );
+          if (announcePeer) {
+            const hadDid = !!announcePeer.did;
+            announcePeer.did    = msg.did;
+            announcePeer.nodeId = msg.nodeId;
+            announcePeer.lastSeen = Date.now();
+            _dhtInsert(msg.nodeId, announcePeer);
+            // Emit updated peer info if DID just became known
+            if (!hadDid) {
+              _emit('peer-connected', { peerId: announcePeer.peerId, did: msg.did, transport: announcePeer.transport });
+            }
           }
         }
         break;
@@ -739,12 +820,23 @@
   }
 
   // ── Latency probing ────────────────────────────────────────────────────────
+  const _pingIntervals = new Map(); // peerId → intervalId
+
   function _probePing(peerId) {
-    _sendToPeer(peerId, { type: 'PING', ts: Date.now() });
-    // Re-probe every 30s
-    setInterval(() => {
-      if (_peers.has(peerId)) _sendToPeer(peerId, { type: 'PING', ts: Date.now() });
+    // Clear any existing interval for this peer first
+    if (_pingIntervals.has(peerId)) clearInterval(_pingIntervals.get(peerId));
+    // Send initial probe immediately
+    _sendToPeer(peerId, { type: 'PEER_PING', ts: Date.now() });
+    // Re-probe every 30s — interval stored so it can be cleared on disconnect
+    const id = setInterval(() => {
+      if (_peers.has(peerId)) {
+        _sendToPeer(peerId, { type: 'PEER_PING', ts: Date.now() });
+      } else {
+        clearInterval(id);
+        _pingIntervals.delete(peerId);
+      }
     }, 30_000);
+    _pingIntervals.set(peerId, id);
   }
 
   // ── Public API ─────────────────────────────────────────────────────────────
@@ -764,6 +856,8 @@
 
     disconnectRelay() {
       if (_relayTimer) clearTimeout(_relayTimer);
+      _stopRelayKeepalive();
+      _myRelayToken = null;
       _relay?.close();
       _relay = null;
       K()?.transport?.send('DISCONNECT');
