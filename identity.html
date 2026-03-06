@@ -461,27 +461,53 @@ async function createVault() {
   const duress = document.getElementById('in-duress').value;
   if (!pass || pass.length < 8) { msg('Passphrase must be at least 8 characters.','err'); return; }
   msg('Generating identity…','ok');
+  // Drive vault FSM: LOCKED → CREATING
+  window.SovereignFSM?.vault?.send('CREATE');
   try {
     const res = await SovereignKernelBridge.send({ cmd:'CREATE_VAULT', passphrase:pass, duressPassphrase:duress||undefined });
-    if (res.event === 'VAULT_CREATED') _onReady(res.did, res.pubKey);
-    else msg(res.error ?? 'Failed.', 'err');
-  } catch(e) { msg(e.message,'err'); }
+    if (res.event === 'VAULT_CREATED') {
+      // Drive vault FSM: CREATING → LOCKED (vault exists) → UNLOCKING → UNLOCKED
+      window.SovereignFSM?.vault?.send('CREATE_OK');
+      window.SovereignFSM?.vault?.send('UNLOCK');
+      // Drive identity FSM: NONE → GENERATING (vault is now unlocked)
+      window.SovereignFSM?.identity?.send('GENERATE');
+      _onReady(res.did, res.pubKey, /* isNew= */ true);
+    } else {
+      window.SovereignFSM?.vault?.send('CREATE_FAIL');
+      msg(res.error ?? 'Failed.', 'err');
+    }
+  } catch(e) {
+    window.SovereignFSM?.vault?.send('CREATE_FAIL');
+    msg(e.message,'err');
+  }
 }
 
 async function unlockVault() {
   const pass = document.getElementById('in-unlock').value;
   if (!pass) return;
   msg('Unlocking…','ok');
+  // Drive vault FSM: LOCKED → UNLOCKING
+  window.SovereignFSM?.vault?.send('UNLOCK');
+  // Drive identity FSM: NONE → LOADING
+  window.SovereignFSM?.identity?.send('LOAD');
   try {
     const res = await SovereignKernelBridge.send({ cmd:'UNLOCK_VAULT', passphrase:pass });
     if (res.event === 'VAULT_UNLOCKED') {
       if (res.duress) toast('⚠ Duress vault — decoy active.','warn',5000);
-      _onReady(res.did, res.pubKey);
-    } else msg(res.error === 'WRONG_PASSPHRASE' ? 'Wrong passphrase.' : (res.error ?? 'Failed.'),'err');
-  } catch(e) { msg(e.message,'err'); }
+      _onReady(res.did, res.pubKey, /* isNew= */ false);
+    } else {
+      window.SovereignFSM?.vault?.send('UNLOCK_FAIL');
+      window.SovereignFSM?.identity?.send('LOAD_FAIL');
+      msg(res.error === 'WRONG_PASSPHRASE' ? 'Wrong passphrase.' : (res.error ?? 'Failed.'),'err');
+    }
+  } catch(e) {
+    window.SovereignFSM?.vault?.send('UNLOCK_FAIL');
+    window.SovereignFSM?.identity?.send('LOAD_FAIL');
+    msg(e.message,'err');
+  }
 }
 
-function _onReady(did, pubKey) {
+function _onReady(did, pubKey, isNew = false) {
   _did = did;
   window.SOVEREIGN_DID = did;
   try { sessionStorage.setItem('sovereign_did', did); } catch{}
@@ -494,8 +520,10 @@ function _onReady(did, pubKey) {
   msg('');
   addHistory('VAULT_UNLOCKED', 'Identity loaded');
   toast('⬡ Identity: ' + did.slice(-12));
+  // Drive FSM to correct terminal states — vault: UNLOCKING → UNLOCKED
+  // identity: GENERATING → READY (new) or LOADING → READY (existing)
   window.SovereignFSM?.vault?.send('UNLOCK_OK');
-  window.SovereignFSM?.identity?.send('GEN_OK');
+  window.SovereignFSM?.identity?.send(isNew ? 'GEN_OK' : 'LOAD_OK');
 }
 
 async function lockVault() {
@@ -724,7 +752,12 @@ document.addEventListener('keydown', e => {
 // Auto-restore DID from session
 window.addEventListener('DOMContentLoaded', () => {
   const stored = (() => { try { return sessionStorage.getItem('sovereign_did'); } catch { return null; } })();
-  if (stored) { _did = stored; _onReady(stored, null); }
+  if (stored) {
+    // Restoring from session: treat as loading existing identity
+    window.SovereignFSM?.vault?.send('UNLOCK');
+    window.SovereignFSM?.identity?.send('LOAD');
+    _did = stored; _onReady(stored, null, /* isNew= */ false);
+  }
   _credentials = JSON.parse((() => { try { return sessionStorage.getItem('sov_credentials'); } catch { return '[]'; } })());
   _history = JSON.parse((() => { try { return sessionStorage.getItem('sov_history'); } catch { return '[]'; } })());
 });
