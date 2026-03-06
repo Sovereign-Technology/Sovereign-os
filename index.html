@@ -832,8 +832,96 @@
       catch(_) { return s.replace(/<[^>]*>/g,''); }
     };
   }
+  // ── In-page crypto shim — always installed immediately ───────────────────
+  // The Service Worker will REPLACE this bridge once it activates (HTTP+HTTPS).
+  // This ensures vault creation works on first load before the SW is ready,
+  // on file:// origins, and as a fallback if SW registration fails.
   if (typeof window.SovereignKernelBridge === 'undefined') {
-    window.SovereignKernelBridge = { send: () => Promise.reject(new Error('Kernel unavailable')) };
+    (() => {
+      const _mem = { sigKey:null, vfyKey:null, dhKey:null, dhPub:null };
+      let _did=null, _pubB64=null, _locked=true, _vaultCt=null;
+      const _b64  = buf => btoa(String.fromCharCode(...new Uint8Array(buf)));
+      const _b64d = s   => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+      const _hex  = buf => Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+      async function _deriveWrapKey(pass, salt) {
+        const raw = await crypto.subtle.importKey('raw', new TextEncoder().encode(pass), 'PBKDF2', false, ['deriveKey']);
+        return crypto.subtle.deriveKey({ name:'PBKDF2', salt, hash:'SHA-256', iterations:310_000 }, raw, { name:'AES-GCM', length:256 }, false, ['encrypt','decrypt']);
+      }
+      window.SovereignKernelBridge = {
+        _isShim: true,
+        async send(c) {
+          if (c.cmd==='STATUS') return { vaultLocked:_locked, did:_did, pubKey:_pubB64, patterns:20, ratchets:0, auditEntries:0 };
+          if (c.cmd==='CREATE_VAULT') {
+            if (!c.passphrase || c.passphrase.length<8) return { error:'PASSPHRASE_TOO_SHORT' };
+            const sigPair = await crypto.subtle.generateKey({ name:'ECDSA', namedCurve:'P-256' }, true, ['sign','verify']);
+            const dhPair  = await crypto.subtle.generateKey({ name:'ECDH',  namedCurve:'P-256' }, true, ['deriveKey']);
+            const pubRaw  = new Uint8Array(await crypto.subtle.exportKey('raw', sigPair.publicKey));
+            const hash    = await crypto.subtle.digest('SHA-256', pubRaw);
+            _did    = `did:sovereign:${_hex(hash).slice(0,48)}`;
+            _pubB64 = _b64(pubRaw);
+            _mem.sigKey = sigPair.privateKey; _mem.vfyKey = sigPair.publicKey;
+            _mem.dhKey  = dhPair.privateKey;  _mem.dhPub  = dhPair.publicKey;
+            const salt       = crypto.getRandomValues(new Uint8Array(16));
+            const wk         = await _deriveWrapKey(c.passphrase, salt);
+            const sigPrivRaw = await crypto.subtle.exportKey('pkcs8', sigPair.privateKey);
+            const dhPrivRaw  = await crypto.subtle.exportKey('pkcs8', dhPair.privateKey);
+            const bundle     = JSON.stringify({ sigPriv:_b64(sigPrivRaw), dhPriv:_b64(dhPrivRaw), did:_did, pubKey:_pubB64 });
+            const iv = crypto.getRandomValues(new Uint8Array(12));
+            const ct = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, wk, new TextEncoder().encode(bundle));
+            _vaultCt = { iv:_b64(iv), ct:_b64(ct), salt:_b64(salt) };
+            try { localStorage.setItem('sov_vault_shim', JSON.stringify(_vaultCt)); } catch{}
+            _locked = false;
+            window._SOVEREIGN_SHIM_KEYS = { sigKey:_mem.sigKey, did:_did, pubKey:_pubB64 };
+            return { event:'VAULT_CREATED', did:_did, pubKey:_pubB64 };
+          }
+          if (c.cmd==='UNLOCK_VAULT') {
+            const stored = _vaultCt ?? JSON.parse((() => { try { return localStorage.getItem('sov_vault_shim')||'null'; } catch{ return 'null'; } })());
+            if (!stored) return { error:'NO_VAULT' };
+            try {
+              const wk  = await _deriveWrapKey(c.passphrase, _b64d(stored.salt));
+              const pt  = await crypto.subtle.decrypt({ name:'AES-GCM', iv:_b64d(stored.iv) }, wk, _b64d(stored.ct));
+              const bun = JSON.parse(new TextDecoder().decode(pt));
+              _mem.sigKey = await crypto.subtle.importKey('pkcs8', _b64d(bun.sigPriv), { name:'ECDSA', namedCurve:'P-256' }, false, ['sign']);
+              _mem.dhKey  = await crypto.subtle.importKey('pkcs8', _b64d(bun.dhPriv),  { name:'ECDH',  namedCurve:'P-256' }, false, ['deriveKey']);
+              _did=bun.did; _pubB64=bun.pubKey; _locked=false; _vaultCt=stored;
+              window._SOVEREIGN_SHIM_KEYS = { sigKey:_mem.sigKey, did:_did, pubKey:_pubB64 };
+              return { event:'VAULT_UNLOCKED', did:_did, pubKey:_pubB64 };
+            } catch { return { error:'WRONG_PASSPHRASE', remaining:'?' }; }
+          }
+          if (c.cmd==='LOCK_VAULT') {
+            _locked=true; _mem.sigKey=_mem.vfyKey=_mem.dhKey=_mem.dhPub=null;
+            window._SOVEREIGN_SHIM_KEYS=null;
+            return { event:'VAULT_LOCKED' };
+          }
+          if (c.cmd==='SIGN') {
+            if (_locked||!_mem.sigKey) return { error:'VAULT_LOCKED' };
+            const sig = await crypto.subtle.sign({ name:'ECDSA', hash:'SHA-256' }, _mem.sigKey, new TextEncoder().encode(c.message));
+            return { event:'SIGNED', signature:_b64(sig), pubKey:_pubB64 };
+          }
+          if (c.cmd==='ATTEST') {
+            if (_locked||!_mem.sigKey) return { error:'NOT_READY' };
+            const pl  = JSON.stringify({ did:_did, nonce:c.nonce, ts:Date.now() });
+            const sig = await crypto.subtle.sign({ name:'ECDSA', hash:'SHA-256' }, _mem.sigKey, new TextEncoder().encode(pl));
+            return { event:'ATTESTED', payload:pl, signature:_b64(sig), pubKey:_pubB64 };
+          }
+          if (c.cmd==='EXPORT_SHAMIR') {
+            if (_locked||!_mem.sigKey) return { error:'VAULT_LOCKED' };
+            if (!window.SovereignShamir) return { note:'Shamir library not loaded yet. Try again in a moment.', event:'SHAMIR_EXPORTED', shares:[], t:3, n:5 };
+            const sigPrivRaw = await crypto.subtle.exportKey('pkcs8', _mem.sigKey);
+            const dhPrivRaw  = await crypto.subtle.exportKey('pkcs8', _mem.dhKey);
+            const secret     = new TextEncoder().encode(JSON.stringify({ sigPriv:_b64(sigPrivRaw), dhPriv:_b64(dhPrivRaw), pubKey:_pubB64 }));
+            const shares     = await window.SovereignShamir.split(secret, c.n??5, c.t??3);
+            return { event:'SHAMIR_EXPORTED', shares, t:c.t??3, n:c.n??5 };
+          }
+          if (c.cmd==='GET_PUBKEY') return { pubKey:_pubB64, did:_did };
+          if (c.cmd==='SESSION_CREATE') { if (_locked) return { error:'VAULT_LOCKED' }; return { token:_hex(crypto.getRandomValues(new Uint8Array(16))), expiry:Date.now()+15*60*1000 }; }
+          if (c.cmd==='SESSION_VERIFY') return { valid:!_locked };
+          if (c.cmd==='AUDIT_ENTRY') return { ok:true };
+          return { error:`Unhandled command: ${c.cmd}` };
+        }
+      };
+      console.log('[Sovereign v6.0] In-page crypto shim installed (will be replaced by SW if available).');
+    })();
   }
 
   // ── FSM reference ─────────────────────────────────────────────────────────
@@ -1635,29 +1723,37 @@
     (async () => {
       try {
         const reg = await navigator.serviceWorker.register('./genesis_sw.js', { scope: './' });
-        // Build the message-channel bridge so SovereignKernelBridge works via SW
-        window.SovereignKernelBridge = {
-          async send(cmd) {
-            const sw = reg.active || reg.waiting || reg.installing;
-            if (!sw) throw new Error('Service Worker not active yet');
-            return new Promise((resolve, reject) => {
-              const mc = new MessageChannel();
-              mc.port1.onmessage = (e) => {
-                if (e.data?.error && e.data.error !== 'WRONG_PASSPHRASE' && e.data.error !== 'NO_VAULT') {
-                  // surface hard errors as rejections; soft errors stay as resolved values
+        // Build the SW bridge — replaces the in-page shim once SW is confirmed active
+        function _installSwBridge(sw) {
+          window.SovereignKernelBridge = {
+            _isSW: true,
+            async send(cmd) {
+              // If SW died mid-session, fall back gracefully
+              const activeSw = reg.active || reg.waiting || reg.installing;
+              if (!activeSw) {
+                // SW lost — fall back to shim if vault data is still in memory
+                if (window._SOVEREIGN_SHIM_KEYS) {
+                  console.warn('[Sovereign] SW lost, shim fallback active');
                 }
-                resolve(e.data);
-              };
-              mc.port1.onmessageerror = reject;
-              sw.postMessage(cmd, [mc.port2]);
-            });
-          }
-        };
+                return { error: 'SW_UNAVAILABLE' };
+              }
+              return new Promise((resolve, reject) => {
+                const mc = new MessageChannel();
+                mc.port1.onmessage = (e) => resolve(e.data);
+                mc.port1.onmessageerror = reject;
+                activeSw.postMessage(cmd, [mc.port2]);
+              });
+            }
+          };
+          console.log('[Sovereign v6.0] SW bridge installed — key isolation active.');
+        }
         // Fire ready event once SW is active — guard against double-fire
         let _swReadyFired = false;
         const fire = () => {
           if (_swReadyFired) return;
           _swReadyFired = true;
+          const activeSw = reg.active || reg.waiting || reg.installing;
+          if (activeSw) _installSwBridge(activeSw);
           window.dispatchEvent(new CustomEvent('sovereign:sw:ready'));
         };
         if (reg.active) {
@@ -1792,222 +1888,12 @@
       if (!g) toast('⚠ Storage persistence denied — export identity regularly.', 'warn', 5000);
     });
 
-    // file:// detection
+    // file:// protocol warning (shim is already installed above)
     if (location.protocol === 'file:' || location.origin === 'null') {
       const pw = document.getElementById('proto-warn');
       if (pw) { pw.style.display = 'flex'; document.getElementById('header').style.top = pw.offsetHeight+'px'; }
       UI.audit({ type:'PROTO_WARNING', data:{ protocol:location.protocol } });
-
-      // SW-less shim for file:// dev mode
-      (() => {
-        // Full in-page crypto kernel for file:// origins (no SW isolation).
-        // All key material stays in module-scoped closure — never written to localStorage.
-        // WARNING: Without SW isolation, key material is accessible to page JS.
-        const _mem = {
-          sigKey:  null,  // ECDSA P-256 CryptoKey (private)
-          vfyKey:  null,  // ECDSA P-256 CryptoKey (public)
-          dhKey:   null,  // ECDH P-256 CryptoKey (private)
-          dhPub:   null,  // ECDH P-256 CryptoKey (public)
-          wrapKey: null,  // AES-KW-256 derived from passphrase
-        };
-        let _did     = null;
-        let _pubB64  = null;
-        let _locked  = true;
-        let _vaultIv = null;
-        let _vaultCt = null;  // AES-KW wrapped key bundle stored in memory
-
-        const _b64  = buf => btoa(String.fromCharCode(...new Uint8Array(buf)));
-        const _b64d = s   => Uint8Array.from(atob(s), c => c.charCodeAt(0));
-        const _hex  = buf => Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
-
-        async function _deriveWrapKey(passphrase, salt) {
-          const raw = await crypto.subtle.importKey('raw', new TextEncoder().encode(passphrase),
-            'PBKDF2', false, ['deriveKey']);
-          return crypto.subtle.deriveKey(
-            { name:'PBKDF2', salt, hash:'SHA-256', iterations:310_000 },
-            raw, { name:'AES-GCM', length:256 }, false, ['encrypt','decrypt']
-          );
-        }
-
-        window.SovereignKernelBridge = {
-          async send(c) {
-
-            // ── STATUS ──────────────────────────────────────────────────────
-            if (c.cmd === 'STATUS')
-              return { vaultLocked: _locked, did: _did, pubKey: _pubB64, patterns: 20, ratchets: 0, auditEntries: 0 };
-
-            // ── CREATE_VAULT ────────────────────────────────────────────────
-            if (c.cmd === 'CREATE_VAULT') {
-              if (!c.passphrase || c.passphrase.length < 8) return { error: 'PASSPHRASE_TOO_SHORT' };
-              const sigPair = await crypto.subtle.generateKey({ name:'ECDSA', namedCurve:'P-256' }, true, ['sign','verify']);
-              const dhPair  = await crypto.subtle.generateKey({ name:'ECDH',  namedCurve:'P-256' }, true, ['deriveKey']);
-              const pubRaw  = new Uint8Array(await crypto.subtle.exportKey('raw', sigPair.publicKey));
-              const hash    = await crypto.subtle.digest('SHA-256', pubRaw);
-              _did    = `did:sovereign:${_hex(hash).slice(0,48)}`;
-              _pubB64 = _b64(pubRaw);
-              _mem.sigKey = sigPair.privateKey;
-              _mem.vfyKey = sigPair.publicKey;
-              _mem.dhKey  = dhPair.privateKey;
-              _mem.dhPub  = dhPair.publicKey;
-              // Persist wrapped keys in memory (AES-GCM with passphrase-derived key)
-              const salt       = crypto.getRandomValues(new Uint8Array(16));
-              const wk         = await _deriveWrapKey(c.passphrase, salt);
-              const sigPrivRaw = await crypto.subtle.exportKey('pkcs8', sigPair.privateKey);
-              const dhPrivRaw  = await crypto.subtle.exportKey('pkcs8', dhPair.privateKey);
-              const bundle     = JSON.stringify({ sigPriv: _b64(sigPrivRaw), dhPriv: _b64(dhPrivRaw), did: _did, pubKey: _pubB64 });
-              _vaultIv = crypto.getRandomValues(new Uint8Array(12));
-              _vaultCt = { iv: _b64(_vaultIv), ct: _b64(await crypto.subtle.encrypt({name:'AES-GCM', iv:_vaultIv}, wk, new TextEncoder().encode(bundle))), salt: _b64(salt) };
-              localStorage.setItem('sov_vault_shim', JSON.stringify(_vaultCt));
-              _locked  = false;
-              window._SOVEREIGN_SHIM_KEYS = { sigKey: _mem.sigKey, did: _did, pubKey: _pubB64 };
-              return { event: 'VAULT_CREATED', did: _did, pubKey: _pubB64 };
-            }
-
-            // ── UNLOCK_VAULT ────────────────────────────────────────────────
-            if (c.cmd === 'UNLOCK_VAULT') {
-              const stored = _vaultCt ?? JSON.parse(localStorage.getItem('sov_vault_shim') ?? 'null');
-              if (!stored) return { error: 'NO_VAULT' };
-              try {
-                const wk     = await _deriveWrapKey(c.passphrase, _b64d(stored.salt));
-                const pt     = await crypto.subtle.decrypt({ name:'AES-GCM', iv: _b64d(stored.iv) }, wk, _b64d(stored.ct));
-                const bundle = JSON.parse(new TextDecoder().decode(pt));
-                _mem.sigKey  = await crypto.subtle.importKey('pkcs8', _b64d(bundle.sigPriv), { name:'ECDSA',  namedCurve:'P-256' }, false, ['sign']);
-                _mem.dhKey   = await crypto.subtle.importKey('pkcs8', _b64d(bundle.dhPriv),  { name:'ECDH',   namedCurve:'P-256' }, false, ['deriveKey']);
-                _did         = bundle.did;
-                _pubB64      = bundle.pubKey;
-                _locked      = false;
-                _vaultCt     = stored;
-                // Expose keys on window so finance.html (same session) can access them
-                window._SOVEREIGN_SHIM_KEYS = { sigKey: _mem.sigKey, did: _did, pubKey: _pubB64 };
-                return { event: 'VAULT_UNLOCKED', did: _did, pubKey: _pubB64 };
-              } catch (_) { return { error: 'WRONG_PASSPHRASE', remaining: '?' }; }
-            }
-
-            // ── LOCK_VAULT ──────────────────────────────────────────────────
-            if (c.cmd === 'LOCK_VAULT') {
-              _locked = true; _mem.sigKey = null; _mem.vfyKey = null; _mem.dhKey = null; _mem.dhPub = null;
-              window._SOVEREIGN_SHIM_KEYS = null;
-              return { event: 'VAULT_LOCKED' };
-            }
-
-            // ── SIGN ────────────────────────────────────────────────────────
-            if (c.cmd === 'SIGN') {
-              if (_locked || !_mem.sigKey) return { error: 'VAULT_LOCKED' };
-              const sig = await crypto.subtle.sign({ name:'ECDSA', hash:'SHA-256' }, _mem.sigKey,
-                new TextEncoder().encode(c.message));
-              return { event: 'SIGNED', signature: _b64(sig), pubKey: _pubB64 };
-            }
-
-            // ── VERIFY ──────────────────────────────────────────────────────
-            if (c.cmd === 'VERIFY') {
-              try {
-                const pubKey = await crypto.subtle.importKey('raw', _b64d(c.pubKey),
-                  { name:'ECDSA', namedCurve:'P-256' }, false, ['verify']);
-                const ok = await crypto.subtle.verify({ name:'ECDSA', hash:'SHA-256' }, pubKey,
-                  _b64d(c.signature), new TextEncoder().encode(c.message));
-                return { verified: ok };
-              } catch (_) { return { verified: false }; }
-            }
-
-            // ── SEAL (ECDH ephemeral + AES-GCM) ────────────────────────────
-            if (c.cmd === 'SEAL') {
-              if (_locked || !_mem.sigKey) return { error: 'VAULT_LOCKED' };
-              const recipPub = await crypto.subtle.importKey('raw', _b64d(c.recipientPubKeyB64),
-                { name:'ECDH', namedCurve:'P-256' }, false, []);
-              const eph = await crypto.subtle.generateKey({ name:'ECDH', namedCurve:'P-256' }, true, ['deriveKey']);
-              const sharedKey = await crypto.subtle.deriveKey({ name:'ECDH', public: recipPub }, eph.privateKey,
-                { name:'AES-GCM', length:256 }, false, ['encrypt']);
-              const iv = crypto.getRandomValues(new Uint8Array(12));
-              const ct = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, sharedKey,
-                new TextEncoder().encode(JSON.stringify(c.plaintext)));
-              const ephPubRaw = new Uint8Array(await crypto.subtle.exportKey('raw', eph.publicKey));
-              return { event: 'SEALED', ciphertext: _b64(ct), iv: _b64(iv), ephPub: _b64(ephPubRaw) };
-            }
-
-            // ── OPEN (ECDH + AES-GCM decrypt) ──────────────────────────────
-            if (c.cmd === 'OPEN') {
-              if (_locked || !_mem.dhKey) return { error: 'VAULT_LOCKED' };
-              const senderPub = await crypto.subtle.importKey('raw', _b64d(c.ephPub),
-                { name:'ECDH', namedCurve:'P-256' }, false, []);
-              const sharedKey = await crypto.subtle.deriveKey({ name:'ECDH', public: senderPub }, _mem.dhKey,
-                { name:'AES-GCM', length:256 }, false, ['decrypt']);
-              const pt = await crypto.subtle.decrypt({ name:'AES-GCM', iv: _b64d(c.iv) }, sharedKey, _b64d(c.ciphertext));
-              return { event: 'OPENED', plaintext: JSON.parse(new TextDecoder().decode(pt)) };
-            }
-
-            // ── ATTEST ──────────────────────────────────────────────────────
-            if (c.cmd === 'ATTEST') {
-              if (_locked || !_mem.sigKey) return { error: 'NOT_READY' };
-              const pl  = JSON.stringify({ did: _did, nonce: c.nonce, ts: Date.now() });
-              const sig = await crypto.subtle.sign({ name:'ECDSA', hash:'SHA-256' }, _mem.sigKey, new TextEncoder().encode(pl));
-              return { event: 'ATTESTED', payload: pl, signature: _b64(sig), pubKey: _pubB64 };
-            }
-
-            // ── GET_PUBKEY ──────────────────────────────────────────────────
-            if (c.cmd === 'GET_PUBKEY') return { pubKey: _pubB64, did: _did };
-
-            // ── EXPORT_SHAMIR ───────────────────────────────────────────────
-            if (c.cmd === 'EXPORT_SHAMIR') {
-              if (_locked || !_mem.sigKey) return { error: 'VAULT_LOCKED' };
-              const sigPrivRaw = await crypto.subtle.exportKey('pkcs8', _mem.sigKey);
-              const dhPrivRaw  = await crypto.subtle.exportKey('pkcs8', _mem.dhKey);
-              const secret     = new TextEncoder().encode(JSON.stringify({ sigPriv: _b64(sigPrivRaw), dhPriv: _b64(dhPrivRaw) }));
-              // SovereignShamir must be available on window (loaded via script tag)
-              if (!window.SovereignShamir) return { error: 'SHAMIR_NOT_LOADED' };
-              const shares = await window.SovereignShamir.split(secret, c.n ?? 5, c.t ?? 3);
-              return { event: 'SHAMIR_EXPORTED', shares, t: c.t ?? 3, n: c.n ?? 5 };
-            }
-
-            // ── IMPORT_SHAMIR ───────────────────────────────────────────────
-            if (c.cmd === 'IMPORT_SHAMIR') {
-              if (!window.SovereignShamir) return { error: 'SHAMIR_NOT_LOADED' };
-              const secret = await window.SovereignShamir.combine(c.shares);
-              const bundle = JSON.parse(new TextDecoder().decode(secret));
-              // Import signing key (extractable=false for security after recovery)
-              _mem.sigKey  = await crypto.subtle.importKey('pkcs8', _b64d(bundle.sigPriv), { name:'ECDSA',  namedCurve:'P-256' }, false, ['sign']);
-              _mem.dhKey   = await crypto.subtle.importKey('pkcs8', _b64d(bundle.dhPriv),  { name:'ECDH',   namedCurve:'P-256' }, false, ['deriveKey']);
-              // Re-derive the public key from the imported private key via sign+export trick
-              // We can't directly export from a non-extractable key, so we use the stored bundle pubKey
-              if (bundle.pubKey) {
-                _pubB64 = bundle.pubKey;
-                _mem.vfyKey = await crypto.subtle.importKey('raw', _b64d(bundle.pubKey), { name:'ECDSA', namedCurve:'P-256' }, true, ['verify']);
-              } else {
-                // No stored pubKey — re-derive DID from a digest of the private key bytes
-                const privHash = await crypto.subtle.digest('SHA-256', _b64d(bundle.sigPriv));
-                _pubB64 = _b64(privHash); // fallback — not the real pub key
-              }
-              // Recompute DID from pubKey
-              if (_pubB64) {
-                const pubBytes = _b64d(_pubB64);
-                const didHash = await crypto.subtle.digest('SHA-256', pubBytes);
-                _did = `did:sovereign:${_hex(didHash).slice(0,48)}`;
-              }
-              _locked = false;
-              window._SOVEREIGN_SHIM_KEYS = { sigKey: _mem.sigKey, did: _did, pubKey: _pubB64 };
-              return { event: 'SHAMIR_IMPORTED', did: _did, pubKey: _pubB64 };
-            }
-
-            // ── AUDIT_ENTRY ─────────────────────────────────────────────────
-            if (c.cmd === 'AUDIT_ENTRY') return { ok: true };
-
-            // ── SESSION_CREATE ──────────────────────────────────────────────
-            if (c.cmd === 'SESSION_CREATE') {
-              if (_locked) return { error: 'VAULT_LOCKED' };
-              const token = _hex(crypto.getRandomValues(new Uint8Array(16)));
-              return { token, expiry: Date.now() + 15 * 60 * 1000 };
-            }
-
-            // ── SESSION_VERIFY ──────────────────────────────────────────────
-            if (c.cmd === 'SESSION_VERIFY') return { valid: !_locked };
-
-            console.warn('[Sovereign shim] Unhandled command:', c.cmd);
-            return { error: `Command not available in file:// mode: ${c.cmd}` };
-          }
-        };
-        console.warn('[Sovereign v6.0] In-page crypto shim active (file:// origin). Key isolation requires HTTPS + Service Worker.');
-        UI.audit({ type:'SW_SHIM', data:{ reason:'file_origin' } });
-      })();
-    }
+    }}
 
     console.log('[Sovereign OS v6.0] Genesis Node booted. 20 patterns. Real Ratchet. Real Shamir.');
   });

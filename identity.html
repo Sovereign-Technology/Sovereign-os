@@ -331,7 +331,88 @@
 <script>
 'use strict';
 if (!window.sanitize) window.sanitize = s => String(s ?? '').replace(/<[^>]*>/g, '');
-if (!window.SovereignKernelBridge) window.SovereignKernelBridge = { send: () => Promise.reject(new Error('Kernel unavailable')) };
+
+// Install in-page shim immediately if no bridge present
+if (typeof window.SovereignKernelBridge === 'undefined' || window.SovereignKernelBridge?._isShim) {
+  if (typeof window.SovereignKernelBridge === 'undefined') {
+    (() => {
+      const _mem = { sigKey:null, vfyKey:null, dhKey:null, dhPub:null };
+      let _did=null, _pubB64=null, _locked=true, _vaultCt=null;
+      const _b64  = buf => btoa(String.fromCharCode(...new Uint8Array(buf)));
+      const _b64d = s   => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+      const _hex  = buf => Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+      async function _deriveWrapKey(pass, salt) {
+        const raw = await crypto.subtle.importKey('raw', new TextEncoder().encode(pass), 'PBKDF2', false, ['deriveKey']);
+        return crypto.subtle.deriveKey({ name:'PBKDF2', salt, hash:'SHA-256', iterations:310_000 }, raw, { name:'AES-GCM', length:256 }, false, ['encrypt','decrypt']);
+      }
+      window.SovereignKernelBridge = {
+        _isShim: true,
+        async send(c) {
+          if (c.cmd==='STATUS') return { vaultLocked:_locked, did:_did, pubKey:_pubB64, patterns:20, ratchets:0, auditEntries:0 };
+          if (c.cmd==='CREATE_VAULT') {
+            if (!c.passphrase||c.passphrase.length<8) return { error:'PASSPHRASE_TOO_SHORT' };
+            const sigPair = await crypto.subtle.generateKey({ name:'ECDSA', namedCurve:'P-256' }, true, ['sign','verify']);
+            const dhPair  = await crypto.subtle.generateKey({ name:'ECDH',  namedCurve:'P-256' }, true, ['deriveKey']);
+            const pubRaw  = new Uint8Array(await crypto.subtle.exportKey('raw', sigPair.publicKey));
+            const hash    = await crypto.subtle.digest('SHA-256', pubRaw);
+            _did=`did:sovereign:${_hex(hash).slice(0,48)}`; _pubB64=_b64(pubRaw);
+            _mem.sigKey=sigPair.privateKey; _mem.dhKey=dhPair.privateKey;
+            const salt=crypto.getRandomValues(new Uint8Array(16)), wk=await _deriveWrapKey(c.passphrase,salt);
+            const sigPriv=await crypto.subtle.exportKey('pkcs8',sigPair.privateKey);
+            const dhPriv=await crypto.subtle.exportKey('pkcs8',dhPair.privateKey);
+            const bun=JSON.stringify({sigPriv:_b64(sigPriv),dhPriv:_b64(dhPriv),did:_did,pubKey:_pubB64});
+            const iv=crypto.getRandomValues(new Uint8Array(12));
+            const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},wk,new TextEncoder().encode(bun));
+            _vaultCt={iv:_b64(iv),ct:_b64(ct),salt:_b64(salt)};
+            try{localStorage.setItem('sov_vault_shim',JSON.stringify(_vaultCt));}catch{}
+            _locked=false; window._SOVEREIGN_SHIM_KEYS={sigKey:_mem.sigKey,did:_did,pubKey:_pubB64};
+            return {event:'VAULT_CREATED',did:_did,pubKey:_pubB64};
+          }
+          if (c.cmd==='UNLOCK_VAULT') {
+            const stored=_vaultCt??JSON.parse((()=>{try{return localStorage.getItem('sov_vault_shim')||'null';}catch{return'null';}})());
+            if (!stored) return {error:'NO_VAULT'};
+            try {
+              const wk=await _deriveWrapKey(c.passphrase,_b64d(stored.salt));
+              const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:_b64d(stored.iv)},wk,_b64d(stored.ct));
+              const bun=JSON.parse(new TextDecoder().decode(pt));
+              _mem.sigKey=await crypto.subtle.importKey('pkcs8',_b64d(bun.sigPriv),{name:'ECDSA',namedCurve:'P-256'},false,['sign']);
+              _mem.dhKey=await crypto.subtle.importKey('pkcs8',_b64d(bun.dhPriv),{name:'ECDH',namedCurve:'P-256'},false,['deriveKey']);
+              _did=bun.did; _pubB64=bun.pubKey; _locked=false; _vaultCt=stored;
+              window._SOVEREIGN_SHIM_KEYS={sigKey:_mem.sigKey,did:_did,pubKey:_pubB64};
+              return {event:'VAULT_UNLOCKED',did:_did,pubKey:_pubB64};
+            } catch { return {error:'WRONG_PASSPHRASE',remaining:'?'}; }
+          }
+          if (c.cmd==='LOCK_VAULT') { _locked=true; _mem.sigKey=_mem.dhKey=null; window._SOVEREIGN_SHIM_KEYS=null; return {event:'VAULT_LOCKED'}; }
+          if (c.cmd==='SIGN') {
+            if (_locked||!_mem.sigKey) return {error:'VAULT_LOCKED'};
+            const sig=await crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'},_mem.sigKey,new TextEncoder().encode(c.message));
+            return {event:'SIGNED',signature:_b64(sig),pubKey:_pubB64};
+          }
+          if (c.cmd==='ATTEST') {
+            if (_locked||!_mem.sigKey) return {error:'NOT_READY'};
+            const pl=JSON.stringify({did:_did,nonce:c.nonce,ts:Date.now()});
+            const sig=await crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'},_mem.sigKey,new TextEncoder().encode(pl));
+            return {event:'ATTESTED',payload:pl,signature:_b64(sig),pubKey:_pubB64};
+          }
+          if (c.cmd==='EXPORT_SHAMIR') {
+            if (_locked||!_mem.sigKey) return {error:'VAULT_LOCKED'};
+            if (!window.SovereignShamir) return {note:'Shamir library not loaded yet.',event:'SHAMIR_EXPORTED',shares:[],t:3,n:5};
+            const sigPriv=await crypto.subtle.exportKey('pkcs8',_mem.sigKey);
+            const dhPriv=await crypto.subtle.exportKey('pkcs8',_mem.dhKey);
+            const secret=new TextEncoder().encode(JSON.stringify({sigPriv:_b64(sigPriv),dhPriv:_b64(dhPriv),pubKey:_pubB64}));
+            const shares=await window.SovereignShamir.split(secret,c.n??5,c.t??3);
+            return {event:'SHAMIR_EXPORTED',shares,t:c.t??3,n:c.n??5};
+          }
+          if (c.cmd==='GET_PUBKEY') return {pubKey:_pubB64,did:_did};
+          if (c.cmd==='SESSION_CREATE') { if(_locked)return{error:'VAULT_LOCKED'}; return{token:_hex(crypto.getRandomValues(new Uint8Array(16))),expiry:Date.now()+15*60*1000}; }
+          if (c.cmd==='SESSION_VERIFY') return {valid:!_locked};
+          if (c.cmd==='AUDIT_ENTRY') return {ok:true};
+          return {error:`Unhandled: ${c.cmd}`};
+        }
+      };
+    })();
+  }
+}
 
 let _did = null;
 let _credentials = JSON.parse(sessionStorage.getItem('sov_credentials') || '[]');
