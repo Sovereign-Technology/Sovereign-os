@@ -1478,10 +1478,7 @@ function updateMyIdentity() {
 }
 
 function goBack() {
-  // Try to navigate back to OS
-  const switchFn = window.switchTab || window.parent?.switchTab;
-  if (switchFn) switchFn('feed');
-  else window.history.back();
+  window.location.href = 'index.html';
 }
 
 // ── INIT ───────────────────────────────────────────────
