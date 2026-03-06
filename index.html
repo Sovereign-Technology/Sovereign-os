@@ -1233,7 +1233,7 @@
         const short = p.did ? `${p.did.slice(0,14)}…${p.did.slice(-6)}` : 'ANON';
         const tc    = p.trust>=70?'':'m';
         const ac    = p.peerId===S.activePeer?' active':'';
-        return `<div class="peer-row${ac}" onclick="UI.selectPeer('${sanitize(p.peerId)}')">
+        return `<div class="peer-row${ac}" data-peer-id="${sanitize(p.peerId).replace(/"/g,'&quot;')}" onclick="UI.selectPeer(this.dataset.peerId)">
           <div class="peer-av">◈</div>
           <div class="peer-info">
             <div class="peer-did">${sanitize(short)}</div>
@@ -1468,7 +1468,7 @@
           <div style="display:flex;gap:6px;margin-top:5px;flex-wrap:wrap">
             <button class="btn btn-sm" onclick="document.getElementById('kernel-code-in').value='() => fibonacci(40)'">fib(40)</button>
             <button class="btn btn-sm" onclick="document.getElementById('kernel-code-in').value='() => primes(500000)'">primes(500k)</button>
-            <button class="btn btn-sm" onclick="document.getElementById('kernel-code-in').value='async () => sha256(\\'sovereign\\')'">sha256</button>
+            <button class="btn btn-sm" onclick="document.getElementById('kernel-code-in').value='async () => sha256(&quot;sovereign&quot;)'">sha256</button>
             <button class="btn btn-sm" onclick="document.getElementById('kernel-code-in').value='() => uuid()'">uuid</button>
             <button class="btn primary" style="margin-left:auto" onclick="UI.dispatchKernelTask()">▶ Dispatch</button>
           </div>
@@ -1516,17 +1516,26 @@
         return;
       }
       this.vaultMsg('Generating identity… (this takes a moment)', 'ok');
+      // Drive FSM: vault LOCKED → CREATING, identity stays NONE until vault exists
+      window.SovereignFSM?.vault?.send('CREATE');
       try {
         const res = await SovereignKernelBridge.send({
           cmd: 'CREATE_VAULT', passphrase: pass,
           duressPassphrase: duress || undefined,
         });
         if (res.event === 'VAULT_CREATED') {
-          this._onIdentityReady(res.did, res.pubKey);
+          // vault: CREATING → LOCKED (vault exists) → UNLOCK → UNLOCKING
+          window.SovereignFSM?.vault?.send('CREATE_OK');
+          window.SovereignFSM?.vault?.send('UNLOCK');
+          // identity: NONE → GENERATING (vault is now unlocked)
+          window.SovereignFSM?.identity?.send('GENERATE');
+          this._onIdentityReady(res.did, res.pubKey, true);
         } else {
+          window.SovereignFSM?.vault?.send('CREATE_FAIL');
           this.vaultMsg(res.error ?? 'Failed to create vault.', 'err');
         }
       } catch (err) {
+        window.SovereignFSM?.vault?.send('CREATE_FAIL');
         this.vaultMsg(err.message, 'err');
       }
     },
@@ -1535,18 +1544,25 @@
       const pass = document.getElementById('in-unlock')?.value;
       if (!pass) return;
       this.vaultMsg('Unlocking…', 'ok');
+      // Drive FSM: vault LOCKED → UNLOCKING, identity NONE → LOADING
+      window.SovereignFSM?.vault?.send('UNLOCK');
+      window.SovereignFSM?.identity?.send('LOAD');
       try {
         const res = await SovereignKernelBridge.send({ cmd: 'UNLOCK_VAULT', passphrase: pass });
         if (res.event === 'VAULT_UNLOCKED') {
           if (res.duress) toast('⚠ Duress vault unlocked — decoy identity active.', 'warn', 5000);
-          this._onIdentityReady(res.did, res.pubKey);
+          this._onIdentityReady(res.did, res.pubKey, false);
         } else {
+          window.SovereignFSM?.vault?.send('UNLOCK_FAIL');
+          window.SovereignFSM?.identity?.send('LOAD_FAIL');
           const msg = res.error === 'WRONG_PASSPHRASE'
             ? `Wrong passphrase. ${res.remaining??'?'} attempt(s) remaining.`
             : (res.error === 'NO_VAULT' ? 'No vault found — create one first.' : (res.error ?? 'Unlock failed.'));
           this.vaultMsg(msg, 'err');
         }
       } catch (err) {
+        window.SovereignFSM?.vault?.send('UNLOCK_FAIL');
+        window.SovereignFSM?.identity?.send('LOAD_FAIL');
         this.vaultMsg(err.message, 'err');
       }
     },
@@ -1569,7 +1585,7 @@
       toast('🔒 Vault locked.');
     },
 
-    _onIdentityReady(did, pubKey) {
+    _onIdentityReady(did, pubKey, isNew = false) {
       S.did = did; S.pubKey = pubKey;
       window.SOVEREIGN_DID = did;
       // Persist DID in sessionStorage so sub-pages (finance, messenger, etc.) can pick it up
@@ -1590,6 +1606,10 @@
       this.refreshState();
       this.audit({ type:'IDENTITY_READY', data:{ did:did.slice(-16) } });
       toast(`⬡ Identity: ${did.slice(-12)}`);
+      // Drive FSM to correct terminal states
+      // vault: UNLOCKING → UNLOCKED; identity: GENERATING → READY (new) or LOADING → READY (existing)
+      window.SovereignFSM?.vault?.send('UNLOCK_OK');
+      window.SovereignFSM?.identity?.send(isNew ? 'GEN_OK' : 'LOAD_OK');
     },
 
     vaultMsg(msg, type) {
@@ -1857,6 +1877,11 @@
     },
 
   }; // end UI
+
+  // Expose UI globally so inline onclick="UI.*()" attributes can resolve it.
+  // `const UI` is block-scoped to this <script> tag and invisible to the HTML
+  // attribute execution context, which always runs in window scope.
+  window.UI = UI;
 
   // ── Transport events ──────────────────────────────────────────────────────
 
