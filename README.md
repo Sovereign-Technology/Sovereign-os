@@ -63,6 +63,7 @@ sovereign/
 ├── search.html         ← Sovereign Search    Network-wide distributed search
 ├── portal.html         ← Sovereign Portal    Onboarding gateway and personal profile hub
 ├── relay.html          ← Sovereign Relay     WebSocket relay with live admin UI
+├── finance.html        ← Sovereign Finance   AI-governed payments, P2P wallet, Merkle audit ledger
 ├── bridge.html         ← Protocol Bridge     Nostr, Matrix, RSS, ActivityPub gateway
 ├── transport.js        ← Transport Layer     WebRTC + mesh + blockchain RPC module
 ├── sovereign_fsm.js    ← FSM Kernel          State machine — 5 machines, 5 invariants
