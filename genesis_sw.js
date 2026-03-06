@@ -230,7 +230,13 @@ self.addEventListener('message', (e) => {
   if (!cmd) return;
 
   const reply = (payload) => {
-    e.source?.postMessage({ ...payload, _nonce: nonce });
+    // If a MessageChannel port was transferred, reply through it (bridge pattern).
+    // Fall back to e.source for legacy broadcast-style callers.
+    if (e.ports?.[0]) {
+      e.ports[0].postMessage({ ...payload, _nonce: nonce });
+    } else {
+      e.source?.postMessage({ ...payload, _nonce: nonce });
+    }
   };
 
   // Pattern 11: Rate limiting
@@ -331,7 +337,7 @@ async function _createVault({ passphrase, duressPassphrase }) {
     exchPub:     _b64(exchPubRaw),
     pqPub:       _b64(pqPubRaw),
     createdAt:   Date.now(),
-    kdfIter:     700_000,
+    kdfIter:     310_000,
   };
 
   // Duress vault: separate set of keys wrapped with duress passphrase
@@ -360,7 +366,7 @@ async function _createVault({ passphrase, duressPassphrase }) {
       wrappedPq:   null,
       exchPub:     _b64(dExchPubRaw),
       createdAt:   Date.now(),
-      kdfIter:     700_000,
+      kdfIter:     310_000,
     };
   }
 
@@ -530,7 +536,7 @@ async function _rekeyVault({ newPassphrase }) {
     wrappedSig:  _b64(await _wrapKey(_signingKey, newWrap)),
     wrappedEcdh: _b64(await _wrapKey(_exchangeKey, newWrap)),
     wrappedPq:   _pqKemKey ? _b64(await _wrapKey(_pqKemKey, newWrap)) : null,
-    kdfIter:     700_000,
+    kdfIter:     310_000,
     rekeyedAt:   Date.now(),
   };
 
@@ -1445,7 +1451,7 @@ async function _restoreDidFromStore() {
 //  §20 — KEY WRAP / UNWRAP HELPERS
 // ─────────────────────────────────────────────────────────────────────────────
 
-async function _deriveWrappingKey(passphrase, salt, iterations = 700_000) {
+async function _deriveWrappingKey(passphrase, salt, iterations = 310_000) {
   const baseKey = await crypto.subtle.importKey(
     'raw', new TextEncoder().encode(passphrase), 'PBKDF2', false, ['deriveKey']
   );
