@@ -31,7 +31,7 @@
 
 importScripts('./sovereign_shamir.js');
 
-const SW_VERSION = 'sovereign-sw-v6.0.1';
+const SW_VERSION = 'sovereign-sw-v6.0.2';
 const SW_BUILD   = Date.now().toString(36);
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -94,6 +94,10 @@ const _allowedDomains = new Set([
   'global.stun.twilio.com',
   'stun.nextcloud.com',
   'stun.libreoffice.org',
+  // Local LLM / dev services — always permitted (loopback only)
+  'localhost',
+  '127.0.0.1',
+  '::1',
 ]);
 
 // ── Pattern 07: Cover traffic ─────────────────────────────────────────────

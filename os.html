@@ -1352,7 +1352,7 @@ label{font-size: 16px;color:var(--text2);display:block;margin-bottom:4px;text-tr
     </div>
     <div class="ai-bubble" id="ai-response">Connect to Ollama and click Activate Witness to begin.</div>
     <div style="margin-top:8px;font-size:9px;color:var(--text2);">
-      ⬡ Required: <code style="color:var(--cyan);">OLLAMA_ORIGINS="*" ollama serve</code>
+      ⬡ Mac setup: <code style="color:var(--cyan);">OLLAMA_ORIGINS="*" ollama serve</code> &nbsp;·&nbsp; then reload
     </div>
     <div class="log" id="ai-log" style="margin-top:10px;"></div>
   </div>
@@ -3951,7 +3951,7 @@ const AIWitness = (() => {
       return models;
     }catch(e){
       _setStatus(`✗ ${e.message}`,false);
-      _log(`Offline — run: OLLAMA_ORIGINS="*" ollama serve`,'err');
+      _log(`Ollama unreachable — on Mac run: OLLAMA_ORIGINS="*" ollama serve`,'err');
       return[];
     }
   }
@@ -4012,7 +4012,7 @@ REASONING STYLE:
       _history.push({role:'assistant',content:full});
       return full||'(empty response)';
     }catch(e){
-      const m=`Witness offline (${e.message}).\nRun: OLLAMA_ORIGINS="*" ollama serve`;
+      const m=`Ollama unreachable (${e.message}).\nMac: OLLAMA_ORIGINS="*" ollama serve\nThen reload.`;
       el.textContent=m;_log(e.message,'err');return m;
     }
   }
