@@ -702,6 +702,7 @@
       <div class="chip" id="chip-transport"><div class="dot pulse"></div><span>RELAY</span></div>
       <div class="chip" id="chip-onion"><div class="dot"></div><span>ONION</span></div>
       <div class="chip" id="chip-sw"><div class="dot pulse"></div><span>KERNEL</span></div>
+      <div class="chip" id="chip-dkernel"><div class="dot"></div><span>DKERNEL</span></div>
     </div>
 
     <div class="header-right">
@@ -719,6 +720,7 @@
       <button class="rail-btn active" data-view="network"  data-tip="Network"  onclick="UI.switchView('network',this)">⬡</button>
       <button class="rail-btn"        data-view="peers"    data-tip="Peers"    onclick="UI.switchView('peers',this)">◈</button>
       <button class="rail-btn"        data-view="messages" data-tip="Messages" onclick="UI.switchView('messages',this)">✉</button>
+      <button class="rail-btn"        data-view="dkernel"  data-tip="D.Kernel" onclick="UI.switchView('dkernel',this)">⬢</button>
       <button class="rail-btn"        data-view="connect"  data-tip="Connect"  onclick="UI.switchView('connect',this)">⟳</button>
       <button class="rail-btn"        data-view="apps"     data-tip="Apps"     onclick="UI.switchView('apps',this)">⊞</button>
       <div style="flex:1"></div>
@@ -820,6 +822,7 @@
 <script src="sovereign_security.js"></script>
   <script src="sovereign_fsm.js"></script>
   <script src="transport.js"></script>
+  <script src="sovereign_kernel.js"></script>
   <!-- ══════════════════════════════════════════════════════════════════ -->
   <script>
   'use strict';
@@ -1122,8 +1125,84 @@
         connect:  this._sbConnect,
         apps:     this._sbApps,
         identity: this._sbIdentity,
+        dkernel:  this._sbDkernel,
       };
       sb.innerHTML = (map[view] ?? map.network).call(this);
+      // If switching to dkernel view, boot the mini topology canvas
+      if (view === 'dkernel') this._startKernelCanvas();
+    },
+
+    _startKernelCanvas() {
+      // Small RAF loop for the mini cluster topology in the sidebar
+      const cv = document.getElementById('kernel-cv');
+      if (!cv) return;
+      const K = window.SovereignKernel;
+      if (!K) return;
+
+      const rect = cv.parentElement.getBoundingClientRect();
+      cv.width  = rect.width;
+      cv.height = rect.height || 120;
+      const ctx  = cv.getContext('2d');
+      let   raf2 = null, frame2 = 0;
+      const particles2 = [];
+
+      function drawKernel() {
+        frame2++;
+        const W = cv.width, H = cv.height, cx = W/2, cy = H/2;
+        ctx.clearRect(0,0,W,H);
+
+        const selfNode = { id: K.nodeId(), joinTime: K.joinTime(), role: K.role(), self: true };
+        const peerArr  = [...K.peers().values()].map(p => ({ ...p, self: false }));
+        const all      = [selfNode, ...peerArr];
+        const n        = all.length;
+        const radius   = Math.min(W,H) * 0.3;
+        const pos      = all.map((nd, i) => {
+          if (n === 1) return { ...nd, x: cx, y: cy };
+          const a = (i/n)*Math.PI*2 - Math.PI/2;
+          return { ...nd, x: cx + radius*Math.cos(a), y: cy + radius*Math.sin(a) };
+        });
+
+        // Particle bursts
+        if (frame2 % 40 === 0 && pos.length > 1) {
+          const src = pos[Math.floor(Math.random()*pos.length)];
+          const dst = pos[Math.floor(Math.random()*pos.length)];
+          if (src !== dst) particles2.push({ x:src.x, y:src.y, tx:dst.x, ty:dst.y, p:0, sp:.025+Math.random()*.02 });
+        }
+        for (let i=particles2.length-1;i>=0;i--) {
+          const p=particles2[i]; p.p+=p.sp;
+          if(p.p>=1){particles2.splice(i,1);continue;}
+          const px=p.x+(p.tx-p.x)*p.p, py=p.y+(p.ty-p.y)*p.p;
+          const a=Math.sin(p.p*Math.PI);
+          ctx.beginPath(); ctx.arc(px,py,1.5,0,Math.PI*2);
+          ctx.fillStyle=`rgba(0,232,124,${a*.8})`; ctx.fill();
+        }
+
+        // Lines
+        for(let i=0;i<pos.length;i++) for(let j=i+1;j<pos.length;j++) {
+          ctx.beginPath(); ctx.moveTo(pos[i].x,pos[i].y); ctx.lineTo(pos[j].x,pos[j].y);
+          ctx.strokeStyle='rgba(20,40,60,.8)'; ctx.lineWidth=.8; ctx.stroke();
+        }
+
+        // Nodes
+        for(const nd of pos) {
+          const { x, y, self, role, id } = nd;
+          const isLdr = (self && K.role()==='leader') || id === K.leader();
+          const r     = self ? 8 : 5;
+          ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2);
+          ctx.fillStyle   = isLdr ? 'rgba(255,208,96,.12)' : self ? 'rgba(0,232,124,.1)' : 'rgba(77,168,255,.06)';
+          ctx.strokeStyle = isLdr ? `rgba(255,208,96,${.6+.4*Math.sin(frame2*.06)})` : self ? 'rgba(0,232,124,.8)' : 'rgba(77,168,255,.5)';
+          ctx.lineWidth=1.2; ctx.fill(); ctx.stroke();
+          if(isLdr){ ctx.font='8px serif'; ctx.textAlign='center'; ctx.fillStyle='rgba(255,208,96,.9)'; ctx.fillText('♛',x,y-r-3); }
+          ctx.font='bold 7px monospace'; ctx.textAlign='center';
+          ctx.fillStyle = self?'rgba(212,232,248,.9)':'rgba(100,160,200,.6)';
+          ctx.fillText(id.slice(0,6),x,y+r+9);
+        }
+
+        // Stop when no longer in view
+        if (!document.getElementById('kernel-cv')) { cancelAnimationFrame(raf2); return; }
+        raf2 = requestAnimationFrame(drawKernel);
+      }
+      drawKernel();
     },
 
     _sbNetwork() {
@@ -1311,6 +1390,120 @@
 
           ${shares}
         </div>`;
+    },
+
+    // ── Distributed Kernel Sidebar ────────────────────────────────────────
+    _sbDkernel() {
+      const K = window.SovereignKernel;
+      if (!K) return `
+        <div class="panel-hdr"><span class="panel-title">Distributed Kernel</span></div>
+        <div class="panel-body"><div style="color:var(--text-dim);font-size:11px;padding:8px 0">
+          sovereign_kernel.js not loaded.
+        </div></div>`;
+
+      const st    = K.stats();
+      const peers = [...K.peers().values()];
+      const tasks = [...K.tasks().values()].sort((a,b) => b.created - a.created);
+
+      const roleCls = st.role === 'leader' ? 'color:var(--accent-amber)' :
+                      st.role === 'worker' ? 'color:var(--accent-green)' :
+                                             'color:var(--text-muted)';
+
+      const peerRows = peers.map(p => {
+        const isLdr = p.id === st.leader;
+        const did   = p.did ? `${p.did.slice(0,16)}…` : 'no DID';
+        return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.03)">
+          <span style="font-size:9px;color:${isLdr?'var(--accent-amber)':'var(--accent-cyan)'}">${isLdr?'♛':'◈'}</span>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:10px;color:var(--text-primary);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${sanitize(p.id)}</div>
+            <div style="font-size:9px;color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${sanitize(did)}</div>
+          </div>
+          <span style="font-size:9px;padding:1px 6px;border-radius:3px;background:rgba(0,200,255,0.08);color:var(--accent-cyan)">${sanitize(p.role||'worker')}</span>
+        </div>`;
+      }).join('');
+
+      const taskRows = tasks.slice(0,40).map(t => {
+        const sc = t.status === 'pending' ? 'color:var(--accent-amber)' :
+                   t.status === 'running' ? 'color:var(--accent-cyan)' :
+                   t.status === 'done'    ? 'color:var(--accent-green)' :
+                                            'color:var(--accent-red)';
+        const res = t.error  ? `<span style="color:var(--accent-red)">${sanitize(String(t.error).slice(0,50))}</span>` :
+                    t.result !== undefined ? `<span style="color:var(--accent-green)">${sanitize(String(t.result).slice(0,50))}</span>` : '—';
+        return `<div style="padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.025)">
+          <div style="display:flex;gap:8px;align-items:baseline">
+            <span style="font-size:9px;color:var(--text-dim);flex-shrink:0">${sanitize(t.id.slice(0,8))}</span>
+            <span style="font-size:9px;font-weight:600;${sc}">${t.status.toUpperCase()}</span>
+            <span style="font-size:9px;color:var(--accent-cyan);flex-shrink:0">${sanitize(t.worker||'—')}</span>
+            ${t.duration ? `<span style="font-size:9px;color:var(--text-dim);margin-left:auto">${t.duration.toFixed(1)}ms</span>` : ''}
+          </div>
+          <div style="font-size:9px;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px">${sanitize((t.code||'').slice(0,60))}</div>
+          <div style="font-size:9px;margin-top:1px">${res}</div>
+        </div>`;
+      }).join('');
+
+      return `
+        <div class="panel-hdr" style="display:flex;justify-content:space-between;align-items:center">
+          <span class="panel-title">Distributed Kernel</span>
+          <span style="font-size:9px;padding:1px 7px;border-radius:3px;background:rgba(255,255,255,0.05);${roleCls};font-weight:700;text-transform:uppercase">${sanitize(st.role)}</span>
+        </div>
+        <div class="panel-body" style="display:flex;flex-direction:column;gap:0">
+
+          <!-- Cluster Canvas -->
+          <div style="position:relative;height:120px;background:var(--bg-raised);border:1px solid var(--border);border-radius:4px;overflow:hidden;margin-bottom:10px;flex-shrink:0">
+            <canvas id="kernel-cv" style="width:100%;height:100%"></canvas>
+          </div>
+
+          <!-- Stats -->
+          <div class="stat-row"><span class="stat-key">Node ID</span><span class="stat-val" style="font-size:10px">${sanitize(st.nodeId)}</span></div>
+          <div class="stat-row"><span class="stat-key">Leader</span><span class="stat-val" style="color:var(--accent-amber)">${sanitize(st.leader||'—')}</span></div>
+          <div class="stat-row"><span class="stat-key">Peers in cluster</span><span class="stat-val">${st.peers}</span></div>
+          <div class="stat-row"><span class="stat-key">Tasks · done / err</span><span class="stat-val">${st.tasksCompleted} / ${st.tasksErrored}</span></div>
+          <div class="stat-row"><span class="stat-key">Channel</span><span class="stat-val muted" style="font-size:9px">${sanitize(st.channel)}</span></div>
+          <div class="stat-row"><span class="stat-key">Uptime</span><span class="stat-val">${st.uptime}s</span></div>
+
+          <!-- Dispatch -->
+          <div class="sec-lbl" style="margin-top:12px">Dispatch Task</div>
+          <textarea class="sv-textarea" id="kernel-code-in" rows="2"
+            placeholder="() => fibonacci(40)&#10;() => primes(500000)&#10;() => sha256('hello')&#10;() => uuid()"></textarea>
+          <div style="display:flex;gap:6px;margin-top:5px;flex-wrap:wrap">
+            <button class="btn btn-sm" onclick="document.getElementById('kernel-code-in').value='() => fibonacci(40)'">fib(40)</button>
+            <button class="btn btn-sm" onclick="document.getElementById('kernel-code-in').value='() => primes(500000)'">primes(500k)</button>
+            <button class="btn btn-sm" onclick="document.getElementById('kernel-code-in').value='async () => sha256(\\'sovereign\\')'">sha256</button>
+            <button class="btn btn-sm" onclick="document.getElementById('kernel-code-in').value='() => uuid()'">uuid</button>
+            <button class="btn primary" style="margin-left:auto" onclick="UI.dispatchKernelTask()">▶ Dispatch</button>
+          </div>
+
+          <!-- Peers -->
+          ${peers.length ? `
+            <div class="sec-lbl" style="margin-top:12px">Cluster Nodes (${peers.length})</div>
+            ${peerRows}
+          ` : `<div style="font-size:11px;color:var(--text-dim);margin-top:12px">No peers yet — open in another tab.</div>`}
+
+          <!-- Tasks -->
+          ${tasks.length ? `
+            <div class="sec-lbl" style="margin-top:12px">Task Log (${tasks.length})</div>
+            ${taskRows}
+          ` : `<div style="font-size:11px;color:var(--text-dim);margin-top:6px">No tasks dispatched yet.</div>`}
+
+          <!-- Force election -->
+          <div style="margin-top:14px">
+            <button class="btn danger btn-block btn-sm" onclick="window.SovereignKernel?.forceElection(); UI.renderSidebar('dkernel')">⚡ Force New Election</button>
+          </div>
+        </div>`;
+    },
+
+    dispatchKernelTask() {
+      const K    = window.SovereignKernel;
+      const code = document.getElementById('kernel-code-in')?.value?.trim();
+      if (!K || !code) { toast('Enter task code first.', 'warn'); return; }
+      try {
+        const id = K.dispatch(code);
+        toast(`▶ Task ${id.slice(0,8)} dispatched`);
+        this.audit({ type:'KERNEL_TASK', data:{ id:id.slice(0,8), by: K.nodeId() } });
+        setTimeout(() => this.renderSidebar('dkernel'), 200);
+      } catch (err) {
+        toast(`Dispatch failed: ${err.message}`, 'err');
+      }
     },
 
     // ── Vault actions ─────────────────────────────────────────────────────
@@ -1577,6 +1770,13 @@
       this.setChip('transport',T==='CONNECTED'?'ok':T==='DEGRADED'?'warn':'');
       this.setChip('onion',    O==='READY'?'ok':O==='BOOTSTRAPPING'?'warn':'');
 
+      // Distributed kernel chip
+      const KK = window.SovereignKernel;
+      if (KK) {
+        const kr = KK.role();
+        this.setChip('dkernel', kr === 'leader' ? 'ok' : kr === 'worker' ? 'ok' : 'warn');
+      }
+
       // SW ping
       SovereignKernelBridge.send({ cmd:'STATUS' }).then(s => {
         this.setChip('sw','ok');
@@ -1623,15 +1823,19 @@
 
     _renderMachineBoardInto(el, sn) {
       const machines = ['vault','kdf','identity','transport','governance','attestation','onion'];
+      // Append distributed kernel as a synthetic machine entry
+      const _kernelEntry = window.SovereignKernel
+        ? [{ name:'dkernel', state: window.SovereignKernel.role().toUpperCase() }] : [];
+      const _fsmEntries  = machines.map(m => ({ name: m, state: sn[m]?.state ?? '—' }));
+      const allMachines  = [..._fsmEntries, ..._kernelEntry];
       const cls = s => {
         if (['UNLOCKED','READY','CONNECTED','VERIFIED','RATIFIED','ACTIVE','KEYED'].includes(s)) return 's-ok';
         if (['DEGRADED','STALE','REKEYING','BOOTSTRAPPING','PROPOSED','VOTING','TALLYING','AWAITING','CHALLENGING'].includes(s)) return 's-warn';
         if (['PANICKED','FAILED','DESTROYED'].includes(s)) return 's-error';
         return 's-idle';
       };
-      el.innerHTML = machines.map(m => {
-        const st = sn[m]?.state ?? '—';
-        return `<div class="mrow"><span class="mname">${m}</span><span class="mstate ${cls(st)}">${sanitize(st)}</span></div>`;
+      el.innerHTML = allMachines.map(({ name, state: st }) => {
+        return `<div class="mrow"><span class="mname">${sanitize(name)}</span><span class="mstate ${cls(st)}">${sanitize(st)}</span></div>`;
       }).join('');
     },
 
@@ -1687,6 +1891,46 @@
     const c = document.getElementById('chip-transport');
     if (c) { c.style.opacity='0.4'; setTimeout(()=>c.style.opacity='',200); }
   });
+
+  // ── Distributed Kernel events ────────────────────────────────────────────
+
+  window.addEventListener('sovereign:kernel:elected', e => {
+    const { leaderId, role } = e.detail ?? {};
+    UI.setChip('dkernel', 'ok');
+    UI.audit({ type:'KERNEL_ELECT', data:{ leader:leaderId?.slice(0,8), role } });
+    if (S.activeView === 'dkernel') UI.renderSidebar('dkernel');
+  });
+
+  window.addEventListener('sovereign:kernel:election', e => {
+    const { phase, nodeId } = e.detail ?? {};
+    UI.audit({ type:'KERNEL_ELECTION', data:{ phase, node:nodeId?.slice(0,8) } });
+  });
+
+  window.addEventListener('sovereign:kernel:peer-joined', e => {
+    const { peerId } = e.detail ?? {};
+    UI.audit({ type:'KERNEL_PEER_JOIN', data:{ peer:peerId } });
+    if (S.activeView === 'dkernel') UI.renderSidebar('dkernel');
+  });
+
+  window.addEventListener('sovereign:kernel:peer-left', e => {
+    const { peerId, reason } = e.detail ?? {};
+    UI.audit({ type:'KERNEL_PEER_LEFT', data:{ peer:peerId, reason } });
+    if (S.activeView === 'dkernel') UI.renderSidebar('dkernel');
+  });
+
+  window.addEventListener('sovereign:kernel:task-done', e => {
+    const { task } = e.detail ?? {};
+    UI.audit({ type:'KERNEL_TASK_DONE', data:{ id:task?.id?.slice(0,8), dur:task?.duration?.toFixed(1)+'ms' } });
+    if (S.activeView === 'dkernel') UI.renderSidebar('dkernel');
+  });
+
+  window.addEventListener('sovereign:kernel:task-failed', e => {
+    const { task } = e.detail ?? {};
+    UI.audit({ type:'KERNEL_TASK_FAIL', data:{ id:task?.id?.slice(0,8), err:task?.error } });
+    if (S.activeView === 'dkernel') UI.renderSidebar('dkernel');
+  });
+
+  // ── Transport events ──────────────────────────────────────────────────────
 
   window.addEventListener('sovereign:transport:relay-connected', e => {
     UI.setChip('transport','ok');
@@ -1906,6 +2150,17 @@
     }
 
     console.log('[Sovereign OS v6.0] Genesis Node booted. 20 patterns. Real Ratchet. Real Shamir.');
+
+    // Kernel boot audit
+    setTimeout(() => {
+      const K = window.SovereignKernel;
+      if (K) {
+        UI.audit({ type:'DKERNEL_BOOT', data:{
+          node: K.nodeId(), ch: K.stats().channel,
+        }});
+        UI.setChip('dkernel','warn'); // candidate until election settles
+      }
+    }, 200);
   });
 
   </script>
