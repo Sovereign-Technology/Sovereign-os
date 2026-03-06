@@ -185,15 +185,17 @@
   function _handleBCMessage(msg) {
     if (!msg?.type || msg.did === _myDid) return;
 
-    if (msg.type === 'ANNOUNCE') {
+    if (msg.type === 'ANNOUNCE' || msg.type === 'ANNOUNCE_ACK') {
       // Register as a local peer if not already connected
       if (!_peers.has(`bc:${msg.did}`)) {
         const peer = _makePeer(`bc:${msg.did}`, msg.did, 'broadcast');
         _peers.set(peer.peerId, peer);
         _emit('peer-connected', { peerId: peer.peerId, did: msg.did, transport: 'broadcast' });
         K()?.transport?.send('PEERS_FOUND');
-        // Ack back
-        _bc?.postMessage({ type: 'ANNOUNCE_ACK', did: _myDid });
+        // Only ack to an ANNOUNCE (not to an ACK, to avoid infinite loop)
+        if (msg.type === 'ANNOUNCE') {
+          _bc?.postMessage({ type: 'ANNOUNCE_ACK', did: _myDid, nodeId: _myNodeId });
+        }
       }
     } else if (msg.type === 'MESSAGE') {
       _handleIncoming(msg.from, msg.payload, 'broadcast');

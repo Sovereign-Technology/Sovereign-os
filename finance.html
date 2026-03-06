@@ -434,7 +434,7 @@
       position: fixed; bottom: 0; left: 0; right: 0; height: 22px;
       background: rgba(3,3,6,0.97); border-top: 1px solid var(--border);
       display: flex; align-items: center; padding: 0 12px; gap: 14px;
-      font-size: 9px; color: var(--text-muted); z-index: 500;
+      font-size: 9px; color: var(--text-muted); z-index: 600;
     }
     #statusbar .sb-item { display: flex; align-items: center; gap: 4px; }
     #statusbar .sb-sep  { width: 1px; height: 12px; background: var(--border); }
@@ -539,10 +539,10 @@
 
   <!-- RAIL -->
   <nav id="rail">
-    <button class="rail-btn active" data-tip="Wallet" onclick="App.switchView('wallet',this)">◈</button>
-    <button class="rail-btn" data-tip="Send" onclick="App.switchView('send',this)">📤</button>
-    <button class="rail-btn" data-tip="AI Trio" onclick="App.switchView('trio',this)">⊛</button>
-    <button class="rail-btn" data-tip="Ledger" onclick="App.switchView('ledger',this)">⬡</button>
+    <button class="rail-btn active" data-tip="wallet" onclick="App.switchView('wallet',this)">◈</button>
+    <button class="rail-btn" data-tip="send" onclick="App.switchView('send',this)">📤</button>
+    <button class="rail-btn" data-tip="trio" onclick="App.switchView('trio',this)">⊛</button>
+    <button class="rail-btn" data-tip="ledger" onclick="App.switchView('ledger',this)">⬡</button>
     <div style="flex:1"></div>
     <button class="rail-btn" data-tip="Back to OS" onclick="location.href='index.html'">⟵</button>
   </nav>
@@ -735,8 +735,81 @@ if (typeof window.sanitize === 'undefined') {
     catch(_) { return s.replace(/<[^>]*>/g,''); }
   };
 }
-if (typeof window.SovereignKernelBridge === 'undefined') {
-  window.SovereignKernelBridge = { send: () => Promise.reject(new Error('Kernel unavailable')) };
+// ── Full in-page crypto shim for finance.html ─────────────────────────────
+// When no Service Worker is running (file:// mode or first load), this shim
+// reads the vault stored by genesis node (localStorage key: sov_vault_shim)
+// and provides ATTEST, SIGN, VERIFY, STATUS for the finance page.
+// Key material stays in module-scoped closure — never touches DOM.
+if (typeof window.SovereignKernelBridge === 'undefined' ||
+    window.SovereignKernelBridge.send.toString().includes('Kernel unavailable')) {
+
+  const _finShim = (() => {
+    const _b64  = buf => btoa(String.fromCharCode(...new Uint8Array(buf)));
+    const _b64d = s   => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+    const _hex  = buf => Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+
+    let _sigKey = null, _did = null, _pubB64 = null, _locked = true;
+
+    async function _tryAutoUnlock() {
+      // Attempt to auto-unlock using the stored vault (already decrypted session).
+      // We can't re-derive the wrap key without the passphrase here,
+      // so we only populate from an already-unlocked window state.
+      if (window._SOVEREIGN_SHIM_KEYS) {
+        _sigKey = window._SOVEREIGN_SHIM_KEYS.sigKey;
+        _did    = window._SOVEREIGN_SHIM_KEYS.did;
+        _pubB64 = window._SOVEREIGN_SHIM_KEYS.pubKey;
+        _locked = false;
+      }
+    }
+
+    return {
+      async send(c) {
+        if (c.cmd === 'STATUS') {
+          return {
+            vaultLocked: _locked,
+            did: _did,
+            pubKey: _pubB64,
+            patterns: 20, ratchets: 0, auditEntries: 0,
+          };
+        }
+        if (c.cmd === 'ATTEST') {
+          if (_locked || !_sigKey) return { error: 'NOT_READY' };
+          const pl  = JSON.stringify({ did: _did, nonce: c.nonce, ts: Date.now() });
+          const sig = await crypto.subtle.sign(
+            { name:'ECDSA', hash:'SHA-256' }, _sigKey, new TextEncoder().encode(pl)
+          );
+          return { event: 'ATTESTED', payload: pl, signature: _b64(sig), pubKey: _pubB64 };
+        }
+        if (c.cmd === 'SIGN') {
+          if (_locked || !_sigKey) return { error: 'VAULT_LOCKED' };
+          const sig = await crypto.subtle.sign(
+            { name:'ECDSA', hash:'SHA-256' }, _sigKey, new TextEncoder().encode(c.message)
+          );
+          return { event: 'SIGNED', signature: _b64(sig), pubKey: _pubB64 };
+        }
+        if (c.cmd === 'VERIFY') {
+          try {
+            const pubKey = await crypto.subtle.importKey(
+              'raw', _b64d(c.pubKey), { name:'ECDSA', namedCurve:'P-256' }, false, ['verify']
+            );
+            const ok = await crypto.subtle.verify(
+              { name:'ECDSA', hash:'SHA-256' }, pubKey, _b64d(c.signature),
+              new TextEncoder().encode(c.message)
+            );
+            return { verified: ok };
+          } catch(_) { return { verified: false }; }
+        }
+        // For commands that need the full kernel, return graceful fallback
+        console.warn('[Finance shim] Unhandled command:', c.cmd);
+        return { error: `Command not available in finance shim: ${c.cmd}` };
+      },
+      _unlock(sigKey, did, pubKey) {
+        _sigKey = sigKey; _did = did; _pubB64 = pubKey; _locked = false;
+      },
+    };
+  })();
+
+  window.SovereignKernelBridge = _finShim;
 }
 
 // ── SHA-256 ───────────────────────────────────────────────────────────────
@@ -803,7 +876,7 @@ const DB = (() => {
 const W = {
   did: null,
   pubKey: null,
-  balances: { root: 100, teammate: 0, witness: 0, validator: 0 },
+  balances: { root: 0, teammate: 0, witness: 0, validator: 0 },
   txnHistory: [],
   stats: { converged: 0, deadlocks: 0, policyBlocked: 0 },
   agentEarned: { teammate: 0, witness: 0, validator: 0 },
@@ -814,10 +887,10 @@ async function loadWallet(did) {
   try {
     const saved = await DB.get('wallet_' + did);
     if (saved) {
-      W.balances    = saved.balances    ?? W.balances;
+      W.balances    = saved.balances    ?? { root: 0, teammate: 0, witness: 0, validator: 0 };
       W.txnHistory  = saved.txnHistory  ?? [];
-      W.stats       = saved.stats       ?? W.stats;
-      W.agentEarned = saved.agentEarned ?? W.agentEarned;
+      W.stats       = saved.stats       ?? { converged: 0, deadlocks: 0, policyBlocked: 0 };
+      W.agentEarned = saved.agentEarned ?? { teammate: 0, witness: 0, validator: 0 };
     }
     Audit.log('WALLET_LOAD', { did: did.slice(-12), balance: W.balances.root });
   } catch(e) {
@@ -1059,7 +1132,7 @@ const Trio = {
       W.stats.converged++;
       // Broadcast settlement to connected peers over transport
       if (window.SovereignTransport) {
-        SovereignTransport.broadcast({ type: 'SOVEREIGN_TXN', outcome, hash: txnHash, from: W.did, to, amount, sig });
+        SovereignTransport.broadcast({ type: 'SOVEREIGN_TXN', outcome, hash: txnHash, from: W.did, to, amount, sig, senderPubKey: W.pubKey, ts: Date.now() });
       }
     } else {
       W.stats.deadlocks++;
@@ -1302,11 +1375,33 @@ window.addEventListener('sovereign:transport:peer-disconnected', e => {
 });
 
 // Receive incoming SVR transactions from peers
-window.addEventListener('sovereign:transport:message', e => {
+window.addEventListener('sovereign:transport:message', async e => {
   const { from, payload } = e.detail ?? {};
   if (!payload || payload.type !== 'SOVEREIGN_TXN') return;
   if (payload.to !== W.did) return; // not for us
   if (payload.outcome !== 'CONVERGED') return;
+  if (!payload.amount || payload.amount <= 0) return;
+
+  // Verify the sender's signature before crediting
+  let sigValid = false;
+  if (payload.sig && payload.senderPubKey) {
+    try {
+      const res = await SovereignKernelBridge.send({
+        cmd: 'VERIFY',
+        pubKey: payload.senderPubKey,
+        signature: payload.sig,
+        message: JSON.stringify({ hash: payload.hash, outcome: payload.outcome, from: payload.from, to: payload.to, amount: payload.amount, ts: payload.ts }),
+      });
+      sigValid = res.verified === true;
+    } catch(_) { sigValid = false; }
+  }
+
+  if (!sigValid) {
+    Audit.log('TXN_RECV_REJECTED', { from: from?.slice(-12), reason: 'invalid_signature', amount: payload.amount });
+    toast(`⚠ Rejected incoming TXN — signature invalid`, 'err', 5000);
+    return;
+  }
+
   W.balances.root += payload.amount;
   W.stats.converged++;
   W.txnHistory.unshift({
@@ -1316,7 +1411,7 @@ window.addEventListener('sovereign:transport:message', e => {
   });
   saveWallet();
   App.updateUI();
-  Audit.log('TXN_RECV', { from: from?.slice(-12), amount: payload.amount });
+  Audit.log('TXN_RECV', { from: from?.slice(-12), amount: payload.amount, sigValid });
   Ledger.add('TXN', `+${payload.amount} SVR received`, `from: ${(payload.from??'').slice(0,24)}…`);
   toast(`💰 +${payload.amount} SVR received from ${(from??'?').slice(-8)}`);
 });
@@ -1324,6 +1419,11 @@ window.addEventListener('sovereign:transport:message', e => {
 // ── IDENTITY INTEGRATION ──────────────────────────────────────────────────
 async function onIdentityReady(did) {
   W.did = did;
+  // Fetch pubKey so outgoing TXN broadcasts include it for recipient verification
+  try {
+    const res = await SovereignKernelBridge.send({ cmd: 'GET_PUBKEY' });
+    W.pubKey = res?.pubKey ?? null;
+  } catch(_) { W.pubKey = null; }
   document.getElementById('identity-gate')?.classList.add('hidden');
   setChip('identity', 'ok');
   await loadWallet(did);
@@ -1334,8 +1434,101 @@ async function onIdentityReady(did) {
   setTimeout(() => Ollama.connect(), 800);
 }
 
-// Check if identity already unlocked (returning from another page)
-const existingDid = window.SOVEREIGN_DID ?? sessionStorage.getItem('sovereign_did') ?? localStorage.getItem('sovereign_did');
+// ── SW bridge for HTTPS serving ───────────────────────────────────────────
+// If a Service Worker is running (HTTPS mode), wire up the KernelBridge here
+// so ATTEST, SIGN, etc. work without re-registering from index.html.
+(async () => {
+  if (typeof window.SovereignKernelBridge !== 'undefined' &&
+      'serviceWorker' in navigator && location.protocol !== 'file:') {
+    try {
+      const reg = await navigator.serviceWorker.getRegistration('./');
+      if (reg?.active) {
+        window.SovereignKernelBridge = {
+          async send(cmd) {
+            const sw = reg.active;
+            return new Promise((resolve, reject) => {
+              const mc = new MessageChannel();
+              mc.port1.onmessage = (e) => resolve(e.data);
+              mc.port1.onmessageerror = reject;
+              sw.postMessage(cmd, [mc.port2]);
+            });
+          }
+        };
+        setChip('identity', 'ok');
+        Audit.log('SW_BRIDGE', { scope: reg.scope });
+      }
+    } catch(_) {}
+  }
+})();
+
+// ── In-page unlock for file:// mode ──────────────────────────────────────
+// When running file://, the index.html shim stored the vault in localStorage.
+// Finance can perform its own ATTEST using the same stored vault if the user
+// can re-enter their passphrase. We expose a minimal gate for this.
+(async () => {
+  if (location.protocol === 'file:' || location.origin === 'null') {
+    // The full shim in finance.html (set above) reads _SOVEREIGN_SHIM_KEYS.
+    // index.html sets window._SOVEREIGN_SHIM_KEYS when the vault is unlocked
+    // (within the same tab session — cross-page navigation loses this).
+    // For cross-page file:// navigation, we surface an inline passphrase
+    // prompt inside the identity gate card.
+    const gate = document.getElementById('identity-gate');
+    const gateCard = gate?.querySelector('.gate-card');
+    if (gate && gateCard && !window._SOVEREIGN_SHIM_KEYS) {
+      const stored = localStorage.getItem('sov_vault_shim');
+      if (stored) {
+        // Vault exists — offer inline unlock
+        const b64d = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+        const b64  = buf => btoa(String.fromCharCode(...new Uint8Array(buf)));
+        const hex  = buf => Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+        gateCard.innerHTML = `
+          <div class="gate-icon">⬡</div>
+          <div class="gate-title">Unlock Finance</div>
+          <div class="gate-sub">Enter your Sovereign passphrase to continue.</div>
+          <input type="password" id="fin-pass" placeholder="Passphrase…"
+            style="width:100%;padding:9px 11px;background:var(--bg-input);border:1px solid var(--border);
+            border-radius:4px;color:var(--text-primary);font-family:var(--font-mono);font-size:12px;
+            outline:none;margin-bottom:10px;box-sizing:border-box;">
+          <div id="fin-gate-msg" style="font-size:10px;color:var(--accent-red);min-height:16px;margin-bottom:8px"></div>
+          <button class="btn primary btn-block" id="fin-unlock-btn">↑ Unlock</button>
+          <a href="index.html" class="btn btn-block" style="margin-top:8px;display:flex;justify-content:center">← Genesis Node</a>`;
+
+        async function finUnlock() {
+          const pass = document.getElementById('fin-pass')?.value;
+          const msg  = document.getElementById('fin-gate-msg');
+          if (!pass) return;
+          if (msg) msg.textContent = 'Unlocking…';
+          try {
+            const vault = JSON.parse(stored);
+            const salt  = b64d(vault.salt);
+            const rawKm = await crypto.subtle.importKey('raw', new TextEncoder().encode(pass), 'PBKDF2', false, ['deriveKey']);
+            const wk    = await crypto.subtle.deriveKey(
+              { name:'PBKDF2', salt, hash:'SHA-256', iterations:310_000 },
+              rawKm, { name:'AES-GCM', length:256 }, false, ['decrypt']
+            );
+            const pt     = await crypto.subtle.decrypt({ name:'AES-GCM', iv:b64d(vault.iv) }, wk, b64d(vault.ct));
+            const bundle = JSON.parse(new TextDecoder().decode(pt));
+            const sigKey = await crypto.subtle.importKey('pkcs8', b64d(bundle.sigPriv),
+              { name:'ECDSA', namedCurve:'P-256' }, false, ['sign']);
+            // Wire the shim
+            if (window.SovereignKernelBridge?._unlock) {
+              window.SovereignKernelBridge._unlock(sigKey, bundle.did, bundle.pubKey);
+            }
+            await onIdentityReady(bundle.did);
+          } catch(e) {
+            const msg2 = document.getElementById('fin-gate-msg');
+            if (msg2) msg2.textContent = 'Wrong passphrase.';
+          }
+        }
+        document.getElementById('fin-unlock-btn')?.addEventListener('click', finUnlock);
+        document.getElementById('fin-pass')?.addEventListener('keydown', e => { if(e.key==='Enter') finUnlock(); });
+      }
+    }
+  }
+})();
+
+// Check if identity already unlocked (from same session or sessionStorage)
+const existingDid = window.SOVEREIGN_DID ?? sessionStorage.getItem('sovereign_did');
 if (existingDid) {
   onIdentityReady(existingDid);
 } else {

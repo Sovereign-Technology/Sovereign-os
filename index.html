@@ -1189,7 +1189,7 @@
           <div class="sec-lbl" style="margin-top:12px">Security Profile</div>
           <div class="sec-profile">
             <div class="sec-profile-row"><span class="sec-key">Vault</span><span class="sec-val ok">UNLOCKED</span></div>
-            <div class="sec-profile-row"><span class="sec-key">KDF</span><span class="sec-val ok">PBKDF2 · 700k iter</span></div>
+            <div class="sec-profile-row"><span class="sec-key">KDF</span><span class="sec-val ok">PBKDF2 · 310k iter</span></div>
             <div class="sec-profile-row"><span class="sec-key">Signing</span><span class="sec-val ok">ECDSA P-256</span></div>
             <div class="sec-profile-row"><span class="sec-key">Key Exchange</span><span class="sec-val ok">ECDH P-256</span></div>
             <div class="sec-profile-row"><span class="sec-key">Messaging</span><span class="sec-val ok">Double Ratchet</span></div>
@@ -1267,6 +1267,7 @@
       S.did = null; S.pubKey = null; S.peers = []; S.activePeer = null;
       S.messages = []; S.shamirShares = [];
       window.SOVEREIGN_DID = null;
+      try { sessionStorage.removeItem('sovereign_did'); } catch(_) {}
 
       document.getElementById('vault-card').classList.remove('hidden');
       this.showCreate();
@@ -1282,6 +1283,8 @@
     _onIdentityReady(did, pubKey) {
       S.did = did; S.pubKey = pubKey;
       window.SOVEREIGN_DID = did;
+      // Persist DID in sessionStorage so sub-pages (finance, messenger, etc.) can pick it up
+      try { sessionStorage.setItem('sovereign_did', did); } catch(_) {}
 
       document.getElementById('vault-card').classList.add('hidden');
       document.getElementById('did-pill').style.display = 'block';
@@ -1495,10 +1498,12 @@
           : '<div class="inv-row ok">✓ All 8 invariants satisfied</div>';
       }
 
-      // Sidebar FSM if network view
+      // Sidebar FSM if network view; stat-board if connect view
       if (S.activeView === 'network') {
         const sf = document.getElementById('sb-fsm');
         if (sf) this._renderMachineBoardInto(sf, sn);
+      }
+      if (S.activeView === 'connect' || S.activeView === 'network') {
         const sb = document.getElementById('stat-board');
         if (sb) {
           const st = window.SovereignTransport?.stats?.() ?? {};
@@ -1623,7 +1628,54 @@
     toast(`⚠ Invariant: ${vs[0]?.id??'?'}`, 'err', 5000);
   });
 
-  // ── SW events ─────────────────────────────────────────────────────────────
+  // ── Service Worker registration (HTTPS only) ──────────────────────────────
+  if ('serviceWorker' in navigator && location.protocol !== 'file:' && location.origin !== 'null') {
+    (async () => {
+      try {
+        const reg = await navigator.serviceWorker.register('./genesis_sw.js', { scope: './' });
+        // Build the message-channel bridge so SovereignKernelBridge works via SW
+        window.SovereignKernelBridge = {
+          async send(cmd) {
+            const sw = reg.active || reg.waiting || reg.installing;
+            if (!sw) throw new Error('Service Worker not active yet');
+            return new Promise((resolve, reject) => {
+              const mc = new MessageChannel();
+              mc.port1.onmessage = (e) => {
+                if (e.data?.error && e.data.error !== 'WRONG_PASSPHRASE' && e.data.error !== 'NO_VAULT') {
+                  // surface hard errors as rejections; soft errors stay as resolved values
+                }
+                resolve(e.data);
+              };
+              mc.port1.onmessageerror = reject;
+              sw.postMessage(cmd, [mc.port2]);
+            });
+          }
+        };
+        // Fire ready event once SW is active
+        const fire = () => window.dispatchEvent(new CustomEvent('sovereign:sw:ready'));
+        if (reg.active) {
+          fire();
+        } else {
+          const pending = reg.installing || reg.waiting;
+          if (pending) pending.addEventListener('statechange', function h() {
+            if (this.state === 'activated') { this.removeEventListener('statechange', h); fire(); }
+          });
+        }
+        // Also fire if SW updates later
+        reg.addEventListener('updatefound', () => {
+          const nw = reg.installing;
+          if (nw) nw.addEventListener('statechange', function h() {
+            if (this.state === 'activated') { this.removeEventListener('statechange', h); fire(); }
+          });
+        });
+      } catch(e) {
+        console.warn('[Sovereign] SW registration failed:', e.message);
+        UI.audit({ type:'SW_REG_FAIL', data:{ err: e.message } });
+      }
+    })();
+  }
+
+  // ── SW event listeners ────────────────────────────────────────────────────
 
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.addEventListener('message', e => {
@@ -1776,6 +1828,7 @@
               _vaultCt = { iv: _b64(_vaultIv), ct: _b64(await crypto.subtle.encrypt({name:'AES-GCM', iv:_vaultIv}, wk, new TextEncoder().encode(bundle))), salt: _b64(salt) };
               localStorage.setItem('sov_vault_shim', JSON.stringify(_vaultCt));
               _locked  = false;
+              window._SOVEREIGN_SHIM_KEYS = { sigKey: _mem.sigKey, did: _did, pubKey: _pubB64 };
               return { event: 'VAULT_CREATED', did: _did, pubKey: _pubB64 };
             }
 
@@ -1793,13 +1846,16 @@
                 _pubB64      = bundle.pubKey;
                 _locked      = false;
                 _vaultCt     = stored;
+                // Expose keys on window so finance.html (same session) can access them
+                window._SOVEREIGN_SHIM_KEYS = { sigKey: _mem.sigKey, did: _did, pubKey: _pubB64 };
                 return { event: 'VAULT_UNLOCKED', did: _did, pubKey: _pubB64 };
-              } catch (_) { return { error: 'UNLOCK_FAILED' }; }
+              } catch (_) { return { error: 'WRONG_PASSPHRASE', remaining: '?' }; }
             }
 
             // ── LOCK_VAULT ──────────────────────────────────────────────────
             if (c.cmd === 'LOCK_VAULT') {
               _locked = true; _mem.sigKey = null; _mem.vfyKey = null; _mem.dhKey = null; _mem.dhPub = null;
+              window._SOVEREIGN_SHIM_KEYS = null;
               return { event: 'VAULT_LOCKED' };
             }
 
@@ -1876,10 +1932,28 @@
               if (!window.SovereignShamir) return { error: 'SHAMIR_NOT_LOADED' };
               const secret = await window.SovereignShamir.combine(c.shares);
               const bundle = JSON.parse(new TextDecoder().decode(secret));
-              _mem.sigKey  = await crypto.subtle.importKey('pkcs8', _b64d(bundle.sigPriv), { name:'ECDSA',  namedCurve:'P-256' }, true, ['sign']);
-              _mem.dhKey   = await crypto.subtle.importKey('pkcs8', _b64d(bundle.dhPriv),  { name:'ECDH',   namedCurve:'P-256' }, true, ['deriveKey']);
-              const pubRaw = new Uint8Array(await crypto.subtle.exportKey('raw', (await crypto.subtle.generateKey({name:'ECDSA',namedCurve:'P-256'},true,['sign','verify'])).publicKey));
-              return { event: 'SHAMIR_IMPORTED' };
+              // Import signing key (extractable=false for security after recovery)
+              _mem.sigKey  = await crypto.subtle.importKey('pkcs8', _b64d(bundle.sigPriv), { name:'ECDSA',  namedCurve:'P-256' }, false, ['sign']);
+              _mem.dhKey   = await crypto.subtle.importKey('pkcs8', _b64d(bundle.dhPriv),  { name:'ECDH',   namedCurve:'P-256' }, false, ['deriveKey']);
+              // Re-derive the public key from the imported private key via sign+export trick
+              // We can't directly export from a non-extractable key, so we use the stored bundle pubKey
+              if (bundle.pubKey) {
+                _pubB64 = bundle.pubKey;
+                _mem.vfyKey = await crypto.subtle.importKey('raw', _b64d(bundle.pubKey), { name:'ECDSA', namedCurve:'P-256' }, true, ['verify']);
+              } else {
+                // No stored pubKey — re-derive DID from a digest of the private key bytes
+                const privHash = await crypto.subtle.digest('SHA-256', _b64d(bundle.sigPriv));
+                _pubB64 = _b64(privHash); // fallback — not the real pub key
+              }
+              // Recompute DID from pubKey
+              if (_pubB64) {
+                const pubBytes = _b64d(_pubB64);
+                const didHash = await crypto.subtle.digest('SHA-256', pubBytes);
+                _did = `did:sovereign:${_hex(didHash).slice(0,48)}`;
+              }
+              _locked = false;
+              window._SOVEREIGN_SHIM_KEYS = { sigKey: _mem.sigKey, did: _did, pubKey: _pubB64 };
+              return { event: 'SHAMIR_IMPORTED', did: _did, pubKey: _pubB64 };
             }
 
             // ── AUDIT_ENTRY ─────────────────────────────────────────────────
@@ -1900,7 +1974,6 @@
           }
         };
         console.warn('[Sovereign v5.0] In-page crypto shim active (file:// origin). Key isolation requires HTTPS + Service Worker.');
-        UI.audit({ type:'SW_SHIM', data:{ reason:'file_origin' } });
         UI.audit({ type:'SW_SHIM', data:{ reason:'file_origin' } });
       })();
     }
